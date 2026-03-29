@@ -383,7 +383,7 @@ const EMOJI_CATEGORY_DEFAULTS = {
 
 const FILTER_LABELS = [
   { id: 'all', label: '🍱 Tous' },
-  { id: 'selected', label: '✅ Sélectionnés', cls: 'stock' },
+  { id: 'en-stock', label: '✅ En-Stock', cls: 'stock' },
   { id: 'cart', label: '🛒 Liste courses', cls: 'terra' },
   { id: 'pinned', label: '📌 Épinglés' },
   { id: 'frozen', label: '❄️ Surgelés' },

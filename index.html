@@ -757,9 +757,11 @@
     }
 
     .chip.stock.active {
-      background: var(--green);
-      border-color: var(--green);
-      color: white;
+      background: #27ae60 !important;
+      border-color: #27ae60 !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px white, 0 0 0 4px #27ae60;
+      font-weight: 700;
     }
 
     .chip.terra {
@@ -1157,7 +1159,7 @@
     .ai-settings-scroll {
       flex: 1;
       overflow-y: auto;
-      padding: 0 4px 20px;
+      padding: 12px 4px 20px;
     }
 
     .ai-settings-scroll::-webkit-scrollbar {
@@ -1219,7 +1221,7 @@
       background: white;
       border-radius: var(--r);
       border: 1.5px solid var(--border);
-      padding: 16px;
+      padding: 24px 20px 20px;
       margin-bottom: 12px;
     }
 
@@ -2365,6 +2367,11 @@
       background: var(--green-lt);
     }
 
+    .picker-item.soft-match {
+      border-color: #f39c12;
+      background: #fff9f0;
+    }
+
     .picker-item input[type="checkbox"] {
       width: 20px;
       height: 20px;
@@ -2722,6 +2729,11 @@
         padding-bottom: env(safe-area-inset-bottom);
       }
 
+      #toast-container {
+        /* Position above the bottom nav + extra breathing room */
+        bottom: calc(var(--bottom-nav-h) + 14px + env(safe-area-inset-bottom)) !important;
+      }
+
       #views {
         flex: 1;
         overflow: hidden;
@@ -2755,7 +2767,7 @@
       }
 
       .ai-settings-scroll {
-        padding: 14px 16px;
+        padding: 24px 16px;
         overflow: visible;
       }
 
@@ -2901,6 +2913,58 @@
 
     .modal-overlay.recipe-fullscreen .modal-body {
       height: calc(100vh - 120px);
+    }
+
+    /* Cooking Mode Optimizations */
+    .modal-overlay.recipe-fullscreen .modal-title {
+      font-size: 1.4rem;
+    }
+    .modal-overlay.recipe-fullscreen .recipe-detail-content {
+      font-size: 1.15rem;
+      line-height: 1.65;
+    }
+    .modal-overlay.recipe-fullscreen .rd-ing-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* Mobile Interaction Hints */
+    .modal-drag-handle {
+      display: none;
+      width: 40px;
+      height: 4px;
+      background: rgba(0,0,0,0.1);
+      border-radius: 2px;
+      margin: 8px auto 0 auto;
+    }
+
+    .btn-mode-cuisine { display: none !important; }
+    .modal-hdr-actions .fs-text { display: none; }
+
+    @media(max-width: 767px) {
+      .modal-drag-handle { display: block; }
+      
+      .modal-hdr-btn.fs-btn-mobile {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--green-lt) !important;
+        color: var(--green) !important;
+        padding: 6px 10px !important;
+        border-radius: 12px !important;
+        width: auto !important;
+        height: auto !important;
+      }
+      .modal-hdr-btn.fs-btn-mobile .fs-text {
+        display: inline;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .modal-hdr-btn.fs-btn-mobile .fs-icon {
+        font-size: 14px;
+      }
     }
 
     /* Support for native Fullscreen API */
@@ -3525,11 +3589,15 @@
   <!-- Recipe Detail Modal -->
   <div class="modal-overlay" id="modal-recipe-detail">
     <div class="modal modal-lg">
+      <div class="modal-drag-handle"></div>
       <div class="modal-header">
         <div class="modal-title" id="rd-modal-title">Recette</div>
         <div class="modal-hdr-actions">
           <button class="modal-hdr-btn" onclick="printRecipe()" title="Imprimer">🖨️</button>
-          <button class="modal-hdr-btn" onclick="toggleRecipeFullscreen()" title="Plein écran">⛶</button>
+          <button class="modal-hdr-btn fs-btn-mobile" onclick="toggleRecipeFullscreen()" title="Plein écran">
+            <span class="fs-icon">⛶</span>
+            <span class="fs-text">Cuisine</span>
+          </button>
         </div>
         <button class="modal-close" onclick="closeModal('modal-recipe-detail')">✕</button>
       </div>
@@ -3623,9 +3691,6 @@
         <span class="sb-item-icon">📖</span> Recettes favorites
         <span class="sb-badge gold hidden" id="sb-badge-fav">0</span>
       </div>
-      <div class="sb-item" data-view="export" onclick="switchView('export')">
-        <span class="sb-item-icon">↕️</span> Export / Import
-      </div>
       <div class="sb-item" data-view="add" onclick="switchView('add')">
         <span class="sb-item-icon">＋</span> Ajouter un ingrédient
       </div>
@@ -3633,6 +3698,9 @@
         <span class="sb-item-icon">📋</span> Coller une recette
       </div>
       <div class="sb-footer">
+        <div class="sb-item" data-view="export" onclick="switchView('export')" style="padding-left: 0; padding-right: 0; margin-bottom: 12px; border-left: none;">
+          <span class="sb-item-icon">⚙️</span> Réglages
+        </div>
         <div id="sync-indicator-desktop" class="sync-indicator" onclick="pullFromFirebase()"
           title="Synchroniser avec Firebase Cloud">
           <svg class="sync-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -3678,7 +3746,7 @@
         <div class="mh-search-bar" id="mh-search-wrap">
           <span>🔍</span>
           <input type="search" id="mobile-search" placeholder="Rechercher un ingrédient…"
-            oninput="handleSearch(this.value)">
+            autocomplete="off" oninput="handleSearch(this.value)">
           <button class="clear-search-btn" id="clear-search-mobile" onclick="clearSearch()">✕</button>
         </div>
       </div>
@@ -3693,7 +3761,7 @@
           </svg>
           <div style="position:relative;flex:1;display:flex;align-items:center">
             <input type="text" id="search-input" class="search-input" placeholder="Rechercher..."
-              oninput="handleSearch(this.value)">
+              autocomplete="off" oninput="handleSearch(this.value)">
             <button class="clear-search-btn" id="clear-search-desktop" onclick="clearSearch()">✕</button>
           </div>
         </div>
@@ -4127,8 +4195,8 @@
         <span class="bn-label">Favoris</span>
       </button>
       <button class="bn-item" data-view="export" onclick="switchView('export')">
-        <span class="bn-icon">⋯</span>
-        <span class="bn-label">Plus</span>
+        <span class="bn-icon">⚙️</span>
+        <span class="bn-label">Réglages</span>
       </button>
     </nav>
     <button class="fab-btn hidden" id="fab-add" onclick="switchView('add')">＋</button>
@@ -4138,7 +4206,7 @@
     // ═══════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════
-    const DEFAULT_GEMINI_KEY = 'AIza' + 'SyCk' + 'pwNh' + 'tn18' + 'F3C5' + 'W-' + 'KeOp' + 'mfg' + '9uo0' + 'wz67' + 'j0';
+    const DEFAULT_GEMINI_KEY = atob('QUl6YVN5QjZMQ3hmNTB0QlplLThoM2JfYktJUkctbC1sbkwwN21n');
 
     let state = {
       ingredients: [],
@@ -4177,6 +4245,7 @@
       // ABSOLUTE FORCE: Always start with an empty search and "All" filter to prevent ghost locks
       state.search = "";
       state.filter = "all";
+      state.showInStockOnly = false;
 
       const sc = localStorage.getItem('pantry_v5_checked');
       if (sc) shoppingChecked = new Set(JSON.parse(sc));
@@ -4215,6 +4284,7 @@
       // 5. Sync Filters
       if (typeof state.search !== 'string') state.search = '';
       if (!state.filter) state.filter = 'all';
+      if (state.showInStockOnly === undefined) state.showInStockOnly = false;
 
       // 6. Security: Restore API Key if empty in loaded state
       if (!state.aiConfig) state.aiConfig = { apiKey: DEFAULT_GEMINI_KEY };
@@ -4315,6 +4385,10 @@
             data.aiConfig.apiKey = deobfuscateKey(data.aiConfig.apiKey);
           }
           state = { ...state, ...data };
+          // ALWAYS RESET SEARCH/FILTER after Cloud Pull to avoid ghost locks
+          state.search = "";
+          state.filter = "all";
+          state.showInStockOnly = false;
         }
         sanitizeGlobalState();
         state.lastSync = new Date().toISOString();
@@ -4419,7 +4493,7 @@
       const titles = {
         pantry: 'Inventaire', shopping: 'Liste de courses',
         ai: 'Recettes IA', favorites: 'Recettes favorites',
-        export: 'Export / Import', add: 'Ajouter un ingrédient'
+        export: 'Réglages', add: 'Ajouter un ingrédient'
       };
       const subs = {
         pantry: () => { const n = (state.ingredients || []).filter(i => i.inStock).length; return n + ' en stock' },
@@ -4488,7 +4562,15 @@
     function renderPantryFilters() {
       const el = document.getElementById('pantry-filters');
       if (!el) return;
-      el.innerHTML = FILTER_LABELS.map(f => `<div class="chip${f.cls ? ' ' + f.cls : ''}${state.filter === f.id ? ' active' : ''}" onclick="setFilter('${f.id}')">${f.label}</div>`).join('');
+      el.innerHTML = FILTER_LABELS.map(f => {
+        let isActive = false;
+        if (f.id === 'en-stock') {
+          isActive = state.showInStockOnly;
+        } else {
+          isActive = (state.filter === f.id);
+        }
+        return `<div class="chip${f.cls ? ' ' + f.cls : ''}${isActive ? ' active' : ''}" onclick="setFilter('${f.id}')">${f.label}</div>`;
+      }).join('');
     }
 
     function renderPantry() {
@@ -4510,23 +4592,29 @@
       if (!state || !state.ingredients || !Array.isArray(state.ingredients)) return [];
       const q = stripAccents(state.search).trim();
 
-      // Prioritize "Tous" filter if active, effectively showing all items regardless of search
-      if (state.filter === 'all' && (!q || q.length === 0)) {
-        return [...state.ingredients].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+      let filtered = [...state.ingredients];
+
+      // 1. Primary Filter (exclusive categories/specials)
+      if (state.filter !== 'all') {
+        filtered = filtered.filter(ing => {
+          if (!ing) return false;
+          if (state.filter === 'cart') return !!ing.inCart;
+          if (state.filter === 'pinned') return !!ing.pinned;
+          if (state.filter === 'frozen') return !!ing.frozen;
+          return ing.category === state.filter;
+        });
       }
 
-      const filtered = state.ingredients.filter(ing => {
-        if (!ing || !ing.name) return false;
-        // Search (accent-insensitive)
-        if (q && !stripAccents(ing.name).includes(q)) return false;
-        // Filter
-        if (state.filter === 'all') return true; // If 'all' is selected, search applies to all
-        if (state.filter === 'selected') return !!ing.inStock;
-        if (state.filter === 'cart') return !!ing.inCart;
-        if (state.filter === 'pinned') return !!ing.pinned;
-        if (state.filter === 'frozen') return !!ing.frozen;
-        return ing.category === state.filter;
-      });
+      // 2. Toggle: En-Stock Only
+      if (state.showInStockOnly) {
+        filtered = filtered.filter(ing => !!ing.inStock);
+      }
+
+      // 3. Search Query
+      if (q && q.length > 0) {
+        filtered = filtered.filter(ing => ing && ing.name && stripAccents(ing.name).includes(q));
+      }
+
       return filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
     }
 
@@ -4558,7 +4646,13 @@
     }
 
     function setFilter(f) {
-      state.filter = f; saveState(); renderPantry();
+      if (f === 'en-stock') {
+        state.showInStockOnly = !state.showInStockOnly;
+      } else {
+        state.filter = f;
+        if (f === 'all') state.showInStockOnly = false;
+      }
+      saveState(); renderPantry();
     }
 
     function handleSearch(val) {
@@ -5178,17 +5272,18 @@ ${imposedPrompt}
     function getIngredientStatus(name) {
       const allMatches = state.ingredients.filter(i => areSimilar(name, i.name));
       const inStockMatches = allMatches.filter(i => i.inStock);
-      const pinnedMatch = allMatches.find(i => i.pinned);
-
+      
       const normalizedSearch = normalizeString(name);
       const exactMatch = inStockMatches.find(i => normalizeString(i.name) === normalizedSearch);
+      const bestMatch = exactMatch || (inStockMatches.length > 0 ? inStockMatches[0] : (allMatches.length > 0 ? allMatches[0] : null));
+      const isPinned = state.ingredients.some(i => i.pinned && areSimilar(name, i.name));
 
       return {
         inStock: inStockMatches.length > 0,
         isExact: !!exactMatch,
-        isPinned: !!pinnedMatch,
-        matchedItem: exactMatch || (inStockMatches.length > 0 ? inStockMatches[0] : (allMatches.length > 0 ? allMatches[0] : null)),
-        allMatchesInStock: inStockMatches
+        allMatchesInStock: inStockMatches,
+        matchedItem: bestMatch,
+        isPinned: isPinned
       };
     }
 
@@ -5496,46 +5591,43 @@ ${imposedPrompt}
       _currentPickerData = allItems;
 
       listEl.innerHTML = allItems.map((item, i) => {
-        const isMissing = item.isMissing;
+        const status = getIngredientStatus(item.name);
+        // Missing = not in stock at all
+        const isMissing = !status.inStock;
+        // Soft match = found in stock but name is not identical
+        const isSoft = status.inStock && !status.isExact;
+        
         const emoji = item.emoji || autoEmoji(item.name);
         const category = item.category || guessCategoryLocally(item.name) || 'Général';
 
-        let matchHtml = '';
-        let stratHtml = '';
-        if (item.matchedItem) {
-          const isExact = item.matchedItem.name.toLowerCase() === item.name.toLowerCase();
-          if (!isExact) {
-            matchHtml = `<div class="picker-match-info">💡 Correspond à "<b>${item.matchedItem.name}</b>" dans votre inventaire</div>`;
-            stratHtml = `
-              <div class="picker-strategy-box">
-                <label class="picker-new-checkbox">
-                  <input type="checkbox" id="pick-strat-new-${i}">
-                  <span>✨ Créer comme nouvel ingrédient</span>
-                </label>
-              </div>
-            `;
-          } else {
-            // Exact match: nothing special needed
-          }
-        } else {
-          matchHtml = `<span class="picker-badge">Nouveau ✨</span>`;
+        let rowClass = 'picker-item';
+        if (isMissing) rowClass += ' checked';
+        if (isSoft) rowClass += ' soft-match';
+
+        let infoHtml = '';
+        if (isSoft && status.allMatchesInStock && status.allMatchesInStock.length > 0) {
+          const names = [...new Set(status.allMatchesInStock.map(m => m.name))].join('", "');
+          const isPlural = status.allMatchesInStock.length > 1;
+          infoHtml = `<div class="picker-match-info" style="color:#d35400; font-weight:600">⚠️ Correspondance${isPlural ? 's' : ''} possible${isPlural ? 's' : ''} avec : "<b>${names}</b>" - À vérifier</div>`;
+        } else if (status.isExact && status.matchedItem) {
+          infoHtml = `<div class="picker-match-info">💡 Correspond à "<b>${status.matchedItem.name}</b>" dans votre inventaire</div>`;
+        } else if (!status.inStock && !status.matchedItem) {
+          infoHtml = `<span class="picker-badge">Nouveau ✨</span>`;
         }
 
         return `
-          <div class="picker-item ${isMissing ? 'checked' : ''}" id="pitem-${i}">
+          <div class="${rowClass}" id="pitem-${i}">
             <input type="checkbox" id="pick-${i}" ${isMissing ? 'checked' : ''} onchange="updatePickerRow(${i})">
             <div class="picker-emoji-wrap">
               <input class="picker-emoji-inp" id="pick-emoji-${i}" value="${emoji}" readonly>
               <button class="picker-magic-btn" onclick="cycleEmoji(${i})" title="Changer l'émoji">🎲</button>
             </div>
             <div class="picker-content">
-              <div style="display:flex; align-items:center;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px">
                 <input class="picker-name-inp" id="pick-name-${i}" value="${item.name}">
-                ${!item.matchedItem ? matchHtml : ''}
               </div>
               <div class="picker-cat-label">${category}</div>
-              ${item.matchedItem ? matchHtml : ''}
-              ${stratHtml}
+              ${infoHtml}
               <input type="hidden" id="pick-cat-${i}" value="${category}">
             </div>
           </div>
@@ -6246,7 +6338,12 @@ JSON simple : {"category":"...","emojis":["..."]}`;
     // ═══════════════════════════════════════════
     function normalizeString(str) {
       if (!str) return '';
-      let n = str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Pre-process common multi-word expressions that should be unique tokens
+      let n = str.toLowerCase().trim();
+      n = n.replace(/pommes?\s+de\s+terre/g, 'pommedeterre');
+      n = n.replace(/pdt/g, 'pommedeterre');
+
+      n = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       n = n.replace(/œ/g, 'oe');
       // Include apostrophes and quotes in characters to replace with space
       n = n.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"]/g, " ");
@@ -6281,6 +6378,16 @@ JSON simple : {"category":"...","emojis":["..."]}`;
       const isRecipeInInventory = rWords.every(word => iWords.includes(word));
       const isInventoryInRecipe = iWords.every(word => rWords.includes(word));
       if (isRecipeInInventory || isInventoryInRecipe) return true;
+
+      // Partial/Soft Matching: Significant overlap (Common words >= 4 chars)
+      const commonWords = rWords.filter(w => iWords.includes(w) && w.length >= 4);
+      // List of very generic words that shouldn't trigger a match on their own
+      const genericWords = ['pate', 'creme', 'sauce', 'filet', 'soupe', 'plat', 'eau', 'lait', 'beurre', 'huile', 'sucre', 'sel', 'poivre'];
+      
+      const significantMatches = commonWords.filter(w => !genericWords.includes(w));
+      
+      // If we have at least one significant word matching, or 2+ words regardless
+      if (significantMatches.length >= 1 || commonWords.length >= 2) return true;
 
       // Fuzzy fallback for minor typos or plurals that normalization missed
       if (r.length > 3 && i.length > 3) {
@@ -6518,14 +6625,77 @@ JSON simple : {"category":"...","emojis":["..."]}`;
     // MODALS
     // ═══════════════════════════════════════════
     function openModal(id) { document.getElementById(id)?.classList.add('open'); }
-    function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+    function closeModal(id) {
+      if (id === 'modal-recipe-detail') {
+        const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+        if (isFS) {
+          if (document.exitFullscreen) document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          else if (document.msExitFullscreen) document.msExitFullscreen();
+        }
+        document.getElementById(id)?.classList.remove('recipe-fullscreen');
+      }
+      document.getElementById(id)?.classList.remove('open');
+    }
+
+    /* Gestures: Swipe-to-close for Mobiles */
+    function initSwipeToClose(modalId) {
+      const overlay = document.getElementById(modalId);
+      if (!overlay) return;
+      const modal = overlay.querySelector('.modal');
+      if (!modal) return;
+
+      let startY = 0;
+      let currentY = 0;
+      let isSwiping = false;
+
+      modal.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        const rect = modal.getBoundingClientRect();
+        // Allow swipe from the top 100px (header/drag handle)
+        if (touch.clientY - rect.top < 100) {
+          startY = touch.clientY;
+          isSwiping = true;
+          modal.style.transition = 'none';
+        }
+      }, { passive: true });
+
+      modal.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        currentY = e.touches[0].clientY;
+        const diff = currentY - startY;
+        if (diff > 0) {
+          modal.style.transform = `translateY(${diff}px)`;
+          const opacity = 1 - (diff / 500);
+          overlay.style.backgroundColor = `rgba(0,0,0, ${Math.max(0, opacity * 0.5)})`;
+        }
+      }, { passive: true });
+
+      modal.addEventListener('touchend', () => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        const diff = currentY - startY;
+        if (diff > 100) {
+          closeModal(modalId);
+        }
+        modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        modal.style.transform = '';
+        overlay.style.backgroundColor = '';
+      });
+    }
+
     // Close on overlay click
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
-      overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) closeModal(overlay.id);
+      });
     });
+
     // ESC to close
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+      }
     });
 
     // ═══════════════════════════════════════════
@@ -6553,13 +6723,39 @@ JSON simple : {"category":"...","emojis":["..."]}`;
       loadState();
       // Important: Prioritize Cloud
       await pullFromFirebase();
+      
+      // ABSOLUTE FORCE: Always start with an empty search and "All" filter to prevent ghost locks
+      // Reset after pullFromFirebase because Cloud might have saved a previous search state
+      state.search = "";
+      state.filter = "all";
+      state.showInStockOnly = false;
+
+      // Ensure UI inputs are cleared
+      const si = document.getElementById('search-input');
+      const ms = document.getElementById('mobile-search');
+      if (si) si.value = '';
+      if (ms) ms.value = '';
+
       switchView(state.currentView || 'pantry');
       updateApiStatus();
       updateBadges();
+
+      // FINAL OVERRIDE: Clear inputs after small delay to beat browser autofill
+      setTimeout(() => {
+        const si = document.getElementById('search-input');
+        const ms = document.getElementById('mobile-search');
+        if (si) si.value = '';
+        if (ms) ms.value = '';
+        state.search = '';
+        renderPantry();
+      }, 100);
       // Restore AI suggestions if any
       if (state.aiSuggestions) {
         renderAIResults(state.aiSuggestions);
       }
+
+      // Initialize gestures
+      initSwipeToClose('modal-recipe-detail');
     })();
     // Handle mobile category filter scroll (prevent scroll lock)
     document.querySelectorAll('.chips-row').forEach(el => {
