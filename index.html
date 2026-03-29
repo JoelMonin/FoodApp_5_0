@@ -1859,6 +1859,18 @@
       color: var(--terra)
     }
 
+    .export-share:hover {
+      border-color: var(--blue);
+      background: var(--blue-lt);
+      color: var(--blue);
+    }
+
+    .export-backup:hover {
+      border-color: var(--green);
+      background: var(--green-lt);
+      color: var(--green);
+    }
+
     .export-section-title {
       font-family: 'Lora', serif;
       font-size: 15px;
@@ -3991,67 +4003,67 @@
           <div class="view-scroll">
             <div class="export-section-title">Recettes</div>
             <div class="export-grid" style="margin-bottom:20px">
-              <button class="export-btn" onclick="openModal('modal-paste-recipe')"
+              <button class="export-btn export-backup" onclick="openModal('modal-paste-recipe')"
                 style="background:var(--gold-lt);border-color:var(--gold)">
                 <span class="export-btn-icon">📋</span>
                 <div>
-                  <div class="export-btn-label" style="color:var(--gold)">Coller une recette</div>
-                  <div class="export-btn-sub">Analyse par l'IA (Texte ou URL)</div>
+                  <div class="export-btn-label" style="color:var(--gold)">Transformer un texte en recette</div>
+                  <div class="export-btn-sub">Extraire les ingrédients et étapes d'un texte ou d'un lien web via l'IA.</div>
                 </div>
               </button>
             </div>
             <div class="export-section-title">Copier dans le presse-papiers</div>
             <div class="export-grid">
-              <button class="export-btn" onclick="exportClipboard('simple')">
+              <button class="export-btn export-share" onclick="exportClipboard('simple')">
                 <span class="export-btn-icon">📋</span>
                 <div>
-                  <div class="export-btn-label">Inventaire — liste simple</div>
-                  <div class="export-btn-sub">Noms des ingrédients en stock</div>
+                  <div class="export-btn-label">Copier mon stock (liste simple)</div>
+                  <div class="export-btn-sub">Liste brute de vos ingrédients disponibles pour un partage rapide.</div>
                 </div>
               </button>
-              <button class="export-btn" onclick="exportClipboard('categorized')">
+              <button class="export-btn export-share" onclick="exportClipboard('categorized')">
                 <span class="export-btn-icon">📑</span>
                 <div>
-                  <div class="export-btn-label">Inventaire — liste catégorisée</div>
-                  <div class="export-btn-sub">Groupé par catégorie</div>
+                  <div class="export-btn-label">Partager mon stock par rayons</div>
+                  <div class="export-btn-sub">Liste organisée par catégorie (Fruits, Légumes, etc.) pour plus de clarté.</div>
                 </div>
               </button>
-              <button class="export-btn" onclick="exportClipboard('cart')">
+              <button class="export-btn export-share" onclick="exportClipboard('cart')">
                 <span class="export-btn-icon">🛒</span>
                 <div>
-                  <div class="export-btn-label">Liste de courses</div>
-                  <div class="export-btn-sub">Articles à acheter</div>
+                  <div class="export-btn-label">Copier ma liste de courses</div>
+                  <div class="export-btn-sub">Préparez votre message de courses avec tous les articles cochés "À acheter".</div>
                 </div>
               </button>
-              <button class="export-btn" onclick="exportClipboard('full')">
+              <button class="export-btn export-share" onclick="exportClipboard('full')">
                 <span class="export-btn-icon">🗂️</span>
                 <div>
-                  <div class="export-btn-label">Ingrédients — complet</div>
-                  <div class="export-btn-sub">Tous les états inclus</div>
+                  <div class="export-btn-label">Données techniques (JSON)</div>
+                  <div class="export-btn-sub">Copie la base technique complète (utile pour le dépannage).</div>
                 </div>
               </button>
             </div>
             <div class="export-section-title">Fichier JSON</div>
             <div class="export-grid">
-              <button class="export-btn" onclick="exportJSON()">
+              <button class="export-btn export-backup" onclick="exportJSON()">
                 <span class="export-btn-icon">💾</span>
                 <div>
-                  <div class="export-btn-label">Exporter JSON</div>
-                  <div class="export-btn-sub">Sauvegarde complète de vos données</div>
+                  <div class="export-btn-label">Télécharger une sauvegarde</div>
+                  <div class="export-btn-sub">Récupérer un fichier (.json) contenant tout votre inventaire et vos favoris.</div>
                 </div>
               </button>
-              <button class="export-btn" onclick="document.getElementById('import-file').click()">
+              <button class="export-btn export-danger" onclick="document.getElementById('import-file').click()">
                 <span class="export-btn-icon">📥</span>
                 <div>
-                  <div class="export-btn-label">Importer JSON</div>
-                  <div class="export-btn-sub">Restauration complète (Tout écraser)</div>
+                  <div class="export-btn-label">Restaurer une sauvegarde</div>
+                  <div class="export-btn-sub">⚠️ Remplace TOUTES vos données actuelles par celles d'un fichier JSON.</div>
                 </div>
               </button>
-              <button class="export-btn" onclick="document.getElementById('restore-file').click()">
+              <button class="export-btn export-backup" onclick="document.getElementById('restore-file').click()">
                 <span class="export-btn-icon">🔄</span>
                 <div>
-                  <div class="export-btn-label">Restaurer l'état</div>
-                  <div class="export-btn-sub">Restaure stock & favoris (utile si le format du JSON a évolué)</div>
+                  <div class="export-btn-label">Importer uniquement le stock</div>
+                  <div class="export-btn-sub">Met à jour la disponibilité de vos ingrédients sans modifier votre configuration.</div>
                 </div>
               </button>
             </div>
@@ -4062,15 +4074,15 @@
               <button class="export-btn export-danger" onclick="resetCart()">
                 <span class="export-btn-icon">🗑️</span>
                 <div>
-                  <div class="export-btn-label">Vider la liste de courses</div>
-                  <div class="export-btn-sub">Retire tous les articles</div>
+                  <div class="export-btn-label">Réinitialiser mon panier</div>
+                  <div class="export-btn-sub">Décoche tous les articles "À acheter" pour repartir sur une liste vide.</div>
                 </div>
               </button>
               <button class="export-btn export-danger" onclick="resetAllData()">
                 <span class="export-btn-icon">⚠️</span>
                 <div>
-                  <div class="export-btn-label">Réinitialiser toutes les données</div>
-                  <div class="export-btn-sub">Revenir à l'état initial</div>
+                  <div class="export-btn-label">Mise à zéro complète</div>
+                  <div class="export-btn-sub">Efface absolument tout (Stock, Favoris, Config) et restaure l'application d'origine.</div>
                 </div>
               </button>
             </div>
