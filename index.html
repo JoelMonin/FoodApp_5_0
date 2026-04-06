@@ -4227,8 +4227,6 @@
     // ═══════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════
-    const DEFAULT_GEMINI_KEY = atob('QUl6YVN5QjZMQ3hmNTB0QlplLThoM2JfYktJUkctbC1sbkwwN21n');
-
     const AI_ROLES = {
       REASONING: 'gemini-2.5-flash',
       FAST: 'gemini-2.0-flash'
@@ -4239,8 +4237,7 @@
       customCartItems: [], // Deprecated
       favorites: [],
       aiConfig: {
-        // Split key to avoid automated GitHub/Google revocations
-        apiKey: DEFAULT_GEMINI_KEY, // Clé API réintégrée par défaut
+        apiKey: '', // La clé n'est plus stockée dans le code
         models: {
           recipeGeneration: AI_ROLES.REASONING,
           nutrition: AI_ROLES.REASONING,
@@ -4319,12 +4316,8 @@
       if (!state.filter) state.filter = 'all';
       if (state.showInStockOnly === undefined) state.showInStockOnly = false;
 
-      // 6. Security: Restore API Key if empty in loaded state
-      if (!state.aiConfig) state.aiConfig = { apiKey: DEFAULT_GEMINI_KEY };
-      if (!state.aiConfig.apiKey) {
-        state.aiConfig.apiKey = DEFAULT_GEMINI_KEY;
-        console.log("⚠️ AI API Key automatically restored from hardcoded default.");
-      }
+      // 6. Security: Assure structure without reverting to hardcoded keys
+      if (!state.aiConfig) state.aiConfig = { apiKey: '' };
       if (!state.aiConfig.models) {
         state.aiConfig.models = {
           recipeGeneration: AI_ROLES.REASONING,
@@ -4338,23 +4331,6 @@
 
     function buildIngredients() {
       return DEFAULT_DB.map(d => ({ ...d, inStock: false, inCart: false, pinned: false, shoppingSource: null }));
-    }
-
-    // --- Key Obfuscation for Cloud ---
-    function obfuscateKey(key) {
-      if (!key) return null;
-      // Split into 4-char chunks to avoid "AIza" string signature in JSON
-      const chunks = [];
-      for (let i = 0; i < key.length; i += 4) {
-        chunks.push(key.substring(i, i + 4));
-      }
-      return chunks;
-    }
-
-    function deobfuscateKey(data) {
-      if (!data) return '';
-      if (Array.isArray(data)) return data.join('');
-      return data; // already string?
     }
 
     function saveState(push = true) {
@@ -4396,12 +4372,12 @@
     async function pushToFirebase() {
       setSyncStatus('thinking');
       try {
-        // Obfuscate API Key for Cloud only (don't modify local state)
+        // Remove API Key entirely before sending to Cloud
         const stateToSync = { ...state };
         if (stateToSync.aiConfig) {
           stateToSync.aiConfig = {
             ...stateToSync.aiConfig,
-            apiKey: obfuscateKey(stateToSync.aiConfig.apiKey)
+            apiKey: "" // NEVER SYNC API KEY TO CLOUD
           };
         }
 
@@ -4426,11 +4402,15 @@
         const data = await res.json();
 
         if (data && data.ingredients) {
-          // Deobfuscate API Key if found as segments array
-          if (data.aiConfig && data.aiConfig.apiKey) {
-            data.aiConfig.apiKey = deobfuscateKey(data.aiConfig.apiKey);
-          }
+          // Preserve LOCAL API key when pulling from Cloud
+          const localKey = state.aiConfig?.apiKey || '';
+          
           state = { ...state, ...data };
+          
+          // Inject local key back
+          if (!state.aiConfig) state.aiConfig = {};
+          state.aiConfig.apiKey = localKey;
+
           // ALWAYS RESET SEARCH/FILTER after Cloud Pull to avoid ghost locks
           state.search = "";
           state.filter = "all";
@@ -4462,11 +4442,13 @@
 
       // 1. API Key Info
       const key = state.aiConfig.apiKey || '';
-      const isDefault = (key === DEFAULT_GEMINI_KEY);
+      const isConfigured = key && key.length > 10;
       const last4 = key.length > 4 ? key.slice(-4) : '****';
       const keyEl = document.getElementById('info-api-key');
       if (keyEl) {
-        keyEl.innerHTML = `****${last4} <span class="system-info-value tag ${isDefault ? 'blue' : 'green'}">${isDefault ? 'Intégrée (GitHub)' : 'Manuelle (Locale)'}</span>`;
+        keyEl.innerHTML = isConfigured 
+          ? `****${last4} <span class="system-info-value tag green">Configurée (Locale)</span>`
+          : `Non configurée <span class="system-info-value tag red">Manquante</span>`;
       }
 
       // 2. Firebase User
