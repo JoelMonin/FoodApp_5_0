@@ -1,0 +1,3 @@
+# Configuration Codex - FoodApp
+default_permissions = ":read-only"
+approval_policy = "never"
