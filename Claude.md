@@ -56,6 +56,13 @@ sans maj.
 **Autonomie :** branches feat/ autorisees sans validation ; **la branche par defaut du depot**
 est interdite sans feu vert explicite.
 
+**VERROU PRODUCTION (regle Joel 2026-07-28) :** `main` = la page en ligne (GitHub Pages).
+- TOUT travail se fait sur branche `feat/` — aucune exception, meme un hotfix d'une ligne.
+- AUCUN merge ni push vers `main` sans confirmation CLAIRE et EXPLICITE de Joel,
+  donnee au moment du deploiement (une autorisation passee ne vaut pas pour la suivante).
+- Avant de demander le feu vert : validation unifiee verte + annonce de ce qui va changer
+  sur la page en ligne.
+
 **Discipline Git (non negociable) :**
 - INTERDIT `git add .` **et `git add -A`** — **staging fichier par fichier**, toujours.
 - Jamais de commit sans demande. Exception : sauvegarde bornee sur branche feat/ autorisee.
