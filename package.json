@@ -1,0 +1,21 @@
+{
+  "name": "projet_foodapp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "foodapp-data - 273 ingredients - BLANK FULL.js",
+  "scripts": {
+    "test": "vitest",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
+  }
+}

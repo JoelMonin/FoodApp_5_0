@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FoodApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- ═══════════ MODALS ═══════════ -->
+
+  <!-- Shopping List Modal (bulk add) -->
+  <div class="modal-overlay" id="modal-shopping-bulk">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Ajouter à la liste de courses</div>
+        <button class="modal-close" onclick="closeModal('modal-shopping-bulk')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--txt-mid);margin-bottom:14px">Décochez les ingrédients que vous ne souhaitez
+          pas ajouter à la liste de courses.</p>
+        <div class="check-list" id="modal-shopping-bulk-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="closeModal('modal-shopping-bulk')">Annuler</button>
+        <button class="modal-btn primary" onclick="confirmBulkAdd()">Ajouter à la liste de courses</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste Recipe Modal -->
+  <div class="modal-overlay" id="modal-paste-recipe">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">Coller une recette</div>
+        <button class="modal-close" onclick="closeModal('modal-paste-recipe')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"
+          style="background:var(--cream); padding:12px; border-radius:10px; border:1px dashed var(--gold); margin-bottom:15px">
+          <label class="form-label">Importer depuis une adresse web (URL)</label>
+          <div style="display:flex; gap:8px">
+            <input class="form-input" id="paste-url" placeholder="https://www.marmiton.org/recettes/..." type="url"
+              style="flex:1">
+            <button class="modal-btn" id="paste-fetch-btn"
+              style="white-space:nowrap; background:var(--gold); color:white; border:none"
+              onclick="fetchRecipeFromUrl()">🌍 Lire la page</button>
+          </div>
+          <p style="font-size:10.5px; color:var(--txt-mid); margin-top:6px">Copiez-collez l'adresse d'une recette
+            Marmiton, 750g, Cookpad, etc.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Titre de la recette</label>
+          <input class="form-input" id="paste-title" placeholder="ex : Poulet rôti au romarin…" type="text">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Texte de la recette <span
+              style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(ou résultat de l'import
+              URL)</span></label>
+          <textarea class="form-input" id="paste-content" rows="10" style="resize:vertical"
+            placeholder="Ingrédients, étapes, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" id="paste-modal-footer">
+        <button class="modal-btn" onclick="closeModal('modal-paste-recipe')">Annuler</button>
+        <button class="modal-btn" id="paste-ai-btn" onclick="transformRecipeAI()">Transformer avec l'IA ✨</button>
+        <button class="modal-btn primary" id="paste-save-btn" onclick="saveRecipeOnly()">Sauvegarder tel quel</button>
+        <button class="modal-btn" id="paste-list-btn" onclick="saveRecipeAndList()" style="display:none">Sauvegarder +
+          Courses</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pick ingredients for shopping list (Enhanced Picker) -->
+  <div class="modal-overlay" id="modal-recipe-to-cart">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">Choisir les articles à acheter</div>
+        <button class="modal-close" onclick="closeModal('modal-recipe-to-cart')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="picker-bulk-actions">
+          <label class="picker-toggle-all">
+            <input type="checkbox" id="picker-select-all" onchange="toggleAllPickerItems(this.checked)">
+            Tout sélectionner / désélectionner
+          </label>
+        </div>
+        <div class="picker-list" id="modal-recipe-cart-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="closeModal('modal-recipe-to-cart')">Annuler</button>
+        <button class="modal-btn primary" onclick="confirmRecipeToCart()">🛍 Ajouter à ma liste</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe Detail Modal -->
+  <div class="modal-overlay" id="modal-recipe-detail">
+    <div class="modal modal-lg">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="rd-modal-title">Recette</div>
+        <div class="modal-hdr-actions">
+          <button class="modal-hdr-btn" onclick="printRecipe()" title="Imprimer">🖨️</button>
+          <button class="modal-hdr-btn fs-btn-mobile" onclick="toggleRecipeFullscreen()" title="Plein écran">
+            <span class="fs-icon">⛶</span>
+            <span class="fs-text">Cuisine</span>
+          </button>
+        </div>
+        <button class="modal-close" onclick="closeModal('modal-recipe-detail')">✕</button>
+      </div>
+      <div class="modal-body" id="rd-modal-body"></div>
+      <div class="modal-footer">
+        <div class="rd-scale-bar"
+          style="display:flex; align-items:center; gap:8px; margin-right:auto; background:var(--cream-dk); padding:4px 10px; border-radius:20px; font-size:13px; font-weight:600">
+          <button class="modal-hdr-btn" style="width:24px; height:24px" onclick="changePplScale(-1)">-</button>
+          <span id="rd-ppl-count">2</span> pers.
+          <button class="modal-hdr-btn" style="width:24px; height:24px" onclick="changePplScale(1)">+</button>
+        </div>
+        <button class="modal-btn" id="rd-fav-btn" onclick="saveSuggestionToFav()">⭐ Favoris</button>
+        <button class="modal-btn primary" id="rd-cart-btn" onclick="addSuggestionToCart()">🛍 courses</button>
+        <button class="modal-btn" onclick="closeModal('modal-recipe-detail')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Favorite Recipe Detail Modal (DEPRECATED - now uses Recipe Detail Modal) -->
+
+  <!-- API Key Config Modal -->
+  <div class="modal-overlay" id="modal-api-config">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Configuration API Gemini</div>
+        <button class="modal-close" onclick="closeModal('modal-api-config')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Clé API Gemini</label>
+          <input class="form-input" id="api-key-input" type="password" placeholder="AIza…" autocomplete="off">
+          <p style="font-size:11.5px;color:var(--txt-soft);margin-top:6px">Obtenez votre clé gratuite sur <a
+              href="https://aistudio.google.com/apikey" target="_blank"
+              style="color:var(--green)">aistudio.google.com</a>. Elle est stockée localement dans votre navigateur.</p>
+        </div>
+        <hr style="border:0;border-top:1px solid var(--border);margin:16px 0;">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label" style="display:flex;justify-content:space-between">Moteur Tâches Complexes <span style="font-size:11px;font-weight:normal;color:var(--txt-soft)">(Recettes, Nutrition)</span></label>
+          <select id="api-model-complex" class="form-input" style="padding:10px;cursor:pointer">
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Ultra Puissant) ✨</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé) ⚡</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="closeModal('modal-api-config')">Annuler</button>
+        <button class="modal-btn primary" onclick="saveApiKey()">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Emoji -->
+  <div class="modal-overlay" id="modal-edit-emoji">
+    <div class="modal" style="max-width:340px">
+      <div class="modal-header">
+        <div class="modal-title" id="edit-emoji-title">Modifier l'icône</div>
+        <button class="modal-close" onclick="closeModal('modal-edit-emoji')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12.5px;color:var(--txt-soft);margin-bottom:15px;text-align:center;line-height:1.4">
+          Choisissez une icône pour <strong id="edit-emoji-name" style="color:var(--green)"></strong> :</p>
+
+        <div class="emoji-search-box">
+          <input type="text" id="emoji-search-input" class="emoji-search-input"
+            placeholder="Rechercher ou coller un emoji..." onkeyup="if(event.key==='Enter') searchEmojiAI()">
+          <button id="emoji-search-btn" class="emoji-search-btn" onclick="searchEmojiAI()"
+            title="Rechercher avec l'IA">✨</button>
+        </div>
+
+        <div id="edit-emoji-grid" class="emoji-suggestion-grid"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ APP ═══════════ -->
+  <div id="app">
+    <!-- Sidebar (desktop) -->
+    <nav id="sidebar">
+      <div class="sb-logo">
+        <div class="sb-logo-name">🥘 FoodApp</div>
+        <div class="sb-logo-sub">Version 5.0</div>
+      </div>
+      <div class="sb-section-label" id="sb-label-principal">Principal</div>
+      <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
+        <span class="sb-item-icon">🥫</span> Inventaire
+        <span class="sb-badge green" id="sb-badge-stock">0</span>
+      </div>
+      <div class="sb-item" data-view="shopping" onclick="switchView('shopping')">
+        <span class="sb-item-icon">🛒</span> Liste de courses
+        <span class="sb-badge" id="sb-badge-cart">0</span>
+      </div>
+      <div class="sb-item" data-view="ai" onclick="switchView('ai')">
+        <span class="sb-item-icon">✨</span> Recettes IA
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section-label">Bibliothèque</div>
+      <div class="sb-item" data-view="favorites" onclick="switchView('favorites')">
+        <span class="sb-item-icon">📖</span> Recettes favorites
+        <span class="sb-badge gold hidden" id="sb-badge-fav">0</span>
+      </div>
+      <div class="sb-item" data-view="add" onclick="switchView('add')">
+        <span class="sb-item-icon">＋</span> Ajouter un ingrédient
+      </div>
+      <div class="sb-item" onclick="openModal('modal-paste-recipe')">
+        <span class="sb-item-icon">📋</span> Coller une recette
+      </div>
+      <div class="sb-footer">
+        <div class="sync-indicator" data-view="export" onclick="switchView('export')" title="Ouvrir les rglages">
+          <span style="font-size:14px; margin-right:4px">⚙️</span>
+          <span class="sync-label">Réglages</span>
+        </div>
+        <div id="sync-indicator-desktop" class="sync-indicator" onclick="pullFromFirebase()"
+          title="Synchroniser avec Firebase Cloud">
+          <svg class="sync-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+          <span class="sync-label">Cloud Sync</span>
+        </div>
+        <div class="sync-indicator" onclick="openModal('modal-api-config')" style="margin-bottom:0" title="Configuration IA">
+          <div class="api-dot off" id="api-status-dot"></div>
+          <span id="api-status-label" class="sync-label">Gemini AI : Off</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <div id="main">
+      <!-- Mobile Header -->
+      <div id="mobile-header">
+        <div class="mh-top">
+          <div>
+            <div class="mh-logo">🥘 FoodApp</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.0</div>
+          </div>
+          <div class="mh-icons">
+            <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
+              title="Synchroniser avec Firebase Cloud">
+              <svg class="sync-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+              <span class="sync-label">Cloud Sync</span>
+            </div>
+            <div class="mh-icon" onclick="openModal('modal-api-config')">⚙️</div>
+          </div>
+        </div>
+        <div class="mh-search-bar" id="mh-search-wrap">
+          <span>🔍</span>
+          <input type="search" id="mobile-search" placeholder="Rechercher un ingrédient…"
+            autocomplete="off" oninput="handleSearch(this.value)">
+          <button class="clear-search-btn" id="clear-search-mobile" onclick="clearSearch()">✕</button>
+        </div>
+      </div>
+
+      <!-- Desktop Topbar -->
+      <div id="topbar">
+        <div id="topbar-title">Inventaire <span id="topbar-sub"></span></div>
+        <div class="tb-search" id="tb-search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <div style="position:relative;flex:1;display:flex;align-items:center">
+            <input type="text" id="search-input" class="search-input" placeholder="Rechercher..."
+              autocomplete="off" oninput="handleSearch(this.value)">
+            <button class="clear-search-btn" id="clear-search-desktop" onclick="clearSearch()">✕</button>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div id="top-action-btn"></div>
+          <button class="fab-btn" id="topbar-add-btn" onclick="switchView('add')" title="Ajouter un ingrédient" style="position:relative;width:36px;height:36px;font-size:20px;border-radius:50%;background:var(--green);color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">＋</button>
+        </div>
+      </div>
+
+      <!-- Views -->
+      <div id="views">
+
+        <!-- PANTRY -->
+        <div class="view-panel active" id="view-pantry">
+          <div class="view-scroll">
+            <div class="chips-row" id="pantry-filters"></div>
+            <div id="ing-grid"></div>
+            <div id="ing-empty" class="hidden" style="text-align:center;padding:40px;color:var(--txt-soft)">
+              <div style="font-size:40px;margin-bottom:10px">🔍</div>
+              <div>Aucun ingrédient trouvé</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SHOPPING -->
+        <div class="view-panel" id="view-shopping">
+          <div class="view-scroll" id="shopping-scroll"></div>
+        </div>
+
+        <!-- AI -->
+        <div class="view-panel" id="view-ai">
+          <div class="ai-layout" id="ai-layout">
+            <!-- Settings col -->
+            <div class="ai-settings" id="ai-settings-col">
+              <div class="ai-settings-scroll">
+                <!-- Settings box : Quick Paramètres -->
+                <div class="ai-box"
+                  style="margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;">
+                  <div class="ai-box-title">Paramètres rapides</div>
+                  <div class="ai-box-sub" id="ai-context-sub">Vos préférences pour cette recette</div>
+
+                  <div class="two-col-settings">
+                    <div>
+                      <span class="ai-field-label">Type de plat</span>
+                      <div class="chips-row" id="ai-meal-chips">
+                        <div class="chip active" data-val="indifferent" onclick="toggleAiSingle('meal',this)">🍽️
+                          Indifférent</div>
+                        <div class="chip" data-val="entrée" onclick="toggleAiSingle('meal',this)">🥗 Entrée</div>
+                        <div class="chip" data-val="plat" onclick="toggleAiSingle('meal',this)">🍲 Plat</div>
+                        <div class="chip" data-val="dessert" onclick="toggleAiSingle('meal',this)">🍰 Dessert</div>
+                        <div class="chip" data-val="snack" onclick="toggleAiSingle('meal',this)">🥙 Snack</div>
+                        <div class="chip" data-val="soupe" onclick="toggleAiSingle('meal',this)">🍜 Soupe</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="ai-field-label">Temps max</span>
+                      <div class="chips-row" id="ai-time-chips">
+                        <div class="chip active" data-val="libre" onclick="toggleAiSingle('time',this)">⏱️ Libre</div>
+                        <div class="chip" data-val="20" onclick="toggleAiSingle('time',this)">⚡ ≤ 20 min</div>
+                        <div class="chip" data-val="45" onclick="toggleAiSingle('time',this)">🕐 ≤ 45 min</div>
+                        <div class="chip" data-val="90" onclick="toggleAiSingle('time',this)">🕑 ≤ 1h30</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="two-col-settings">
+                    <div>
+                      <span class="ai-field-label">Difficulté</span>
+                      <div class="chips-row" id="ai-diff-chips">
+                        <div class="chip active" data-val="indifferent" onclick="toggleAiSingle('diff',this)">⭐ Indiff.
+                        </div>
+                        <div class="chip" data-val="facile" onclick="toggleAiSingle('diff',this)">😊 Facile</div>
+                        <div class="chip" data-val="moyen" onclick="toggleAiSingle('diff',this)">🧑‍🍳 Moyen</div>
+                        <div class="chip" data-val="expert" onclick="toggleAiSingle('diff',this)">👨‍🎓 Expert</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="ai-field-label">Personnes</span>
+                      <div class="chips-row" id="ai-ppl-chips">
+                        <div class="chip" data-val="1" onclick="toggleAiSingle('ppl',this)">👤 1</div>
+                        <div class="chip active" data-val="2" onclick="toggleAiSingle('ppl',this)">👥 2</div>
+                        <div class="chip" data-val="4" onclick="toggleAiSingle('ppl',this)">👨‍👩‍👧‍👦 4</div>
+                        <div class="chip" data-val="6" onclick="toggleAiSingle('ppl',this)">🎉 6+</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Advanced Settings Accordion -->
+                <div class="ai-accordion" id="advanced-settings-accordion"
+                  style="border-top-left-radius: 0; border-top-right-radius: 0;">
+                  <div class="ai-accordion-header" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="ai-accordion-title">⚙️ Filtres avancés</div>
+                    <div class="ai-accordion-icon">▼</div>
+                  </div>
+                  <div class="ai-accordion-content">
+                    <!-- Unified Imposed Ingredients Zone -->
+                    <div class="imposed-zone">
+                      <h4 class="ai-sec-title" style="margin-bottom:8px">🎯 Ingrédients imposés</h4>
+                      <p class="ai-sec-desc" style="margin-bottom:12px">Épinglez via 🥫 <b>Inventaire</b> ou ajoutez manuellement :</p>
+
+                      <div class="pz-chips" id="imposed-chips">
+                        <!-- Both inventory and extra chips go here -->
+                        <span class="pz-empty">Aucun ingrédient imposé</span>
+                      </div>
+
+                      <div class="ez-input-row" style="margin-top:14px; margin-bottom:8px">
+                        <input class="ez-input" id="ez-input" placeholder="ex : gambas, mozzarella…">
+                        <button class="ez-add" onclick="addExtraIngredient()">+</button>
+                      </div>
+
+                      <div style="font-size:10px;color:var(--txt-soft);margin-top:4px;font-weight:500">
+                        Max 6 ingrédients imposés au total
+                      </div>
+                    </div>
+
+                    <div class="ai-field-group">
+                      <span class="ai-field-label">Options diététiques</span>
+                      <div class="chips-row" style="margin-bottom:6px" id="ai-diet-chips">
+                        <div class="chip" data-val="sans-cereales" onclick="toggleAiChip('diet',this)">Sans céréales
+                        </div>
+                        <div class="chip" data-val="sans-gluten" onclick="toggleAiChip('diet',this)">Sans gluten</div>
+                        <div class="chip" data-val="sans-laitiers" onclick="toggleAiChip('diet',this)">Sans laitiers
+                        </div>
+                        <div class="chip" data-val="vegetarien" onclick="toggleAiChip('diet',this)">Végétarien</div>
+                        <div class="chip" data-val="vegan" onclick="toggleAiChip('diet',this)">Vegan</div>
+                      </div>
+                    </div>
+
+                    <div class="ai-field-group">
+                      <span class="ai-field-label">Exceptions autorisées</span>
+                      <input class="ai-input" id="ai-exceptions" placeholder="Ex : parmesan autorisé…"
+                        oninput="saveAiConfigFromUI()">
+                    </div>
+
+                    <div class="two-col-settings">
+                      <div>
+                        <span class="ai-field-label">Types de cuisine</span>
+                        <div class="chips-row" id="ai-cuisine-chips">
+                          <div class="chip" data-val="française" onclick="toggleAiChip('cuisine',this)">🇫🇷 Française
+                          </div>
+                          <div class="chip" data-val="italienne" onclick="toggleAiChip('cuisine',this)">🇮🇹 Italienne
+                          </div>
+                          <div class="chip" data-val="espagnole" onclick="toggleAiChip('cuisine',this)">🇪🇸 Espagnole
+                          </div>
+                          <div class="chip" data-val="libanaise" onclick="toggleAiChip('cuisine',this)">🇱🇧 Libanaise
+                          </div>
+                          <div class="chip" data-val="asiatique" onclick="toggleAiChip('cuisine',this)">🌏 Asiatique
+                          </div>
+                          <div class="chip" data-val="américaine" onclick="toggleAiChip('cuisine',this)">🇺🇸 Américaine
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <span class="ai-field-label">Équipements</span>
+                        <div class="chips-row" id="ai-equip-chips">
+                          <div class="chip" data-val="airfryer" onclick="toggleAiChip('equip',this)">Airfryer</div>
+                          <div class="chip" data-val="poêle" onclick="toggleAiChip('equip',this)">Poêle</div>
+                          <div class="chip" data-val="four" onclick="toggleAiChip('equip',this)">Four</div>
+                          <div class="chip" data-val="vapeur" onclick="toggleAiChip('equip',this)">Vapeur</div>
+                          <div class="chip" data-val="micro-ondes" onclick="toggleAiChip('equip',this)">Micro-ondes
+                          </div>
+                          <div class="chip" data-val="blender" onclick="toggleAiChip('equip',this)">Blender</div>
+                          <div class="chip" data-val="robot" onclick="toggleAiChip('equip',this)">Robot</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="ai-field-group">
+                      <span class="ai-field-label">Créativité de l'IA</span>
+                      <div class="creativity-row">
+                        <span style="font-size:13px">🧠</span>
+                        <input type="range" class="creativity-slider" id="creativity-slider" min="0" max="100"
+                          value="50" oninput="saveAiConfigFromUI()">
+                        <span style="font-size:13px">🔥</span>
+                      </div>
+                      <div class="creativity-labels">
+                        <span>Classique</span><span>Équilibrée</span><span>Très créatif</span>
+                      </div>
+                    </div>
+
+                    <div class="ai-field-group">
+                      <span class="ai-field-label">Exclusions / allergies <span
+                          style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(max 80
+                          car.)</span></span>
+                      <input class="ai-input" id="ai-exclusions" maxlength="80" placeholder="ex : arachides, crustacés."
+                        oninput="saveAiConfigFromUI()">
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="ai-sticky-cta">
+                <div class="ai-cta-summary" id="ai-cta-summary">Chargement...</div>
+                <button class="generate-btn" id="generate-btn" onclick="generateSuggestions()"
+                  data-loading-text="L'IA réfléchit...">
+                  <span class="btn-text">✨ Obtenir 5 suggestions</span>
+                  <div class="generate-spinner"></div>
+                </button>
+              </div>
+            </div>
+            <!-- Results col -->
+            <div class="ai-results" id="ai-results-col">
+              <div class="ai-empty-hero" id="ai-placeholder">
+                <div class="ai-empty-hero-icon">✨</div>
+                <div class="ai-empty-hero-title">Trouvez l'inspiration</div>
+                <div class="ai-empty-hero-desc">Sélectionnez vos ingrédients dans l'inventaire puis lancez la magie de
+                  l'IA pour obtenir des idées de repas.</div>
+                <button class="magic-btn" onclick="generateRandomWithStock()">
+                  🎲 Générer une idée avec mon stock
+                </button>
+              </div>
+              <div id="ai-results-list" class="hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FAVORITES -->
+        <div class="view-panel" id="view-favorites">
+          <div class="view-scroll">
+            <div id="fav-list"></div>
+          </div>
+        </div>
+
+        <!-- EXPORT -->
+        <div class="view-panel" id="view-export">
+          <div class="view-scroll">
+            <div class="export-section-title">Recettes</div>
+            <div class="export-grid" style="margin-bottom:20px">
+              <button class="export-btn export-backup" onclick="openModal('modal-paste-recipe')"
+                style="background:var(--gold-lt);border-color:var(--gold)">
+                <span class="export-btn-icon">📋</span>
+                <div>
+                  <div class="export-btn-label" style="color:var(--gold)">Transformer un texte en recette</div>
+                  <div class="export-btn-sub">Extraire les ingrédients et étapes d'un texte ou d'un lien web via l'IA.</div>
+                </div>
+              </button>
+            </div>
+            <div class="export-section-title">Copier dans le presse-papiers</div>
+            <div class="export-grid">
+              <button class="export-btn export-share" onclick="exportClipboard('simple')">
+                <span class="export-btn-icon">📋</span>
+                <div>
+                  <div class="export-btn-label">Copier mon stock (liste simple)</div>
+                  <div class="export-btn-sub">Liste brute de vos ingrédients disponibles pour un partage rapide.</div>
+                </div>
+              </button>
+              <button class="export-btn export-share" onclick="exportClipboard('categorized')">
+                <span class="export-btn-icon">📑</span>
+                <div>
+                  <div class="export-btn-label">Partager mon stock par rayons</div>
+                  <div class="export-btn-sub">Liste organisée par catégorie (Fruits, Légumes, etc.) pour plus de clarté.</div>
+                </div>
+              </button>
+              <button class="export-btn export-share" onclick="exportClipboard('cart')">
+                <span class="export-btn-icon">🛒</span>
+                <div>
+                  <div class="export-btn-label">Copier ma liste de courses</div>
+                  <div class="export-btn-sub">Préparez votre message de courses avec tous les articles cochés "À acheter".</div>
+                </div>
+              </button>
+              <button class="export-btn export-share" onclick="exportClipboard('full')">
+                <span class="export-btn-icon">🗂️</span>
+                <div>
+                  <div class="export-btn-label">Données techniques (JSON)</div>
+                  <div class="export-btn-sub">Copie la base technique complète (utile pour le dépannage).</div>
+                </div>
+              </button>
+            </div>
+            <div class="export-section-title">Fichier JSON</div>
+            <div class="export-grid">
+              <button class="export-btn export-backup" onclick="exportJSON()">
+                <span class="export-btn-icon">💾</span>
+                <div>
+                  <div class="export-btn-label">Télécharger une sauvegarde</div>
+                  <div class="export-btn-sub">Récupérer un fichier (.json) contenant tout votre inventaire et vos favoris.</div>
+                </div>
+              </button>
+              <button class="export-btn export-danger" onclick="document.getElementById('import-file').click()">
+                <span class="export-btn-icon">📥</span>
+                <div>
+                  <div class="export-btn-label">Restaurer une sauvegarde</div>
+                  <div class="export-btn-sub">⚠️ Remplace TOUTES vos données actuelles par celles d'un fichier JSON.</div>
+                </div>
+              </button>
+              <button class="export-btn export-backup" onclick="document.getElementById('restore-file').click()">
+                <span class="export-btn-icon">🔄</span>
+                <div>
+                  <div class="export-btn-label">Importer uniquement le stock</div>
+                  <div class="export-btn-sub">Met à jour la disponibilité de vos ingrédients sans modifier votre configuration.</div>
+                </div>
+              </button>
+            </div>
+            <input type="file" id="import-file" accept=".json" onchange="restoreJSON(event)" hidden>
+            <input type="file" id="restore-file" accept=".json" onchange="restoreJSON(event)" hidden>
+            <div class="export-section-title" style="color:var(--terra)">Réinitialisation</div>
+            <div class="export-grid" style="padding-bottom:20px">
+              <button class="export-btn export-danger" onclick="resetCart()">
+                <span class="export-btn-icon">🗑️</span>
+                <div>
+                  <div class="export-btn-label">Réinitialiser mon panier</div>
+                  <div class="export-btn-sub">Décoche tous les articles "À acheter" pour repartir sur une liste vide.</div>
+                </div>
+              </button>
+              <button class="export-btn export-danger" onclick="resetAllData()">
+                <span class="export-btn-icon">⚠️</span>
+                <div>
+                  <div class="export-btn-label">Mise à zéro complète</div>
+                  <div class="export-btn-sub">Efface absolument tout (Stock, Favoris, Config) et restaure l'application d'origine.</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- SYSTEM INFO SECTION -->
+            <div class="system-info-box">
+              <div class="export-section-title" style="margin-top:0">Informations Système</div>
+              <div class="system-info-grid">
+                <div class="system-info-item">
+                  <div class="system-info-label">Clé API Gemini</div>
+                  <div id="info-api-key" class="system-info-value">--</div>
+                </div>
+                <div class="system-info-item">
+                  <div class="system-info-label">Utilisateur Cloud</div>
+                  <div id="info-fb-user" class="system-info-value">--</div>
+                </div>
+                <div class="system-info-item">
+                  <div class="system-info-label">Stockage Local</div>
+                  <div id="info-storage" class="system-info-value">--</div>
+                </div>
+                <div class="system-info-item">
+                  <div class="system-info-label">Dernière Synchro</div>
+                  <div id="info-last-sync" class="system-info-value">--</div>
+                </div>
+                <div class="system-info-item">
+                  <div class="system-info-label">Réseau</div>
+                  <div id="info-network" class="system-info-value">--</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ADD INGREDIENT -->
+        <div class="view-panel" id="view-add">
+          <div class="view-scroll">
+            <div class="add-form">
+              <div class="form-group">
+                <label class="form-label">Nom de l'ingrédient</label>
+                <input class="form-input" id="add-name" placeholder="ex : Gingembre frais"
+                  oninput="handleAddInput(this.value)">
+                <div id="add-results-list" class="add-results-list"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Emoji <span
+                    style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(suggestions basées sur
+                    le nom)</span></label>
+
+                <div class="emoji-search-box" style="margin-bottom:12px">
+                  <input type="text" id="add-emoji-search" class="emoji-search-input"
+                    placeholder="Rechercher ou coller un emoji..." 
+                    oninput="updateEmojiSuggestions(this.value)"
+                    onkeyup="if(event.key==='Enter') searchEmojiAddAI()">
+                  <button id="add-emoji-search-btn" class="emoji-search-btn" onclick="searchEmojiAddAI()"
+                    title="Rechercher avec l'IA">✨</button>
+                </div>
+
+                <div class="emoji-suggestions" id="emoji-suggestions"></div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px">
+                  <span style="font-size:12px; color:var(--txt-soft)">Sélectionné :</span>
+                  <input class="form-input" id="add-emoji" placeholder="Ex: 🧅"
+                    style="width:50px; text-align:center; padding:6px" readonly>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Catégorie</label>
+                <select class="form-select" id="add-category"
+                  onchange="_onManualCategoryChange()">
+                  <option value="">Choisir une catégorie…</option>
+                  <option value="Protéines">🥩 Protéines</option>
+                  <option value="Légumes">🥦 Légumes</option>
+                  <option value="Fruits">🍎 Fruits</option>
+                  <option value="Herbes & aromates">🌿 Herbes & aromates</option>
+                  <option value="Épices sèches">🫙 Épices sèches</option>
+                  <option value="Produits laitiers">🧀 Produits laitiers</option>
+                  <option value="Alternatives végétales">🥛 Alternatives végétales</option>
+                  <option value="Pâtes, riz & légumes secs">🍝 Pâtes, riz & légumes secs</option>
+                  <option value="Conserves & bocaux">🥫 Conserves & bocaux</option>
+                  <option value="Sauces & condiments">🧴 Sauces & condiments</option>
+                  <option value="Huiles & vinaigres">🫒 Huiles & vinaigres</option>
+                  <option value="Farines & liants">🌾 Farines & liants</option>
+                  <option value="Graines & noix">🌰 Graines & noix</option>
+                  <option value="Sucres & sirops">🍬 Sucres & sirops</option>
+                  <option value="Bouillons & bases">🍲 Bouillons & bases</option>
+                  <option value="Plats & Préparations">🍱 Plats & Préparations</option>
+                </select>
+                <p id="category-suggestion-indicator"
+                  style="font-size:11.5px;color:var(--green);margin-top:5px;display:none">✨ Catégorie suggérée par l'IA
+                </p>
+              </div>
+              <div class="form-group">
+                <div class="form-checkbox-row">
+                  <input type="checkbox" class="form-checkbox" id="add-frozen">
+                  <label for="add-frozen" style="font-size:14px;cursor:pointer">Produit surgelé ❄️</label>
+                </div>
+              </div>
+              <button class="submit-btn" onclick="addIngredient()">＋ Ajouter l'ingrédient</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /views -->
+    </div><!-- /main -->
+
+    <!-- Mobile Bottom Nav -->
+    <nav id="bottom-nav">
+      <button class="bn-item active" data-view="pantry" onclick="switchView('pantry')">
+        <span class="bn-icon">🥫</span>
+        <span class="bn-label">Inventaire</span>
+        <span class="bn-badge hidden" id="bn-badge-stock"></span>
+      </button>
+      <button class="bn-item" data-view="shopping" onclick="switchView('shopping')">
+        <span class="bn-icon">🛒</span>
+        <span class="bn-label">Courses</span>
+        <span class="bn-badge hidden" id="bn-badge-cart"></span>
+      </button>
+      <button class="bn-item" data-view="ai" onclick="switchView('ai')">
+        <span class="bn-icon">✨</span>
+        <span class="bn-label">Recettes IA</span>
+      </button>
+      <button class="bn-item" data-view="favorites" onclick="switchView('favorites')">
+        <span class="bn-icon">📖</span>
+        <span class="bn-label">Favoris</span>
+      </button>
+      <button class="bn-item" data-view="export" onclick="switchView('export')">
+        <span class="bn-icon">⚙️</span>
+        <span class="bn-label">Réglages</span>
+      </button>
+    </nav>
+    <button class="fab-btn hidden" id="fab-add" onclick="switchView('add')">＋</button>
+  </div><!-- /app -->
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
+
+
