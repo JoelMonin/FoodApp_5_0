@@ -40,6 +40,7 @@
 - `tests/gemini.test.js` : Mocks et tests du service IA Gemini.
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
+- `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).
 
 ---
 
@@ -51,5 +52,6 @@
 - `.agents/01_auditor_role.md` : Mandat de l'auditeur.
 - `.codex/config.toml` : Configuration des permissions Codex (:read-only).
 - `scripts/sync_agents_md.py` : Générateur automatique d'AGENTS.md.
+- `scripts/sync_version.py` : Propagateur de version (SSOT : `APP_VERSION` de `src/constants.js`).
 - `scripts/audit_bridge.py` : Pont d'audit automatisé pour boucle autonome.
 - `validate.bat` : Script de validation unifiée (`vitest run` + `pytest`).

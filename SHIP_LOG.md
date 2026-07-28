@@ -1,7 +1,7 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.1-modular
+- **Version actuelle** : 5.2.0
 - **Dernière mise à jour** : 28/07/2026
 - **Statut** : Gouvernance agentique installée — prêt pour le prochain lot produit
 
