@@ -6,6 +6,11 @@
 - **Statut** : Gouvernance agentique installée — prêt pour le prochain lot produit
 
 ## Historique des modifications
+- [x] [VERSION 5.2 - OnLine] 28/07/2026 : Publication de la 5.2 (tag v5.2)
+    - Lot 4 : versionnage SSOT (APP_VERSION + sync_version.py + verrou pytest) — audit Standard a posteriori
+    - Hotfix production : imports ESM avec extension .js (site GitHub Pages réparé)
+    - Gouvernance : VERROU PRODUCTION (main = page en ligne, feu vert explicite obligatoire)
+    - Métriques : 22/22 Vitest + 13/13 Pytest verts
 - [x] [PUBLICATION] 28/07/2026 : Synchronisation du dépôt distant et publication GitHub Pages (SHA: c6e82c5)
 - [x] [GOUVERNANCE] 28/07/2026 : Cadre de gouvernance agentique et verrous de fraîcheur (SHA: 7af3e4b)
     - CLAUDE.md (source de vérité) + AGENTS.md généré + DOCTRINE_PRODUIT.md
