@@ -26,6 +26,10 @@
 
 - **Architecture** : Application web SPA (Vite + HTML Vanilla / JavaScript ES Modules + CSS).
 - **Intégrations clés** : Firebase (authentification / persistance) et Gemini (suggestions d'IA / analyse de recettes).
+- **Déploiement & Dépôt Distant** : 
+  - **Dépôt GitHub** : `JoelMonin/FoodApp_5_0` (`https://github.com/JoelMonin/FoodApp_5_0.git`).
+  - **URL Live GitHub Pages** : [https://joelmonin.github.io/FoodApp_5_0/](https://joelmonin.github.io/FoodApp_5_0/)
+  - **Workflow Déploiement** : `.agents/workflows/push-github.md` (synchronisation et publication vers la branche `main` distante).
 - **Gestion des versions & Handoff** : 
   - Protocole Handoff (Livrable ZIP) : Tout lot impliquant une modification de code doit générer un pack de validation dans `handoff/`.
 - **Cartographie `PROJECT_MAP.md`** : Mettre à jour dans le même commit tout ajout ou suppression d'un composant JS, fichier HTML, feuille CSS, workflow ou fichier de test.
