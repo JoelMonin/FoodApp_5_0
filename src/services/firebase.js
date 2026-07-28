@@ -1,4 +1,4 @@
-import { FB_URL, FB_USER } from '../constants';
+import { FB_URL, FB_USER } from '../constants.js';
 
 /**
  * Envoie l'état local vers Firebase Cloud.
