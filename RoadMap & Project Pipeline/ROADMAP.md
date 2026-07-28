@@ -56,6 +56,12 @@ _Aucun chantier ouvert pour l'instant._
 
 ## ✅ [CLÔTURÉ]
 
+### 2026-07-28 — Installation du cadre de gouvernance agentique
+- **Statut** : Livré (SHA: 7af3e4b)
+- **Objectif** : Porter le workflow agentique (exécutant Claude + auditeurs Gemini/Codex) sur FoodApp
+- **Périmètre** : CLAUDE.md, AGENTS.md généré, DOCTRINE_PRODUIT.md, PROJECT_MAP.md, verrous de fraîcheur pytest, validation unifiée `validate.bat`, pont d'audit
+- **Validation** : 22/22 tests Vitest + 10/10 verrous Pytest verts
+
 ### 2026-05-01 — Migration Monolithe → Modules ES6
 - **Statut** : Livré
 - **Objectif** : Décomposer le monolithe `foodapp-v5-Joel.html` (73k tokens) en modules ES6 sous `src/`
