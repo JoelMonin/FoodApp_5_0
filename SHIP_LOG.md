@@ -3,9 +3,18 @@
 ## État du Projet
 - **Version actuelle** : 5.2.0
 - **Dernière mise à jour** : 28/07/2026
-- **Statut** : Gouvernance agentique installée — prêt pour le prochain lot produit
+- **Statut** : Hotfix production livré (recettes IA) — audit #2 réalisé, 1 arbitrage sécurité en attente
 
 ## Historique des modifications
+- [x] [HOTFIX PRODUCTION] 28/07/2026 : Recettes IA réparées (SHA: 6fcd016)
+    - Affichage des recettes IA restauré : `renderAIResults` ciblait un ID DOM inexistant
+      (`ai-results-grid` au lieu de `ai-results-list`) — l'IA générait bien, rien ne s'affichait
+      jamais à l'écran. Bug en ligne depuis au moins la 5.2 (SHA: 69da666)
+    - Modal détail recette : ajout des styles manquants (`.modal-content`, `.mh-*`, `.rd-*`,
+      `.rc-emoji`, `.rc-info`), utilisés par `src/ui/recipe.js` mais absents de la feuille de
+      style — le détail s'affichait sans habillage (SHA: be85c74)
+    - Origine : audit complet #2 (`ULTRA_AUDIT_REPORT.md`), diagnostic croisé Claude Code / Gemini
+    - Métriques : 22/22 Vitest + 13/13 Pytest verts
 - [x] [VERSION 5.2 - OnLine] 28/07/2026 : Publication de la 5.2 (tag v5.2)
     - Lot 4 : versionnage SSOT (APP_VERSION + sync_version.py + verrou pytest) — audit Standard a posteriori
     - Hotfix production : imports ESM avec extension .js (site GitHub Pages réparé)

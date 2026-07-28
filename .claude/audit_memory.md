@@ -52,3 +52,11 @@
   date_added: 2026-05-01
   last_validated: 2026-05-01
   validated_by: "joel.monin"
+
+- pattern: "Base Firebase RTDB accessible sans authentification (lecture/ecriture anonymes)"
+  rule: "Trade-off assume par Joel (2026-07-28, audit #2). Usage familial, URL non indexee et non devinable, donnees non sensibles (inventaire de garde-manger et recettes). Le cout d'une mise en place d'authentification n'est pas justifie a ce stade. A rouvrir si l'app est diffusee plus largement ou si des donnees personnelles y transitent."
+  scope: "src/services/firebase.js, src/constants.js (FB_URL, FB_USER)"
+  agent: security
+  date_added: 2026-07-28
+  last_validated: 2026-07-28
+  validated_by: "joel.monin"
