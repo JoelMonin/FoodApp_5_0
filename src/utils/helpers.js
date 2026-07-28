@@ -72,3 +72,20 @@ export function areSimilar(recipeIng, inventoryIng) {
 export function autoEmoji(name, categories = []) {
   return '🛒';
 }
+
+/**
+ * Retarde l'exécution de `fn` tant que de nouveaux appels arrivent.
+ * Utilisé pour ne pas re-filtrer tout l'inventaire à chaque touche frappée.
+ * @param {Function} fn - La fonction à temporiser.
+ * @param {number} delay - Délai d'inactivité en millisecondes avant exécution.
+ * @returns {Function} La version temporisée, dotée d'une méthode `.cancel()`.
+ */
+export function debounce(fn, delay = 200) {
+  let timer = null;
+  const debounced = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+  debounced.cancel = () => clearTimeout(timer);
+  return debounced;
+}

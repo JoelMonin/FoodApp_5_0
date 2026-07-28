@@ -1,6 +1,5 @@
 import { state, saveState, shoppingChecked, setState } from './state.js';
 import { generateId, normalizeString } from './utils/helpers.js';
-import { syncPush, syncPull } from './services/firebase.js';
 import { toast } from './utils/dom.js';
 
 export function switchView(view) {

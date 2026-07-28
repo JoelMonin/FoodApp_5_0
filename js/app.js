@@ -6,11 +6,12 @@ import {
   setState 
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
-import { 
-  generateId, 
-  normalizeString, 
+import {
+  generateId,
+  normalizeString,
   autoEmoji,
-  areSimilar
+  areSimilar,
+  debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB } from '../src/data.js';
 import { syncPush, syncPull } from '../src/services/firebase.js';
@@ -36,22 +37,9 @@ const expose = (fns) => {
 window.addEventListener('DOMContentLoaded', async () => {
   loadStateFromModule();
   state = moduleState;
-  
-  try {
-    const cloudData = await syncPull();
-    if (cloudData) {
-        const localApiKey = state.aiConfig?.apiKey;
-        // Merge cloud data but preserve local API key if cloud has none
-        if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
-            if (!cloudData.aiConfig) cloudData.aiConfig = {};
-            cloudData.aiConfig.apiKey = localApiKey;
-        }
-        setState(cloudData);
-        state = moduleState;
-    }
-  } catch (e) { console.error('Initial Sync failed', e); }
 
-  // Initial render
+  // Rendu immediat depuis les donnees locales : la vue ne doit jamais attendre le reseau.
+  // La synchro cloud part en arriere-plan et re-declenche un rendu via 'stateUpdated'.
   renderCurrentView();
   restoreAIConfig();
   initKeyboardShortcuts();
@@ -67,6 +55,23 @@ window.addEventListener('DOMContentLoaded', async () => {
             });
         }
     });
+
+  // Synchro cloud en arriere-plan : setState declenche 'stateUpdated', donc le re-rendu
+  // est automatique quand les donnees arrivent.
+  syncPull()
+    .then(cloudData => {
+        if (!cloudData) return;
+        const localApiKey = state.aiConfig?.apiKey;
+        // La cle API n'est jamais poussee dans le cloud : on preserve celle du poste.
+        if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
+            if (!cloudData.aiConfig) cloudData.aiConfig = {};
+            cloudData.aiConfig.apiKey = localApiKey;
+        }
+        setState(cloudData);
+        state = moduleState;
+        restoreAIConfig();
+    })
+    .catch(e => console.error('Initial Sync failed', e));
 });
 
 window.addEventListener('stateUpdated', () => {
@@ -108,8 +113,21 @@ function switchView(view) {
     saveState();
 }
 
+/**
+ * Compte stock et panier en UNE seule passe sur l'inventaire.
+ * Ces deux compteurs etaient recalcules par 4 `filter()` distincts a chaque rendu.
+ */
+function countStockAndCart() {
+    let stock = 0, cart = 0;
+    for (const i of state.ingredients) {
+        if (i.inStock) stock++;
+        if (i.inCart) cart++;
+    }
+    return { stock, cart };
+}
+
 function renderTopbar(view) {
-    const titles = { 
+    const titles = {
         pantry: 'Inventaire', 
         shopping: 'Mes Courses', 
         ai: 'Recettes IA', 
@@ -119,9 +137,9 @@ function renderTopbar(view) {
         export: 'Réglages',
         settings: 'Réglages'
     };
-    const subs = { 
-        pantry: () => state.ingredients.filter(i => i.inStock).length + ' articles en stock',
-        shopping: () => state.ingredients.filter(i => i.inCart).length + ' articles à acheter'
+    const subs = {
+        pantry: () => countStockAndCart().stock + ' articles en stock',
+        shopping: () => countStockAndCart().cart + ' articles à acheter'
     };
 
     // Desktop topbar
@@ -236,15 +254,35 @@ function getFilteredIngredients() {
     return list;
 }
 
+// Le filtrage normalise chaque nom d'ingredient : trop couteux a chaque touche frappee.
+const _renderPantryDebounced = debounce(() => renderPantry(), 200);
+
+// Deux barres de recherche coexistent : celle du bureau et celle du mobile.
+const SEARCH_INPUT_IDS = ['search-input', 'mobile-search'];
+const SEARCH_CLEAR_IDS = ['clear-search-desktop', 'clear-search-mobile'];
+
+/** Affiche la croix d'effacement uniquement quand une recherche est en cours. */
+function updateSearchClearButtons() {
+    const hasQuery = !!state.search;
+    SEARCH_CLEAR_IDS.forEach(id => {
+        document.getElementById(id)?.classList.toggle('visible', hasQuery);
+    });
+}
+
 function handleSearch(val) {
     state.search = val;
-    renderPantry();
+    updateSearchClearButtons();
+    _renderPantryDebounced();
 }
 
 function clearSearch() {
     state.search = '';
-    const si = document.getElementById('search-input');
-    if (si) si.value = '';
+    SEARCH_INPUT_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    updateSearchClearButtons();
+    _renderPantryDebounced.cancel();
     renderPantry();
 }
 
@@ -526,9 +564,8 @@ function renderFavorites() {
 
 function deleteFav(id) {
     state.favorites = state.favorites.filter(f => f.id !== id);
+    // saveState() emet 'stateUpdated', qui relance deja renderCurrentView() : pas de rendu manuel.
     saveState();
-    renderFavorites();
-    updateBadges();
     toast('Recette supprimée');
 }
 
@@ -553,6 +590,22 @@ function saveRecipeAndList(r) {
     openEnhancedCartPicker(r);
 }
 
+/**
+ * Regroupe des ingredients par categorie en UNE passe, categories triees alphabetiquement.
+ * Remplace le balayage complet de l'inventaire repete pour chaque categorie.
+ * @returns {Array<[string, Array]>} paires [categorie, ingredients] triees.
+ */
+function groupByCategory(ingredients) {
+    const grouped = new Map();
+    for (const i of ingredients) {
+        if (!grouped.has(i.category)) grouped.set(i.category, []);
+        grouped.get(i.category).push(i);
+    }
+    // Tri par defaut volontaire (et non localeCompare) : conserve a l'identique
+    // l'ordre des rubriques dans le texte exporte.
+    return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
+}
+
 async function exportClipboard(type) {
     let text = '';
     const date = new Date().toLocaleDateString('fr-FR');
@@ -574,30 +627,24 @@ async function exportClipboard(type) {
         });
     } else if (type === 'categorized') {
         text = `📦 INVENTAIRE PAR RAYON (${date})\n\n`;
-        const cats = [...new Set(state.ingredients.map(i => i.category))].sort();
-        cats.forEach(cat => {
-            const items = state.ingredients.filter(i => i.category === cat);
-            if (items.length > 0) {
-                text += `\n--- ${cat.toUpperCase()} ---\n`;
-                items.forEach(i => {
-                    const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-                    text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
-                });
-            }
-        });
+        for (const [cat, items] of groupByCategory(state.ingredients)) {
+            text += `\n--- ${cat.toUpperCase()} ---\n`;
+            items.forEach(i => {
+                const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
+                text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
+            });
+        }
     } else if (type === 'cart') {
         text = `🛒 LISTE DE COURSES (${date})\n\n`;
         const items = state.ingredients.filter(i => i.inCart);
         if (items.length === 0) { text += "(Vide)"; }
         else {
-            const cats = [...new Set(items.map(i => i.category))].sort();
-            cats.forEach(cat => {
-                const catItems = items.filter(i => i.category === cat);
+            for (const [cat, catItems] of groupByCategory(items)) {
                 text += `\n[ ${cat.toUpperCase()} ]\n`;
                 catItems.forEach(i => {
                     text += `☐ ${i.emoji || '🔸'} ${i.name}\n`;
                 });
-            });
+            }
         }
     }
 
@@ -627,8 +674,7 @@ function updateApiStatus() {
 }
 
 function updateBadges() {
-    const stockCount = state.ingredients.filter(i => i.inStock).length;
-    const cartCount = state.ingredients.filter(i => i.inCart).length;
+    const { stock: stockCount, cart: cartCount } = countStockAndCart();
     const favCount = state.favorites?.length || 0;
 
     // Sidebar
@@ -683,8 +729,7 @@ function saveEmoji() {
     const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
     if (ing) {
         ing.emoji = document.getElementById('edit-emoji-input').value;
-        saveState();
-        renderPantry();
+        saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
     }
     closeModal('modal-edit-emoji');
 }
@@ -777,6 +822,9 @@ function updateEmojiSuggestions(val) {
     container.replaceChildren(...emojis.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
 }
 
+// Balaye les 273 ingredients de la base : temporise sur la frappe, immediat sur un reset.
+const _updateEmojiSuggestionsDebounced = debounce(updateEmojiSuggestions, 200);
+
 function handleAddInput(val) {
     const list = document.getElementById('add-results-list');
     const emojiInput = document.getElementById('add-emoji');
@@ -790,6 +838,7 @@ function handleAddInput(val) {
         if (list) list.replaceChildren();
         if (emojiInput) emojiInput.value = '';
         if (catSelect) catSelect.value = '';
+        _updateEmojiSuggestionsDebounced.cancel();
         updateEmojiSuggestions('');
         showCategoryIndicator(null);
         return;
@@ -805,8 +854,8 @@ function handleAddInput(val) {
         }, [i.emoji + ' ', i.name])));
     }
 
-    // 3. Grille d'emojis (instantané, depuis DB)
-    updateEmojiSuggestions(val);
+    // 3. Grille d'emojis (temporisee, depuis DB)
+    _updateEmojiSuggestionsDebounced(val);
 
     // Si l'utilisateur a choisi manuellement la catégorie, on s'arrête là
     if (_isManualCategory) return;
@@ -906,9 +955,8 @@ function addIngredient() {
         inStock: true, inCart: false, pinned: false
     });
 
-    saveState();
-    renderPantry();
-    
+    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
+
     // Reset form
     document.getElementById('add-name').value = '';
     document.getElementById('add-emoji').value = '';
@@ -930,9 +978,8 @@ function addIngredientFromDb(dbItem) {
     const id = generateId('ing');
     state.ingredients.push({ ...dbItem, id, inStock: true, inCart: false, pinned: false });
     
-    saveState();
-    renderPantry();
-    
+    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
+
     // Reset form
     document.getElementById('add-name').value = '';
     document.getElementById('add-emoji').value = '';
@@ -1286,5 +1333,8 @@ expose({
     toggleRecipeFullscreen, changePplScale,
     pullFromFirebase: async () => { const d = await syncPull(); if(d) setState(d); },
     pushToFirebase: async () => { await syncPush(state); toast('Synchronisé !'); },
-    exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji
+    exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji,
+    // Appelee en inline depuis index.html (oninput du champ de recherche d'emoji) :
+    // sans cette exposition, chaque frappe levait une ReferenceError.
+    updateEmojiSuggestions: _updateEmojiSuggestionsDebounced
 });

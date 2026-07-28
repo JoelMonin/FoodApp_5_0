@@ -46,11 +46,11 @@
   validated_by: "joel.monin"
 
 - pattern: "AI_ROLES.REASONING et AI_ROLES.FAST pointent vers le même modèle"
-  rule: "Choix volontaire — gemini-2.5-flash est suffisant pour tous les usages FoodApp. Distinction conservée pour permettre une évolution future (ex: REASONING vers gemini-2.5-pro pour la nutrition)."
+  rule: "OBSOLETE depuis le 2026-07-28 : les deux rôles sont désormais distincts (REASONING = gemini-3.6-flash, FAST = gemini-3.5-flash-lite). L'évolution anticipée par cette entrée a eu lieu. Ne plus signaler l'identité des deux rôles ; en revanche, un rôle pointant vers un modèle déprécié EST un vrai finding."
   scope: "src/constants.js"
   agent: archi
   date_added: 2026-05-01
-  last_validated: 2026-05-01
+  last_validated: 2026-07-28
   validated_by: "joel.monin"
 
 - pattern: "Base Firebase RTDB accessible sans authentification (lecture/ecriture anonymes)"
