@@ -1,13 +1,18 @@
 # CURRENT GOAL
 
 ## Objectif Principal
-**Version 5.2 — ouverte le 28/07/2026.** La version 5.1 est publiée sur GitHub (tag `v5.1`,
-SHA: af63a2b). Le contenu de la 5.2 est en cours de définition avec Joel.
+**[LOT 4] Versionnage SSOT** — démarré le 28/07/2026, branche `feat/lot4-version-ssot`.
+Une seule source de vérité pour le numéro de version (v5.2 en cours) : un changement
+unique propage la version partout (UI, package.json, journal).
 
 ## Sous-tâches
-- [ ] Définir le périmètre de la 5.2 avec Joel (candidats ROADMAP : PERF_BOOT_AND_RENDER,
-  RACE_CONDITIONS_AI — ou autre envie produit)
-- [ ] `/new-lot` + branche `feat/` dès le périmètre validé
+- [x] A. Constante `APP_VERSION` dans `src/constants.js` (la SSOT)
+- [x] B. Script `scripts/sync_version.py` : propage vers index.html, package.json,
+  package-lock.json, SHIP_LOG.md (le « tour de clé »)
+- [x] C. Verrou pytest `tests/test_version_ssot.py` : casse si un emplacement dérive
+- [x] D. Mise à jour PROJECT_MAP.md (nouveau script + nouveau test)
+- [x] E. Validation unifiée verte (22 Vitest + 13 Pytest) + tour de clé testé
+  aller-retour (9.9.9 → 5.2.0, diff neutre)
 
 ## Prochaine étape
-Discussion de cadrage avec Joel : que met-on dans la 5.2 ?
+Audit (niveau Standard) puis clôture du lot : merge --no-ff dans main.
