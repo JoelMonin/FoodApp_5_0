@@ -297,7 +297,7 @@ function renderAI() {
 }
 
 function renderAIResults(recipes) {
-    const grid = document.getElementById('ai-results-grid');
+    const grid = document.getElementById('ai-results-list');
     if (!grid) return;
     grid.replaceChildren(...recipes.map((r, i) => renderRecipeCard(r, i, { openRecipeDetail })));
     document.getElementById('ai-placeholder')?.classList.add('hidden');
