@@ -70,6 +70,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   ]);
   const fingerprintBeforeSync = localDataFingerprint();
 
+  // Meme principe pour les champs libres de la config IA : ils ne sont enregistres
+  // qu'au clic sur « Sauvegarder ». Une saisie en cours ne doit pas etre reecrite par
+  // le retour de la synchro — y compris si l'utilisateur a deja clique ailleurs.
+  const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
+  const aiFormFingerprint = () => JSON.stringify(
+      AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
+  );
+  const aiFormBeforeSync = aiFormFingerprint();
+
   syncPull()
     .then(cloudData => {
         if (!cloudData) return;
@@ -89,10 +98,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         setState(cloudData);
         state = moduleState;
 
-        // Ne pas reecrire les champs sous les doigts de l'utilisateur s'il est en
-        // train de saisir (la config IA est un formulaire libre, non persistee a la frappe).
-        const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-        if (!typing) restoreAIConfig();
+        // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
+        if (aiFormFingerprint() === aiFormBeforeSync) {
+            restoreAIConfig();
+        } else {
+            console.warn('[Sync] Saisie en cours dans la configuration IA : champs non reecrits.');
+        }
     })
     .catch(e => console.error('Initial Sync failed', e));
 });
