@@ -58,9 +58,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Synchro cloud en arriere-plan : setState declenche 'stateUpdated', donc le re-rendu
   // est automatique quand les donnees arrivent.
+  //
+  // GARDE-FOU : la reponse du cloud est une photo prise AVANT les gestes de
+  // l'utilisateur. Comme l'ecran est desormais interactif pendant l'attente reseau,
+  // appliquer cette photo telle quelle effacerait tout ce qu'il a fait entre-temps
+  // (setState remplace les tableaux en bloc). On compare donc les donnees locales
+  // avant/apres : au moindre changement, la reponse cloud est ecartee pour ce
+  // demarrage — les donnees locales sont plus recentes, par construction.
+  const localDataFingerprint = () => JSON.stringify([
+      state.ingredients, state.customCartItems, state.favorites, state.extraIngredients
+  ]);
+  const fingerprintBeforeSync = localDataFingerprint();
+
   syncPull()
     .then(cloudData => {
         if (!cloudData) return;
+
+        if (localDataFingerprint() !== fingerprintBeforeSync) {
+            console.warn('[Sync] Modifications locales pendant la synchro initiale : '
+                + 'donnees cloud ecartees pour ce demarrage (aucune perte locale).');
+            return;
+        }
+
         const localApiKey = state.aiConfig?.apiKey;
         // La cle API n'est jamais poussee dans le cloud : on preserve celle du poste.
         if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
@@ -69,7 +88,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         setState(cloudData);
         state = moduleState;
-        restoreAIConfig();
+
+        // Ne pas reecrire les champs sous les doigts de l'utilisateur s'il est en
+        // train de saisir (la config IA est un formulaire libre, non persistee a la frappe).
+        const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+        if (!typing) restoreAIConfig();
     })
     .catch(e => console.error('Initial Sync failed', e));
 });
