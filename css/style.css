@@ -2628,6 +2628,196 @@
       margin-top: 1px
     }
 
+    /* Recipe detail modal — styles reels (le JS insere .modal-content directement dans
+       .modal-overlay via replaceChildren, en contournant le wrapper statique .modal ;
+       ces classes mh- et rd- sont celles reellement utilisees par src/ui/recipe.js,
+       contrairement aux .recipe-detail / .recipe-steps ci-dessus, orphelines) */
+    .modal-content {
+      background: white;
+      border-radius: 18px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mh-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mh-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mh-title {
+      font-family: 'Lora', serif;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .mh-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--cream-dk);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--txt-mid);
+      transition: all .15s;
+    }
+
+    .mh-btn:hover {
+      background: var(--terra-lt);
+      color: var(--terra);
+    }
+
+    .rd-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .rd-emoji {
+      font-size: 40px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .rd-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .rd-meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--txt-mid);
+      background: var(--cream);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .rd-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt-soft);
+      margin-bottom: 8px;
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .rd-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .rd-ingredients {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rd-ingredients li {
+      font-size: 13.5px;
+      color: var(--txt);
+      display: flex;
+      gap: 4px;
+    }
+
+    .rd-ing-name {
+      font-weight: 500;
+    }
+
+    .rd-ing-amount {
+      color: var(--txt-soft);
+    }
+
+    .rd-instructions {
+      list-style: none;
+      counter-reset: rdsteps;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .rd-instructions li {
+      counter-increment: rdsteps;
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .rd-instructions li::before {
+      content: counter(rdsteps);
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--green);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .rd-nutrition {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .rd-nut-item {
+      font-size: 12px;
+      color: var(--txt-mid);
+      background: var(--cream);
+      padding: 8px 14px;
+      border-radius: var(--r-sm);
+    }
+
+    .rd-nut-val {
+      font-weight: 700;
+      color: var(--txt);
+    }
+
+    /* Carte recette IA/favoris (src/ui/recipe.js renderRecipeCard) — rc-emoji/rc-info sont
+       la structure reellement utilisee (rc-header/rc-body ci-dessus sont orphelines) */
+    .rc-emoji {
+      font-size: 32px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .rc-info {
+      flex: 1;
+      min-width: 0;
+    }
+
     /* Visual Stability Fixes */
     #toast-container {
       position: fixed;
