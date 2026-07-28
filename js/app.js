@@ -406,7 +406,7 @@ async function analyzeNutrition(r, source, favId) {
         const ingList = (r.ingredients || []).map(i => (i.q || i.amount || '') + ' ' + (i.n || i.name)).join(', ');
         const prompt = `Tu es un nutritionniste expert. Analyse cette recette:\nNom: ${r.name}\nIngrédients: ${ingList}\nInstructions: ${(r.steps || r.instructions || []).join(' ')}\n\nEstime le Nutri-Score (A à E) et le nombre de kilocalories (kcal) pour UNE portion (la recette est pour ${r.people || r.ppl || 1} pers.), et propose 2 tags courts. Réponds UNIQUEMENT en JSON: {"score": "A", "kcal": 450, "tags": ["Sain", "Léger"]}`;
 
-        const model = state.aiConfig.models?.nutrition || 'gemini-2.5-flash';
+        const model = state.aiConfig.models?.nutrition || 'gemini-3.6-flash';
         const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
         const match = raw.match(/\{[\s\S]*?\}/);
         if (!match) throw new Error("Réponse IA invalide");
@@ -837,7 +837,7 @@ function handleAddInput(val) {
 
         try {
             const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${val}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
-            const model = state.aiConfig.models?.categorySuggest || 'gemini-2.5-flash';
+            const model = state.aiConfig.models?.categorySuggest || 'gemini-3.6-flash';
             const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
             const match = raw.match(/\{[\s\S]*?\}/);
             if (!match) { showCategoryIndicator(null); return; }
@@ -986,7 +986,7 @@ async function searchEmojiAddAI() {
 
     try {
         const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${target}". Réponds uniquement par les emojis séparés par des espaces.`;
-        const model = state.aiConfig.models?.emojiSearch || 'gemini-2.5-flash';
+        const model = state.aiConfig.models?.emojiSearch || 'gemini-3.6-flash';
         const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
         if (res) {
             // Robust emoji detection using modern regex
@@ -1175,7 +1175,7 @@ async function searchEmojiAI() {
 
     try {
         const prompt = `Suggère 15 emojis pour: ${query}. Réponds uniquement par les emojis.`;
-        const model = state.aiConfig.models?.emojiSearch || 'gemini-2.5-flash';
+        const model = state.aiConfig.models?.emojiSearch || 'gemini-3.6-flash';
         const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
         if (res) {
             const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];

@@ -3,8 +3,8 @@
 export const APP_VERSION = '5.2.0';
 
 export const AI_ROLES = {
-  REASONING: 'gemini-2.5-flash',
-  FAST: 'gemini-2.5-flash'
+  REASONING: 'gemini-3.6-flash',
+  FAST: 'gemini-3.6-flash'
 };
 
 export const FB_USER = 'FoodApp_V5_Joel';
