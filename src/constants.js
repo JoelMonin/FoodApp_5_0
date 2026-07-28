@@ -1,6 +1,6 @@
 // SSOT du numéro de version. Pour changer la version partout :
 // modifier UNIQUEMENT cette ligne puis lancer `python scripts/sync_version.py`.
-export const APP_VERSION = '5.2.0';
+export const APP_VERSION = '5.3.0';
 
 export const AI_ROLES = {
   REASONING: 'gemini-2.5-flash',
