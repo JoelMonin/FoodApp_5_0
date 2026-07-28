@@ -132,6 +132,14 @@ est interdite sans feu vert explicite.
 - Avant de demander le feu vert : validation unifiee verte + annonce de ce qui va changer
   sur la page en ligne.
 
+**Lisibilite de l'historique (regle Joel 2026-07-28) :** l'historique doit se lire comme
+un journal de versions, pas comme un log technique.
+- Le commit qui publie une version s'intitule exactement « Version X.Y - Nom » (rien d'autre).
+- Minimum de commits : regrouper les maj de suivi/gouvernance AVEC le travail qu'elles
+  accompagnent (pas de micro-commits docs/chore separes).
+- Messages en francais simple, oriente jalon/impact — le detail technique va dans le corps
+  du message, jamais dans le titre.
+
 **Discipline Git (non negociable) :**
 - INTERDIT `git add .` **et `git add -A`** — **staging fichier par fichier**, toujours.
 - Jamais de commit sans demande. Exception : sauvegarde bornee sur branche feat/ autorisee.

@@ -1,11 +1,16 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.2.0
+- **Version actuelle** : 5.3.0
 - **Dernière mise à jour** : 28/07/2026
 - **Statut** : Hotfix production livré (recettes IA) — audit #2 réalisé, 1 arbitrage sécurité en attente
 
 ## Historique des modifications
+- [ ] [VERSION 5.3 - EN COURS] 28/07/2026 : Ouverture de la 5.3
+    - Bascule des modèles IA vers `gemini-3.6-flash` (SSOT `AI_ROLES` dans `src/constants.js`)
+    - Numéro de version porté à 5.3.0 et propagé via `sync_version.py`
+    - Gouvernance : règle « historique lisible » (journal de versions, pas de micro-commits)
+    - Sauvegarde des 5 commandes d'agents dans `.claude/commands`
 - [x] [HOTFIX PRODUCTION] 28/07/2026 : Recettes IA réparées (SHA: 6fcd016)
     - Affichage des recettes IA restauré : `renderAIResults` ciblait un ID DOM inexistant
       (`ai-results-grid` au lieu de `ai-results-list`) — l'IA générait bien, rien ne s'affichait
