@@ -11,7 +11,7 @@ Tu n'es PAS Claude Code. Si ton harnais (Antigravity ou Codex) t'injecte ce
 fichier au démarrage, tu es l'AUDITEUR de la session : le mandat de la
 PARTIE 1 est le tien.
 
-NB : la mécanique interne de l'exécutant (blocs NOINJECT de `Claude.md`) et
+NB : la mécanique interne de l'exécutant (blocs NOINJECT de `CLAUDE.md`) et
 la doctrine produit spécifique (`DOCTRINE_PRODUIT.md`) sont exclues de cette
 copie — lis ces fichiers au besoin. Ce fichier DOIT se terminer par la
 ligne-témoin « FIN DES RÈGLES INJECTÉES » : si elle manque, ton contexte est TRONQUÉ — signale-le à Joel.
@@ -74,7 +74,7 @@ Quand Joel lance un Duel, tu reçois le même prompt d'audit que l'autre auditeu
 
 ---
 
-# PARTIE 2 — GOUVERNANCE PROJET (copie de Claude.md, hors blocs historiques NOINJECT)
+# PARTIE 2 — GOUVERNANCE PROJET (copie de CLAUDE.md, hors blocs historiques NOINJECT)
 
 # CLAUDE.md - Source de Verite Unique de la gouvernance (workflow agentique, portable)
 # Lu par : Claude Code (natif). Gemini et Codex le recoivent via AGENTS.md (fichier GENERE).
@@ -166,6 +166,18 @@ check-list ciblee sur les ressources existantes de la zone (`DOCTRINE_PRODUIT.md
   1. `npx vitest run` (tests applicatifs JS en mode une passe sans watch).
   2. `pytest` (verrous de fraîcheur Python pour `AGENTS.md` et `PROJECT_MAP.md`).
 
+**Commandes courantes :**
+
+| Besoin | Commande |
+|---|---|
+| Lancer l'app en local (port 5173) | `npm run dev` (ou `Foodapp_start.bat`) |
+| Validation unifiée complète | `.\validate.bat` ou `npm run check` |
+| Un seul fichier de test JS | `npx vitest run tests/nom.test.js` |
+| Un seul verrou de gouvernance | `python -m pytest tests/nom_test.py` |
+| Build de production | `npm run build` |
+| Régénérer `AGENTS.md` (après édition de ce fichier) | `python scripts/sync_agents_md.py` |
+| Propager la version (SSOT, cf. §6) | `python scripts/sync_version.py` |
+
 **Seuils d'alerte archi (signaler) :** fichier > 1500 lignes · fonction > 150 lignes · modif
 > 5 fichiers sans interface claire. (*Alerte sur `foodapp-v5-Joel.html`*).
 
@@ -185,12 +197,26 @@ check-list ciblee sur les ressources existantes de la zone (`DOCTRINE_PRODUIT.md
 
 **BOUCLE AUTONOME VIA LE PONT D'AUDIT (`scripts/audit_bridge.py`)** : la PAUSE par tour est levée si le pont est actif. PAUSE obligatoire en cas de désaccord sur un finding critique ou doute sur les données.
 
+**Discipline de nettoyage (niveau Dur, inspirée d'un protocole de désendettement externe) :**
+- **Pare-feu A/B** : un nettoyage ne touche jamais un comportement observable (calcul, règle
+  métier, affichage). Si un changement de comportement s'impose, il sort du nettoyage et devient
+  un lot/spec dédié avec validation explicite de Joel.
+- **Suppression de code mort = 3 recherches convergentes** avant de retirer quoi que ce soit :
+  appel direct (import/référence), accès dynamique (chaîne de caractères, sélecteur), et
+  configuration/scripts annexes. Une seule recherche ne prouve jamais une absence.
+- **Preuve = résultat attendu écrit AVANT la vérification** ("la commande X doit renvoyer Y").
+  Constater qu'une commande "passe encore" sans avoir écrit l'attendu au préalable ne prouve
+  rien.
+
 ---
 
 ## 6. SINGLE SOURCE OF TRUTH (SSOT) & DRY
 
 - **Regle absolue** : chaque parametre metier / config / etat a UNE seule representation canonique.
 - **Verification proactive** : traquer la duplication par `grep` AVANT de coder.
+- **Versionnage applicatif** : SSOT = `APP_VERSION` dans `src/constants.js`. Modifier
+  UNIQUEMENT cette valeur, puis propager avec `python scripts/sync_version.py`
+  (verrou : `tests/test_version_ssot.py`).
 
 ---
 

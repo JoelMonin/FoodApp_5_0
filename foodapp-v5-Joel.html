@@ -3649,8 +3649,8 @@
         <div class="form-group" style="margin-bottom:12px">
           <label class="form-label" style="display:flex;justify-content:space-between">Moteur Tâches Complexes <span style="font-size:11px;font-weight:normal;color:var(--txt-soft)">(Recettes, Nutrition)</span></label>
           <select id="api-model-complex" class="form-input" style="padding:10px;cursor:pointer">
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Ultra Puissant) ✨</option>
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommandé) ⚡</option>
+            <option value="gemini-3.6-flash">Gemini 3.6 Flash (Recommandé & Rapide) ⚡</option>
+            <option value="gemini-3.5-flash">Gemini 3.5 Flash ✨</option>
           </select>
         </div>
       </div>
@@ -4228,8 +4228,8 @@
     // STATE
     // ═══════════════════════════════════════════
     const AI_ROLES = {
-      REASONING: 'gemini-2.5-flash',
-      FAST: 'gemini-2.0-flash'
+      REASONING: 'gemini-3.6-flash',
+      FAST: 'gemini-3.6-flash'
     };
 
     let state = {
@@ -5111,7 +5111,7 @@
     async function callAI(prompt, role, options = {}) {
       if (!state.aiConfig || !state.aiConfig.apiKey || !state.aiConfig.models) throw new Error("Erreur de configuration IA.");
 
-      const model = state.aiConfig.models[role] || 'gemini-2.0-flash';
+      const model = state.aiConfig.models[role] || 'gemini-3.6-flash';
       const temp = options.temperature !== undefined ? options.temperature : 0.1;
       const tokens = options.maxTokens || 4096;
       const isJSON = options.isJSON !== undefined ? options.isJSON : true;
@@ -6588,9 +6588,8 @@ JSON simple : {"category":"...","emojis":["..."]}`;
     // ═══════════════════════════════════════════
     function saveApiKey() {
       const key = document.getElementById('api-key-input').value.trim();
-      const complex = document.getElementById('api-model-complex')?.value || 'gemini-2.5-flash';
-      // Moteur rapide fix à gemini-2.0-flash comme recommandé
-      const fast = 'gemini-2.0-flash';
+      const complex = document.getElementById('api-model-complex')?.value || 'gemini-3.6-flash';
+      const fast = 'gemini-3.6-flash';
 
       state.aiConfig.apiKey = key;
       if (!state.aiConfig.models) state.aiConfig.models = {};

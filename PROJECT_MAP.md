@@ -46,7 +46,7 @@
 
 ## 4. GOUVERNANCE ET OUTILLAGE (`scripts/`, `.agents/`, `.codex/`)
 
-- `Claude.md` : Fichier maître de gouvernance (source de vérité).
+- `CLAUDE.md` : Fichier maître de gouvernance (source de vérité).
 - `AGENTS.md` : Fichier généré pour les auditeurs.
 - `DOCTRINE_PRODUIT.md` : Règles métier, seuils et style de collaboration.
 - `.agents/01_auditor_role.md` : Mandat de l'auditeur.

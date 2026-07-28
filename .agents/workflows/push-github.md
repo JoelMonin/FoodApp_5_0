@@ -1,24 +1,31 @@
 ---
-description: Met à jour le site sur GitHub en renommant temporairement le fichier local.
+description: Publie le lot validé sur GitHub Pages (branche main, servie directement depuis la racine).
 ---
 
-Ce workflow permet de synchroniser le fichier local `foodapp-v5-Joel.html` avec le dépôt GitHub `JoelMonin/FoodApp_5_0` en l'écrasant au nom de `index.html`.
+**Vérifié le 2026-07-28 (GitHub API `repos/.../pages`)** : GitHub Pages sert la branche `main`
+depuis sa racine (`source.path = "/"`, `build_type = "legacy"`). Il n'y a **aucune étape de
+build ni de copie de fichier** : `index.html` (racine) est déjà le point d'entrée SPA moderne et
+charge `js/app.js` en module ES, qui importe `src/*.js` à la volée dans le navigateur.
 
-// turbo-all
-1. Création de la copie temporaire pour GitHub Pages :
-   `cp foodapp-v5-Joel.html index.html`
+**Corollaire : ce workflow n'écrase plus jamais `index.html` avec `foodapp-v5-Joel.html`.**
+Ce dernier fichier n'est pas lié au déploiement du site principal — il sert de base aux copies
+personnalisées d'autres utilisateurs (voir `create-user-version.md`).
 
-2. Ajout des fichiers modifiés à l'index Git :
-   `& "C:\Program Files\Git\cmd\git.exe" add index.html foodapp-data.js`
+Publier sur `main`, c'est fusionner la branche `feat/` validée, selon le **VERROU PRODUCTION**
+de `CLAUDE.md` §2 : aucune étape de ce workflow ne s'exécute sans confirmation explicite de
+Joel donnée au moment du déploiement.
 
-3. Création du commit avec un message automatique (horodaté) :
-   `& "C:\Program Files\Git\cmd\git.exe" commit -m "Mise à jour automatique - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"`
+1. **Pré-requis, dans l'ordre** :
+   - Validation unifiée verte (`.\validate.bat`).
+   - Annonce claire à Joel de ce qui va changer sur la page en ligne.
+   - **Confirmation explicite de Joel**, donnée pour ce déploiement précis.
 
-4. Envoi vers la branche principale de GitHub (avec force car on écrase le distant) :
-   `& "C:\Program Files\Git\cmd\git.exe" push origin main --force`
+2. Fusion, **sans force**, avec préservation du graphe :
+   `git checkout main`
+   `git merge --no-ff feat/<nom-de-la-branche>`
 
-5. Nettoyage du fichier temporaire local :
-   `rm index.html`
+3. Envoi vers le dépôt distant, **jamais avec `--force`** :
+   `git push origin main`
 
-6. Confirmation visuelle :
-   `Afficher un message de succès : 'Dépôt GitHub mis à jour avec succès !'`
+4. Confirmation visuelle : afficher l'URL live (`https://joelmonin.github.io/FoodApp_5_0/`) et
+   rappeler que GitHub Pages peut prendre jusqu'à quelques minutes à republier.
