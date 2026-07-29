@@ -1,11 +1,28 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.4.0
-- **Dernière mise à jour** : 28/07/2026
-- **Statut** : Hotfix production livré (recettes IA) — audit #2 réalisé, 1 arbitrage sécurité en attente
+- **Version actuelle** : 5.5.0
+- **Dernière mise à jour** : 30/07/2026
+- **Statut** : Version 5.5 publiée (LOTS 007 + 008) — campagne « Restauration & Refonte » en cours, prochain chantier LOT 009
 
 ## Historique des modifications
+- [x] [VERSION 5.5 - OnLine] 30/07/2026 : Publication des lots 008 + 007
+    - Lot 008 — Données en sécurité : « Importer uniquement le stock » refait fusionner
+      (statuts seulement), export blanchi de la clé API, `applyExternalState` point d'entrée
+      unique préservant la clé sans condition, réinitialisation qui repeuple (297 ingrédients
+      reconstruits depuis l'export réel de Joel) et pousse au cloud avant rechargement,
+      hygiène du Set des coches
+    - Lot 007 — Synchro collaborative : restauration du `saveState(push)` du monolithe en
+      moteur bidirectionnel complet — envoi temporisé 2 s, drapeau « EN ATTENTE » persisté,
+      anti-boucle « dernier cloud connu » (persistée, amorcée au premier lancement), pulls
+      périodiques 60 s + visibilité + retour réseau, délai 15 s + retry unique, barrière
+      reset↔moteur, voyant d'état et panneau système rebranchés (CSS dormant F7/C8),
+      coches de courses synchronisées (décision Joel)
+    - Audits Dur : LOT 008 double audit passé (28-29/07) ; LOT 007 Gemini GO + Codex GO
+      final après 2 cycles de corrections (5 findings + 2 scénarios maintenus, tous fermés
+      avec tests). Tests réels à deux appareils levés par décision explicite de Joel —
+      constat à l'usage
+    - Métriques : 92/92 Vitest + 13/13 Pytest verts, build OK
 - [x] [VERSION 5.4 - OnLine] 29/07/2026 : Publication des lots 005 + 006
     - Lot 005 — Quick wins UX : démarrage instantané (rendu local d'abord, synchro en fond
       avec garde-fous d'empreinte), recherche fluide (debounce), croix d'effacement réparée,

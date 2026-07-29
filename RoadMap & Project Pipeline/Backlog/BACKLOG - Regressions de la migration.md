@@ -6,8 +6,8 @@
 >
 > | Points | Lot |
 > |---|---|
-> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** ✅ terminé, double audit passé (2026-07-29), À PUBLIER |
-> | §2 (info-last-sync, info-network, online/offline, voyant) + synchro auto (A11) | **LOT 007** ✅ terminé, audit Dur double GO (2026-07-30), À PUBLIER |
+> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** ✅ **publié en 5.5** (2026-07-30) |
+> | §2 (info-last-sync, info-network, online/offline, voyant) + synchro auto (A11) | **LOT 007** ✅ **publié en 5.5** (2026-07-30) |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
 > | C5, C9, C10, C11, C12 | **LOT 010** |
 > | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |

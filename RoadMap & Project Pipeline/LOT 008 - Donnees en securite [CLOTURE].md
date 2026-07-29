@@ -1,6 +1,7 @@
 # LOT 008 — Données en sécurité — SPÉCIFICATION
 
-> **Statut :** 🟢 À PUBLIER — terminé et audité le 2026-07-29 (branche
+> **Statut :** ✅ **CLOTURÉ — publié en Version 5.5 le 2026-07-30** (feu vert explicite
+> de Joel, publication groupée avec le LOT 007). Terminé et audité le 2026-07-29 (branche
 > `feat/lot8-donnees-en-securite`, commits `f7d11ec` + `2483c06` + clôture).
 > Audit Dur : Gemini 3.6 Flash **GO** · Codex 5.6 (Sol) **NO-GO → corrigé** (reset
 > incomplet sur les suggestions IA, corrigé et prouvé par test ; export personnel

@@ -1,6 +1,7 @@
 # LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v3
 
-> **Statut :** 🟢 **A PUBLIER** (clôturé le 2026-07-30) — code écrit le 2026-07-29
+> **Statut :** ✅ **CLOTURÉ — publié en Version 5.5 le 2026-07-30** (feu vert explicite
+> de Joel). Code écrit le 2026-07-29
 > (`8c9e8fc`) ; **AUDIT DUR PASSÉ le 2026-07-30** : Gemini 3.6 Flash GO (cloud restauré,
 > SHA-256 identique) · Codex 5.6 **GO final** après deux cycles de corrections
 > (`1560763`, `24d8cb3`) — détail §12 bis.

@@ -59,9 +59,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BA%20PUBLIER%5D.md) | **Données en sécurité** — import/export/reset sûrs, prérequis synchro | **À PUBLIER** (double audit passé) | `feat/lot8-donnees-en-securite` |
-| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BA%20PUBLIER%5D.md) | **Synchro collaborative** — la restauration phare, moteur bidirectionnel complet | **À PUBLIER** (audit Dur double GO ; tests réels levés par Joel, constat à l'usage) | `feat/lot7-synchro-collaborative` |
-| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ | `feat/lot9-boutons-morts` |
+| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ — **prochain chantier** | `feat/lot9-boutons-morts` |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |
@@ -72,6 +70,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BCLOTURE%5D.md) | **Synchro collaborative** — moteur bidirectionnel complet (la restauration phare) | **5.5** |
+| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BCLOTURE%5D.md) | **Données en sécurité** — import/export/reset sûrs, catalogue 297 ingrédients | **5.5** |
 | [006](LOT%20006%20-%20Comportements%20produit%20%5BCLOTURE%5D.md) | Liste de courses intelligente, emojis devinés, Cloud Sync réparé | **5.4** |
 | [005](LOT%20005%20-%20Quick%20wins%20UX%20%5BCLOTURE%5D.md) | Démarrage instantané, recherche fluide, réparations d'usage | **5.4** |
 | [004](LOT%20004%20-%20Versionnage%20SSOT%20%5BCLOTURE%5D.md) | Versionnage SSOT (`APP_VERSION` + propagateur + verrou) | 5.2 |

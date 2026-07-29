@@ -9,23 +9,20 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun — les LOTS 007 et 008 sont TERMINÉS, `[A PUBLIER]`** sur
-`feat/lot7-synchro-collaborative` (la branche contient les deux lots).
-- **007 Synchro collaborative** : moteur bidirectionnel complet (envoi temporisé 2 s,
-  drapeau persisté, anti-boucle « dernier cloud connu » amorcée et persistée, pulls
-  périodiques, barrière reset↔moteur, voyant + panneau système). Audit Dur passé le
-  2026-07-30 : Gemini GO · Codex GO final après 2 cycles de corrections. 92/92 vitest ·
-  13/13 pytest · build OK. **Tests réels à deux appareils LEVÉS par décision de Joel**
-  (constat à l'usage, la fiche §6.2 sert de grille de diagnostic en cas de souci).
-- **008 Données en sécurité** : double audit passé le 2026-07-29 (détail : fiche 008).
+**Aucun — VERSION 5.5 PUBLIÉE le 2026-07-30** (feu vert explicite de Joel) : les
+LOTS 007 (synchro collaborative) et 008 (données en sécurité) sont en production.
+**Point de vigilance à l'usage** : les tests à deux appareils du §6.2 ont été levés
+par décision de Joel — au moindre comportement étrange de la synchro, la fiche du
+LOT 007 (§6.2) sert de grille de diagnostic.
+**Prochain chantier : LOT 009 — Boutons morts rebranchés** (fiche prête, branche
+`feat/lot9-boutons-morts` à ouvrir sur signal de Joel).
 
 ## État des lots
 
-- **008** Données en sécurité — ✅ TERMINÉ, À PUBLIER (47 tests JS + 13 verrous pytest verts,
-  build OK, double audit Dur passé, vérifs navigateur faites par les auditeurs).
+- **008** Données en sécurité — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30**.
   `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
-- **007** Synchro collaborative — ✅ TERMINÉ, À PUBLIER (audit Dur double GO le
-  2026-07-30 ; tests réels levés par Joel, constat à l'usage)
+- **007** Synchro collaborative — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30** (audit Dur
+  double GO ; tests réels levés par Joel, constat à l'usage)
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
   fiches détaillées prêtes à confier à un exécutant
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
@@ -47,11 +44,7 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Prochaine étape
 
-**Publication de la version 5.5 (008 + 007 ensemble)** — tout est prêt, il ne manque
-que le feu vert EXPLICITE de Joel, donné au moment même : alors, propagation de la
-version (`APP_VERSION` 5.5.0 + `sync_version.py`), merge `--no-ff` de
-`feat/lot7-synchro-collaborative` dans `main`, commit « Version 5.5 - ... », push.
-Ce qui changera sur la page en ligne : synchro automatique bidirectionnelle (LOT 007)
-+ import/export/reset sécurisés et catalogue 297 ingrédients (LOT 008).
+Version 5.5 en ligne. **Prochain chantier : LOT 009 — Boutons morts rebranchés**
+(icône d'ingrédient C1, plein écran C6, imprimer C7, panneau système C8 restant) —
+ouvrir `feat/lot9-boutons-morts` sur signal de Joel (« on attaque le lot 9 »).
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
-Ensuite : LOT 009 (boutons morts rebranchés), fiche prête.
