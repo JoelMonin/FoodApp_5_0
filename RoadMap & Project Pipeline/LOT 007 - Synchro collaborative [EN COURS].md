@@ -1,9 +1,9 @@
 # LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v3
 
-> **Statut :** 🔵 EN COURS — code écrit le 2026-07-29 (`8c9e8fc`) ; audit Dur du code :
-> **Gemini 3.6 Flash GO** (cloud restauré, SHA-256 identique) · **Codex 5.6 NO-GO**
-> (3 findings CRITIQUES, tous fondés) → **corrigés le 2026-07-30** avec tests de
-> régression (§12 bis). Restent : contre-vérification Codex + tests §6.2 par Joel.
+> **Statut :** 🔵 EN COURS — code écrit le 2026-07-29 (`8c9e8fc`) ; **AUDIT DUR PASSÉ
+> le 2026-07-30** : Gemini 3.6 Flash GO (cloud restauré, SHA-256 identique) · Codex 5.6
+> **GO final** après deux cycles de corrections (`1560763`, `24d8cb3`) — NO-GO levé,
+> détail §12 bis. **Reste UNIQUEMENT : tests §6.2 par Joel, à deux appareils.**
 > **Branche :** `feat/lot7-synchro-collaborative`
 > **Niveau d'audit : DUR** (`CLAUDE.md` §5) · **Effort estimé :** ~4 h *(v1 : 6 h, v2 : 3 h)*
 > **v1 le 2026-07-28** · **v2 le 2026-07-28 (audit Gemini + arbitrage de Joel)** ·
@@ -527,8 +527,10 @@ le moteur vivant dans `js/app.js` (§4.2), ses points d'entrée sont exportés p
 - [x] Validation unifiée verte (`.\validate.bat`) et `npm run build` OK *(13/13 pytest, build 562 ms)*
 - [x] `PROJECT_MAP.md` à jour *(2 suites ajoutées)*
 - [ ] Tests manuels du §6.2 validés **par Joel, à deux appareils, en conditions réelles**
-- [ ] Audit Dur rendu, réserves traitées
-- [ ] Aucun changement de comportement observable **non listé** dans cette spec ni dans le §12
+- [x] Audit Dur rendu, réserves traitées *(2026-07-30 : Gemini GO + Codex GO final après
+      2 cycles de corrections — 5 findings et 2 scénarios maintenus, tous fermés avec tests)*
+- [x] Aucun changement de comportement observable **non listé** dans cette spec ni dans les
+      §12/§12 bis *(vérifié par les deux auditeurs sur le diff complet)*
 
 ---
 
@@ -642,3 +644,10 @@ tous deux contre-vérifiés fondés et corrigés :
 
 **Validation (2026-07-30)** : 92/92 vitest (4 tests de contre-vérification ajoutés) ·
 13/13 pytest · build OK.
+
+**VERDICT FINAL Codex (2026-07-30, sur `1560763..24d8cb3`) : GO — NO-GO levé.**
+Les deux réfutations acceptées avec preuves (amorçage/exception « correctement
+ordonnés », barrière « annule le timer, vide l'opération en attente et attend
+réellement l'opération en vol »). Citation : « Les tests manuels à deux appareils
+du §6.2 restent la dernière validation normale, mais ils ne remettent pas en cause
+le GO statique. »
