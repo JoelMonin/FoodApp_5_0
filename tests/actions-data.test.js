@@ -197,11 +197,11 @@ describe('Actions — LOT 008 Données en sécurité', () => {
 
       sanitizeGlobalState();
 
-      // DEFAULT_DB ne contient AUJOURD'HUI que 66 entrées (pas ~273 : le fichier
-      // `foodapp-data.js` source du monolithe n'a jamais existé dans ce dépôt — voir
-      // le constat remonté dans le rapport de fin de lot). On vérifie donc contre la
+      // DEFAULT_DB contient 297 entrées, reconstruites le 2026-07-29 depuis l'export
+      // réel de Joel (l'ancienne base n'en avait que 66 — le fichier `foodapp-data.js`
+      // source du monolithe n'a jamais existé dans ce dépôt). On vérifie contre la
       // taille réelle de DEFAULT_DB, jamais un chiffre en dur, pour ne pas mentir si
-      // la base est un jour complétée.
+      // la base est un jour complétée à nouveau.
       expect(state.ingredients.length).toBe(DEFAULT_DB.length);
       expect(state.ingredients[0]).toMatchObject({ inStock: false, inCart: false, pinned: false, shoppingSource: null });
     });
@@ -241,6 +241,22 @@ describe('Actions — LOT 008 Données en sécurité', () => {
 
       expect(state.aiConfig.apiKey).toBe('cle-a-garder');
       expect(state.ingredients.length).toBe(DEFAULT_DB.length); // repli chantier 4
+    });
+
+    it('efface les suggestions IA (audit Codex : elles survivaient au reset et se republiaient sur le cloud)', async () => {
+      state.aiSuggestions = [{ name: 'Vieille recette' }, { name: 'Autre vieille recette' }];
+      state.currentSuggestionIdx = 1;
+      state.currentView = 'ai';
+
+      await resetAllData();
+
+      expect(state.aiSuggestions).toBeNull();
+      expect(state.currentSuggestionIdx).toBeNull();
+      expect(state.currentView).toBe('pantry');
+
+      // Le document poussé au cloud ne doit contenir aucune suggestion résiduelle.
+      const pushedBody = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(pushedBody.aiSuggestions).toBeNull();
     });
 
     it('n\'agit pas si Joel annule la confirmation', async () => {

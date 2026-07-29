@@ -94,11 +94,18 @@ export async function resetAllData() {
   state.favorites = [];
   state.extraIngredients = [];
   state.aiConfig = { ...defaultAiConfig(), apiKey: preservedApiKey };
+  // Les suggestions IA sont des DONNÉES, pas juste un réglage : les oublier ici les
+  // laissait survivre au reset (et se republier sur le cloud juste après) — trouvaille
+  // d'audit Codex. Oracle : monolithe l.6581-6582 (`aiSuggestions = null` + retour à
+  // l'inventaire).
+  state.aiSuggestions = null;
+  state.currentSuggestionIdx = null;
 
   // Reconstruit l'inventaire par défaut (chantier 4) et le persiste immédiatement —
-  // on ne compte pas sur le rechargement pour ça.
+  // on ne compte pas sur le rechargement pour ça. switchView('pantry') persiste déjà
+  // (saveState interne) : pas de second appel redondant.
   sanitizeGlobalState();
-  saveState();
+  switchView('pantry');
 
   try {
     await syncPush(state);

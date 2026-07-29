@@ -105,7 +105,7 @@ volontairement réduit. Le déclencheur est « tableau vide ou absent », rien d
 
 **Effet assumé (hérité de l'oracle, relevé par l'audit Codex)** : supprimer le DERNIER
 ingrédient de l'inventaire déclenche cette reconstruction — l'inventaire « repart » aux
-valeurs par défaut (66 aujourd'hui). C'était le comportement du monolithe (l.4310-4312). Il
+297 valeurs par défaut. C'était le comportement du monolithe (l.4310-4312). Il
 neutralise au passage le scénario « inventaire légitimement vidé par suppressions » face au
 garde-fou d'envoi du LOT 007 §4.9 (un inventaire vide ne peut pas persister). À constater en
 test manuel, pas à « corriger ».
@@ -121,7 +121,10 @@ ANNULÉ : après le rechargement, le pull cloud du démarrage réappliquait l'an
 1. préserver la clé API (la réinjecter après le nettoyage — le monolithe la préservait) ;
 2. reconstruire l'inventaire par défaut IMMÉDIATEMENT (mécanisme du chantier 4) et le
    **persister en localStorage** — ne pas compter sur le rechargement ;
-3. vider `shoppingChecked` et `customCartItems` ;
+3. vider `shoppingChecked` et `customCartItems` ; **vider aussi `aiSuggestions` et
+   `currentSuggestionIdx`, et revenir à la vue inventaire** (oracle l.6581-6582) — un premier
+   audit Dur (Codex) a trouvé ces suggestions IA survivantes au reset ET republiées sur le
+   cloud juste après (NO-GO initial, corrigé le 2026-07-29) ;
 4. **pousser AUSSITÔT ce nouvel état vers le cloud** (`syncPush` existe déjà,
    `src/services/firebase.js`) : c'est ce qui empêche le pull du prochain démarrage de
    ressusciter l'ancien inventaire. Si l'envoi échoue (hors ligne…) : toast explicite
