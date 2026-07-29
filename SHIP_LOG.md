@@ -1,12 +1,22 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.3.0
+- **Version actuelle** : 5.4.0
 - **Dernière mise à jour** : 28/07/2026
 - **Statut** : Hotfix production livré (recettes IA) — audit #2 réalisé, 1 arbitrage sécurité en attente
 
 ## Historique des modifications
-- [ ] [VERSION 5.3 - EN COURS] 28/07/2026 : Ouverture de la 5.3
+- [x] [VERSION 5.4 - OnLine] 29/07/2026 : Publication des lots 005 + 006
+    - Lot 005 — Quick wins UX : démarrage instantané (rendu local d'abord, synchro en fond
+      avec garde-fous d'empreinte), recherche fluide (debounce), croix d'effacement réparée,
+      compteurs en une passe, notifications visibles, `setState` assainit les données externes
+    - Lot 006 — Comportements produit : liste de courses qui ne pré-coche que les manquants,
+      emojis devinés, puce « Autres », boutons de collage grisés, Cloud Sync qui n'efface
+      plus la clé API (`applyCloudState`), anti-collision des requêtes IA, `AI_ROLES` SSOT
+    - Publication groupée sur feu vert explicite de Joel, base saine avant la campagne
+      « Restauration & Refonte » (LOTS 007-014, voir ROADMAP)
+    - Métriques : 33/33 Vitest + 13/13 Pytest verts, build OK
+- [x] [VERSION 5.3 - OnLine] 28/07/2026 : Ouverture de la 5.3
     - Bascule des modèles IA vers `gemini-3.6-flash` (SSOT `AI_ROLES` dans `src/constants.js`)
     - Numéro de version porté à 5.3.0 et propagé via `sync_version.py`
     - Gouvernance : règle « historique lisible » (journal de versions, pas de micro-commits)

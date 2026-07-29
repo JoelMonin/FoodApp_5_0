@@ -1,6 +1,6 @@
     :root {
-      --sidebar-w: 240px;
-      --bottom-nav-h: 64px;
+      /* --sidebar-w et --bottom-nav-h etaient declares deux fois ; seules les secondes
+         valeurs (plus bas) s'appliquaient. Les premieres, mortes, ont ete retirees. */
       --green: #2B4A3C;
       --green-mid: #3D6655;
       --green-lt: #D8EAE2;
@@ -26,6 +26,18 @@
       --sidebar-w: 220px;
       --topbar-h: 60px;
       --bottom-nav-h: 68px;
+
+      /* Variables utilisees dans la feuille mais jamais definies : les regles
+         concernees etaient silencieusement ignorees par le navigateur. */
+      --txt-main: var(--txt);
+      --shadow-sm: 0 2px 6px rgba(43, 74, 60, 0.10);
+
+      /* Ordre d'empilement — barre du bas < fenetres modales < notifications.
+         Avant : la barre du bas mobile (9999) passait devant les fenetres, et les
+         notifications (2000) disparaissaient derriere elles. */
+      --z-bottom-nav: 1100;
+      --z-modal: 3000;
+      --z-toast: 4000;
     }
 
     *,
@@ -286,6 +298,12 @@
       cursor: pointer;
       transition: all 0.2s;
       flex-shrink: 0;
+    }
+
+    /* La croix n'apparait que si une recherche est en cours (classe posee par le JS).
+       Sans cette regle, `display: none` ci-dessus la rendait definitivement invisible. */
+    .clear-search-btn.visible {
+      display: flex;
     }
 
     .clear-search-btn:hover {
@@ -889,7 +907,16 @@
       font-size: 11px;
       font-weight: 500;
       line-height: 1.25;
-      color: var(--txt)
+      color: var(--txt);
+      /* Les cartes font ~105px de large : sans limite, un nom long
+         (« Alternative végétale au lait d'amande ») pousse les boutons vers le bas
+         et casse l'alignement de la grille. Deux lignes maximum, puis points de suspension. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
     }
 
     .ing-cat {
@@ -2161,7 +2188,7 @@
       inset: 0;
       background: rgba(20, 35, 28, .55);
       backdrop-filter: blur(4px);
-      z-index: 3000;
+      z-index: var(--z-modal);
       display: none;
       align-items: center;
       justify-content: center;
@@ -2283,10 +2310,17 @@
       transition: all .15s;
     }
 
-    .modal-btn:hover {
+    .modal-btn:hover:not(:disabled) {
       background: var(--green-lt);
       border-color: var(--green);
       color: var(--green)
+    }
+
+    /* Meme convention que .generate-btn:disabled : un bouton grise doit se voir
+       et ne pas reagir au survol. */
+    .modal-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
 
     .modal-btn.primary {
@@ -2295,7 +2329,7 @@
       border-color: var(--green)
     }
 
-    .modal-btn.primary:hover {
+    .modal-btn.primary:hover:not(:disabled) {
       background: var(--green-mid)
     }
 
@@ -2824,7 +2858,7 @@
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 2000;
+      z-index: var(--z-toast);
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -2936,7 +2970,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        z-index: 9999;
+        z-index: var(--z-bottom-nav);
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);

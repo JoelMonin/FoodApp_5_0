@@ -2,7 +2,42 @@
 // STATIC DATA (CATEGORIES, DEFAULT_DB, etc.)
 // ═══════════════════════════════════════════
 
-export const CATEGORIES = ['Protéines', 'Légumes', 'Fruits', 'Herbes & aromates', 'Épices sèches', 'Produits laitiers', 'Alternatives végétales', 'Pâtes, riz & légumes secs', 'Conserves & bocaux', 'Sauces & condiments', 'Huiles & vinaigres', 'Farines & liants', 'Graines & noix', 'Sucres & sirops', 'Bouillons & bases', 'Plats & Préparations'];
+/**
+ * Représentation canonique des catégories : nom + émoji, au même endroit.
+ * L'émoji était auparavant redéfini dans une seconde table locale à `renderPantryFilters`
+ * (js/app.js), d'où un risque de divergence à chaque ajout de catégorie.
+ *
+ * `Autres` est la catégorie de repli réellement produite par le code quand aucune
+ * catégorie n'est connue (state.js `sanitizeGlobalState`, ajout manuel, recette IA).
+ * Elle fait donc partie de la liste : sans elle, les ingrédients qui y atterrissent
+ * n'avaient aucune puce de filtre dans l'inventaire.
+ */
+export const CATEGORIES_WITH_EMOJI = [
+  { name: 'Protéines', emoji: '🥩' },
+  { name: 'Légumes', emoji: '🥦' },
+  { name: 'Fruits', emoji: '🍎' },
+  { name: 'Herbes & aromates', emoji: '🌿' },
+  { name: 'Épices sèches', emoji: '🫙' },
+  { name: 'Produits laitiers', emoji: '🧀' },
+  { name: 'Alternatives végétales', emoji: '🥛' },
+  { name: 'Pâtes, riz & légumes secs', emoji: '🍝' },
+  { name: 'Conserves & bocaux', emoji: '🥫' },
+  { name: 'Sauces & condiments', emoji: '🧴' },
+  { name: 'Huiles & vinaigres', emoji: '🫒' },
+  { name: 'Farines & liants', emoji: '🌾' },
+  { name: 'Graines & noix', emoji: '🌰' },
+  { name: 'Sucres & sirops', emoji: '🍬' },
+  { name: 'Bouillons & bases', emoji: '🍲' },
+  { name: 'Plats & Préparations', emoji: '🍱' },
+  { name: 'Autres', emoji: '📦' }
+];
+
+export const CATEGORIES = CATEGORIES_WITH_EMOJI.map(c => c.name);
+
+/** Émoji d'une catégorie, avec repli sur le carton si la catégorie est inconnue. */
+export function getCategoryEmoji(categoryName) {
+  return CATEGORIES_WITH_EMOJI.find(c => c.name === categoryName)?.emoji || '📦';
+}
 
 export const DEFAULT_DB = [
   // PROTÉINES

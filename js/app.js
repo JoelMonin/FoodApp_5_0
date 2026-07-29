@@ -6,13 +6,15 @@ import {
   setState 
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
-import { 
-  generateId, 
-  normalizeString, 
+import {
+  generateId,
+  normalizeString,
   autoEmoji,
-  areSimilar
+  areSimilar,
+  debounce
 } from '../src/utils/helpers.js';
-import { CATEGORIES, DEFAULT_DB } from '../src/data.js';
+import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
+import { AI_ROLES } from '../src/constants.js';
 import { syncPush, syncPull } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -24,8 +26,37 @@ let state = moduleState;
 let _isManualCategory = false;
 let _localCategoryFill = false; // true = catégorie posée par détection locale faible (IA peut écraser)
 let _addSuggestTimer = null;
+// Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
+// d'appliquer sa reponse (cf. handleAddInput).
+let _aiSuggestGenId = 0;
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
+
+/**
+ * Applique des données venues du cloud à l'état local.
+ *
+ * POINT D'ENTRÉE UNIQUE : la clé API n'est volontairement jamais envoyée dans le
+ * cloud (cf. `syncPush`), donc toute donnée distante contient une clé vide.
+ * L'appliquer telle quelle efface la clé du poste. Cette règle n'existait qu'au
+ * démarrage : le bouton « Cloud Sync », qui appelle le même mécanisme, effaçait
+ * donc la clé à chaque clic.
+ *
+ * @param {Object|null} cloudData
+ * @returns {boolean} vrai si des données ont été appliquées.
+ */
+function applyCloudState(cloudData) {
+    if (!cloudData) return false;
+
+    const localApiKey = state.aiConfig?.apiKey;
+    if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
+        if (!cloudData.aiConfig) cloudData.aiConfig = {};
+        cloudData.aiConfig.apiKey = localApiKey;
+    }
+
+    setState(cloudData);
+    state = moduleState;
+    return true;
+}
 
 const expose = (fns) => {
   for (const [name, fn] of Object.entries(fns)) {
@@ -36,22 +67,9 @@ const expose = (fns) => {
 window.addEventListener('DOMContentLoaded', async () => {
   loadStateFromModule();
   state = moduleState;
-  
-  try {
-    const cloudData = await syncPull();
-    if (cloudData) {
-        const localApiKey = state.aiConfig?.apiKey;
-        // Merge cloud data but preserve local API key if cloud has none
-        if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
-            if (!cloudData.aiConfig) cloudData.aiConfig = {};
-            cloudData.aiConfig.apiKey = localApiKey;
-        }
-        setState(cloudData);
-        state = moduleState;
-    }
-  } catch (e) { console.error('Initial Sync failed', e); }
 
-  // Initial render
+  // Rendu immediat depuis les donnees locales : la vue ne doit jamais attendre le reseau.
+  // La synchro cloud part en arriere-plan et re-declenche un rendu via 'stateUpdated'.
   renderCurrentView();
   restoreAIConfig();
   initKeyboardShortcuts();
@@ -67,6 +85,50 @@ window.addEventListener('DOMContentLoaded', async () => {
             });
         }
     });
+
+  // Synchro cloud en arriere-plan : setState declenche 'stateUpdated', donc le re-rendu
+  // est automatique quand les donnees arrivent.
+  //
+  // GARDE-FOU : la reponse du cloud est une photo prise AVANT les gestes de
+  // l'utilisateur. Comme l'ecran est desormais interactif pendant l'attente reseau,
+  // appliquer cette photo telle quelle effacerait tout ce qu'il a fait entre-temps
+  // (setState remplace les tableaux en bloc). On compare donc les donnees locales
+  // avant/apres : au moindre changement, la reponse cloud est ecartee pour ce
+  // demarrage — les donnees locales sont plus recentes, par construction.
+  const localDataFingerprint = () => JSON.stringify([
+      state.ingredients, state.customCartItems, state.favorites, state.extraIngredients
+  ]);
+  const fingerprintBeforeSync = localDataFingerprint();
+
+  // Meme principe pour les champs libres de la config IA : ils ne sont enregistres
+  // qu'au clic sur « Sauvegarder ». Une saisie en cours ne doit pas etre reecrite par
+  // le retour de la synchro — y compris si l'utilisateur a deja clique ailleurs.
+  const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
+  const aiFormFingerprint = () => JSON.stringify(
+      AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
+  );
+  const aiFormBeforeSync = aiFormFingerprint();
+
+  syncPull()
+    .then(cloudData => {
+        if (!cloudData) return;
+
+        if (localDataFingerprint() !== fingerprintBeforeSync) {
+            console.warn('[Sync] Modifications locales pendant la synchro initiale : '
+                + 'donnees cloud ecartees pour ce demarrage (aucune perte locale).');
+            return;
+        }
+
+        applyCloudState(cloudData);
+
+        // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
+        if (aiFormFingerprint() === aiFormBeforeSync) {
+            restoreAIConfig();
+        } else {
+            console.warn('[Sync] Saisie en cours dans la configuration IA : champs non reecrits.');
+        }
+    })
+    .catch(e => console.error('Initial Sync failed', e));
 });
 
 window.addEventListener('stateUpdated', () => {
@@ -108,8 +170,21 @@ function switchView(view) {
     saveState();
 }
 
+/**
+ * Compte stock et panier en UNE seule passe sur l'inventaire.
+ * Ces deux compteurs etaient recalcules par 4 `filter()` distincts a chaque rendu.
+ */
+function countStockAndCart() {
+    let stock = 0, cart = 0;
+    for (const i of state.ingredients) {
+        if (i.inStock) stock++;
+        if (i.inCart) cart++;
+    }
+    return { stock, cart };
+}
+
 function renderTopbar(view) {
-    const titles = { 
+    const titles = {
         pantry: 'Inventaire', 
         shopping: 'Mes Courses', 
         ai: 'Recettes IA', 
@@ -119,9 +194,9 @@ function renderTopbar(view) {
         export: 'Réglages',
         settings: 'Réglages'
     };
-    const subs = { 
-        pantry: () => state.ingredients.filter(i => i.inStock).length + ' articles en stock',
-        shopping: () => state.ingredients.filter(i => i.inCart).length + ' articles à acheter'
+    const subs = {
+        pantry: () => countStockAndCart().stock + ' articles en stock',
+        shopping: () => countStockAndCart().cart + ' articles à acheter'
     };
 
     // Desktop topbar
@@ -142,17 +217,6 @@ function renderTopbar(view) {
 function renderPantryFilters() {
     const filterEl = document.getElementById('pantry-filters');
     if (!filterEl) return;
-
-    const CAT_EMOJI = {
-        'Protéines': '🥩', 'Légumes': '🥦', 'Fruits': '🍎',
-        'Herbes & aromates': '🌿', 'Épices sèches': '🫙',
-        'Produits laitiers': '🧀', 'Alternatives végétales': '🥛',
-        'Pâtes, riz & légumes secs': '🍝', 'Conserves & bocaux': '🥫',
-        'Sauces & condiments': '🧴', 'Huiles & vinaigres': '🫒',
-        'Farines & liants': '🌾', 'Graines & noix': '🌰',
-        'Sucres & sirops': '🍬', 'Bouillons & bases': '🍲',
-        'Plats & Préparations': '🍱', 'Autres': '📦'
-    };
 
     // Toggles indépendants (combinables avec la catégorie)
     const toggles = [
@@ -189,7 +253,7 @@ function renderPantryFilters() {
         ...CATEGORIES.map(cat => h('div', {
             class: `chip ${state.filter === cat ? 'active' : ''}`,
             onclick: () => setFilter(cat)
-        }, `${CAT_EMOJI[cat] || '📦'} ${cat}`))
+        }, `${getCategoryEmoji(cat)} ${cat}`))
     ];
 
     filterEl.replaceChildren(...chips);
@@ -236,15 +300,35 @@ function getFilteredIngredients() {
     return list;
 }
 
+// Le filtrage normalise chaque nom d'ingredient : trop couteux a chaque touche frappee.
+const _renderPantryDebounced = debounce(() => renderPantry(), 200);
+
+// Deux barres de recherche coexistent : celle du bureau et celle du mobile.
+const SEARCH_INPUT_IDS = ['search-input', 'mobile-search'];
+const SEARCH_CLEAR_IDS = ['clear-search-desktop', 'clear-search-mobile'];
+
+/** Affiche la croix d'effacement uniquement quand une recherche est en cours. */
+function updateSearchClearButtons() {
+    const hasQuery = !!state.search;
+    SEARCH_CLEAR_IDS.forEach(id => {
+        document.getElementById(id)?.classList.toggle('visible', hasQuery);
+    });
+}
+
 function handleSearch(val) {
     state.search = val;
-    renderPantry();
+    updateSearchClearButtons();
+    _renderPantryDebounced();
 }
 
 function clearSearch() {
     state.search = '';
-    const si = document.getElementById('search-input');
-    if (si) si.value = '';
+    SEARCH_INPUT_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    updateSearchClearButtons();
+    _renderPantryDebounced.cancel();
     renderPantry();
 }
 
@@ -406,7 +490,7 @@ async function analyzeNutrition(r, source, favId) {
         const ingList = (r.ingredients || []).map(i => (i.q || i.amount || '') + ' ' + (i.n || i.name)).join(', ');
         const prompt = `Tu es un nutritionniste expert. Analyse cette recette:\nNom: ${r.name}\nIngrédients: ${ingList}\nInstructions: ${(r.steps || r.instructions || []).join(' ')}\n\nEstime le Nutri-Score (A à E) et le nombre de kilocalories (kcal) pour UNE portion (la recette est pour ${r.people || r.ppl || 1} pers.), et propose 2 tags courts. Réponds UNIQUEMENT en JSON: {"score": "A", "kcal": 450, "tags": ["Sain", "Léger"]}`;
 
-        const model = state.aiConfig.models?.nutrition || 'gemini-3.6-flash';
+        const model = state.aiConfig.models?.nutrition || AI_ROLES.REASONING;
         const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
         const match = raw.match(/\{[\s\S]*?\}/);
         if (!match) throw new Error("Réponse IA invalide");
@@ -455,29 +539,98 @@ function changePplScale(delta) {
     // Note: Quantitative scaling logic could be added here if needed
 }
 
+/**
+ * Confronte un ingrédient de recette à l'inventaire.
+ *
+ * Deux sources d'information, par ordre de fiabilité :
+ *  1. le statut `s` renvoyé par l'IA (`stock` | `pinned` | `missing`), qui n'est
+ *     présent que pour les recettes générées, pas pour celles collées à la main ;
+ *  2. à défaut, l'inventaire réel, via `areSimilar` — le comparateur déjà utilisé
+ *     pour la détection de doublons et l'ajout d'ingrédients.
+ *
+ * @returns {{inStock: boolean, matchedName: string|null, isExact: boolean}}
+ */
+function matchIngredientToStock(ingredient) {
+    const name = ingredient.n || ingredient.name || '';
+    const aiStatus = ingredient.s;
+
+    const inventoryMatch = state.ingredients.find(i => areSimilar(name, i.name));
+    const isExact = !!inventoryMatch
+        && normalizeString(inventoryMatch.name) === normalizeString(name);
+
+    // L'IA annonce l'ingrédient comme déjà possédé : on la croit, mais on affiche
+    // quand même à quoi il correspond dans l'inventaire si on le retrouve.
+    if (aiStatus === 'stock' || aiStatus === 'pinned') {
+        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact };
+    }
+    if (aiStatus === 'missing') {
+        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact };
+    }
+
+    return {
+        inStock: !!inventoryMatch?.inStock,
+        matchedName: inventoryMatch?.name || null,
+        isExact
+    };
+}
+
 function openEnhancedCartPicker(recipe) {
     closeModal('modal-recipe-detail');
     _currentPickerRecipeName = recipe.name || 'Recette';
-    _currentPickerData = (recipe.ingredients || []).map(i => ({
-        name: i.n || i.name,
-        emoji: i.e || i.emoji || autoEmoji(i.n || i.name, CATEGORIES),
-        category: i.c || i.category || 'Autres',
-        isMissing: true
-    }));
+    _currentPickerData = (recipe.ingredients || []).map(i => {
+        const name = i.n || i.name;
+        const category = i.c || i.category || 'Autres';
+        const status = matchIngredientToStock(i);
+        return {
+            name,
+            category,
+            // Emoji : celui de l'IA, sinon celui de la base d'ingredients,
+            // sinon celui de la categorie.
+            emoji: i.e || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
+            isMissing: !status.inStock,
+            matchedName: status.matchedName,
+            isExact: status.isExact
+        };
+    });
+
     const listEl = document.getElementById('modal-recipe-cart-list');
     if (listEl) {
-        listEl.replaceChildren(..._currentPickerData.map((it, idx) => 
-            h('div', { class: 'picker-row', id: `pitem-${idx}` }, [
-                h('input', { 
-                    type: 'checkbox', 
-                    checked: true, 
+        listEl.replaceChildren(..._currentPickerData.map((it, idx) => {
+            // Coche par defaut ce qui manque uniquement : ce que Joel a deja en stock
+            // n'a pas a retourner dans la liste de courses.
+            const checked = it.isMissing;
+            // Correspondance approximative (ex. « Tomates cerises » vs « Tomate ») :
+            // signalee visuellement, car la deduction peut se tromper.
+            const softMatch = !!it.matchedName && !it.isExact;
+
+            const labelChildren = [h('div', {}, [it.emoji + ' ', it.name])];
+            if (it.matchedName) {
+                labelChildren.push(h('div', { class: 'picker-match-info' },
+                    it.isMissing
+                        ? `Correspond à « ${it.matchedName} », pas en stock`
+                        : `Déjà en stock : « ${it.matchedName} »`));
+            }
+
+            return h('div', {
+                class: `picker-item ${checked ? 'checked' : ''} ${softMatch ? 'soft-match' : ''}`,
+                id: `pitem-${idx}`
+            }, [
+                h('input', {
+                    type: 'checkbox',
+                    checked,
                     id: `pick-${idx}`,
                     onchange: () => updatePickerRow(idx)
                 }),
-                h('label', { for: `pick-${idx}`, style: { cursor: 'pointer', flex: 1, marginLeft: '8px' } }, [it.emoji + ' ', it.name])
-            ])
-        ));
+                h('label', { for: `pick-${idx}`, style: { cursor: 'pointer', flex: 1, marginLeft: '8px' } }, labelChildren),
+                it.isMissing ? null : h('span', { class: 'picker-badge' }, 'En stock')
+            ].filter(Boolean));
+        }));
     }
+
+    // La case maitresse reflete l'etat reel des lignes plutot que de rester cochee.
+    const selectAll = document.getElementById('picker-select-all');
+    if (selectAll) selectAll.checked = _currentPickerData.every(it => it.isMissing);
+
     openModal('modal-recipe-to-cart');
 }
 
@@ -526,9 +679,8 @@ function renderFavorites() {
 
 function deleteFav(id) {
     state.favorites = state.favorites.filter(f => f.id !== id);
+    // saveState() emet 'stateUpdated', qui relance deja renderCurrentView() : pas de rendu manuel.
     saveState();
-    renderFavorites();
-    updateBadges();
     toast('Recette supprimée');
 }
 
@@ -553,6 +705,22 @@ function saveRecipeAndList(r) {
     openEnhancedCartPicker(r);
 }
 
+/**
+ * Regroupe des ingredients par categorie en UNE passe, categories triees alphabetiquement.
+ * Remplace le balayage complet de l'inventaire repete pour chaque categorie.
+ * @returns {Array<[string, Array]>} paires [categorie, ingredients] triees.
+ */
+function groupByCategory(ingredients) {
+    const grouped = new Map();
+    for (const i of ingredients) {
+        if (!grouped.has(i.category)) grouped.set(i.category, []);
+        grouped.get(i.category).push(i);
+    }
+    // Tri par defaut volontaire (et non localeCompare) : conserve a l'identique
+    // l'ordre des rubriques dans le texte exporte.
+    return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
+}
+
 async function exportClipboard(type) {
     let text = '';
     const date = new Date().toLocaleDateString('fr-FR');
@@ -574,30 +742,24 @@ async function exportClipboard(type) {
         });
     } else if (type === 'categorized') {
         text = `📦 INVENTAIRE PAR RAYON (${date})\n\n`;
-        const cats = [...new Set(state.ingredients.map(i => i.category))].sort();
-        cats.forEach(cat => {
-            const items = state.ingredients.filter(i => i.category === cat);
-            if (items.length > 0) {
-                text += `\n--- ${cat.toUpperCase()} ---\n`;
-                items.forEach(i => {
-                    const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-                    text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
-                });
-            }
-        });
+        for (const [cat, items] of groupByCategory(state.ingredients)) {
+            text += `\n--- ${cat.toUpperCase()} ---\n`;
+            items.forEach(i => {
+                const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
+                text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
+            });
+        }
     } else if (type === 'cart') {
         text = `🛒 LISTE DE COURSES (${date})\n\n`;
         const items = state.ingredients.filter(i => i.inCart);
         if (items.length === 0) { text += "(Vide)"; }
         else {
-            const cats = [...new Set(items.map(i => i.category))].sort();
-            cats.forEach(cat => {
-                const catItems = items.filter(i => i.category === cat);
+            for (const [cat, catItems] of groupByCategory(items)) {
                 text += `\n[ ${cat.toUpperCase()} ]\n`;
                 catItems.forEach(i => {
                     text += `☐ ${i.emoji || '🔸'} ${i.name}\n`;
                 });
-            });
+            }
         }
     }
 
@@ -627,8 +789,7 @@ function updateApiStatus() {
 }
 
 function updateBadges() {
-    const stockCount = state.ingredients.filter(i => i.inStock).length;
-    const cartCount = state.ingredients.filter(i => i.inCart).length;
+    const { stock: stockCount, cart: cartCount } = countStockAndCart();
     const favCount = state.favorites?.length || 0;
 
     // Sidebar
@@ -656,8 +817,31 @@ function updateBadges() {
     }
 }
 
+/**
+ * Active ou grise les boutons d'enregistrement de la fenêtre « Coller une recette ».
+ * Ils n'ont de sens qu'une fois le texte transformé en recette structurée.
+ */
+function setPasteSaveButtonsEnabled(enabled) {
+    ['paste-save-btn', 'paste-list-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.disabled = !enabled;
+        // Le bouton « + Courses » etait masque en dur et jamais reaffiche.
+        btn.style.display = '';
+    });
+}
+
 function openModal(id) {
     document.getElementById(id)?.classList.add('open');
+
+    if (id === 'modal-paste-recipe') {
+        // Sans cette remise a zero, la recette transformee lors d'une ouverture
+        // precedente survivait : « Sauvegarder tel quel » enregistrait alors la
+        // recette d'avant, silencieusement.
+        _lastTransformedRecipe = null;
+        setPasteSaveButtonsEnabled(false);
+    }
+
     if (id === 'modal-api-config') {
         const keyInput = document.getElementById('api-key-input');
         if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
@@ -683,8 +867,7 @@ function saveEmoji() {
     const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
     if (ing) {
         ing.emoji = document.getElementById('edit-emoji-input').value;
-        saveState();
-        renderPantry();
+        saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
     }
     closeModal('modal-edit-emoji');
 }
@@ -693,6 +876,7 @@ function renderAdd() {
     _isManualCategory = false;
     _localCategoryFill = false;
     clearTimeout(_addSuggestTimer);
+    _aiSuggestGenId++; // invalide une requete IA deja en vol
     const list = document.getElementById('add-results-list');
     if (list) list.replaceChildren();
     const emojiSug = document.getElementById('emoji-suggestions');
@@ -777,6 +961,9 @@ function updateEmojiSuggestions(val) {
     container.replaceChildren(...emojis.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
 }
 
+// Balaye les 273 ingredients de la base : temporise sur la frappe, immediat sur un reset.
+const _updateEmojiSuggestionsDebounced = debounce(updateEmojiSuggestions, 200);
+
 function handleAddInput(val) {
     const list = document.getElementById('add-results-list');
     const emojiInput = document.getElementById('add-emoji');
@@ -787,9 +974,11 @@ function handleAddInput(val) {
         _isManualCategory = false;
         _localCategoryFill = false;
         clearTimeout(_addSuggestTimer);
+        _aiSuggestGenId++; // invalide une requete IA deja en vol
         if (list) list.replaceChildren();
         if (emojiInput) emojiInput.value = '';
         if (catSelect) catSelect.value = '';
+        _updateEmojiSuggestionsDebounced.cancel();
         updateEmojiSuggestions('');
         showCategoryIndicator(null);
         return;
@@ -805,8 +994,8 @@ function handleAddInput(val) {
         }, [i.emoji + ' ', i.name])));
     }
 
-    // 3. Grille d'emojis (instantané, depuis DB)
-    updateEmojiSuggestions(val);
+    // 3. Grille d'emojis (temporisee, depuis DB)
+    _updateEmojiSuggestionsDebounced(val);
 
     // Si l'utilisateur a choisi manuellement la catégorie, on s'arrête là
     if (_isManualCategory) return;
@@ -822,6 +1011,7 @@ function handleAddInput(val) {
         if (exactEntry) {
             if (emojiInput && !emojiInput.value) selectEmoji(exactEntry.emoji);
             clearTimeout(_addSuggestTimer);
+            _aiSuggestGenId++; // invalide une requete IA deja en vol
             return;
         }
     } else if (val.length >= 3 && state.aiConfig?.apiKey) {
@@ -835,10 +1025,17 @@ function handleAddInput(val) {
         const apiKey = state.aiConfig?.apiKey;
         if (!apiKey || _isManualCategory) return;
 
+        // Jeton de generation : `clearTimeout` annule une requete PAS ENCORE partie,
+        // mais rien ne peut rappeler une requete deja en vol. Sans ce jeton, taper
+        // « salsifi » puis effacer et taper « tomate » laisse la reponse la plus lente
+        // ecraser la plus recente. On ignore donc toute reponse peremee.
+        const myGenId = ++_aiSuggestGenId;
+
         try {
             const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${val}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
-            const model = state.aiConfig.models?.categorySuggest || 'gemini-3.6-flash';
+            const model = state.aiConfig.models?.categorySuggest || AI_ROLES.FAST;
             const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
+            if (myGenId !== _aiSuggestGenId) return; // saisie modifiee entre-temps
             const match = raw.match(/\{[\s\S]*?\}/);
             if (!match) { showCategoryIndicator(null); return; }
             const data = JSON.parse(match[0]);
@@ -872,6 +1069,7 @@ function handleAddInput(val) {
                 }
             }
         } catch (e) {
+            if (myGenId !== _aiSuggestGenId) return;
             showCategoryIndicator(null);
             console.warn('[AI Suggest]', e.message);
         }
@@ -906,9 +1104,8 @@ function addIngredient() {
         inStock: true, inCart: false, pinned: false
     });
 
-    saveState();
-    renderPantry();
-    
+    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
+
     // Reset form
     document.getElementById('add-name').value = '';
     document.getElementById('add-emoji').value = '';
@@ -930,9 +1127,8 @@ function addIngredientFromDb(dbItem) {
     const id = generateId('ing');
     state.ingredients.push({ ...dbItem, id, inStock: true, inCart: false, pinned: false });
     
-    saveState();
-    renderPantry();
-    
+    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
+
     // Reset form
     document.getElementById('add-name').value = '';
     document.getElementById('add-emoji').value = '';
@@ -986,7 +1182,7 @@ async function searchEmojiAddAI() {
 
     try {
         const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${target}". Réponds uniquement par les emojis séparés par des espaces.`;
-        const model = state.aiConfig.models?.emojiSearch || 'gemini-3.6-flash';
+        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
         const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
         if (res) {
             // Robust emoji detection using modern regex
@@ -1097,6 +1293,7 @@ async function transformRecipeAI() {
         document.getElementById('paste-title').value = recipe.name;
         // Re-render preview or just store it
         _lastTransformedRecipe = recipe;
+        setPasteSaveButtonsEnabled(true);
         toast('Recette structurée !');
     } catch (e) {
         toast('Erreur transformation IA', 'error');
@@ -1175,7 +1372,7 @@ async function searchEmojiAI() {
 
     try {
         const prompt = `Suggère 15 emojis pour: ${query}. Réponds uniquement par les emojis.`;
-        const model = state.aiConfig.models?.emojiSearch || 'gemini-3.6-flash';
+        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
         const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
         if (res) {
             const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
@@ -1284,7 +1481,31 @@ expose({
     saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe),
     saveRecipeAndList: () => saveRecipeAndList(_lastTransformedRecipe),
     toggleRecipeFullscreen, changePplScale,
-    pullFromFirebase: async () => { const d = await syncPull(); if(d) setState(d); },
-    pushToFirebase: async () => { await syncPush(state); toast('Synchronisé !'); },
-    exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji
+    pullFromFirebase: async () => {
+        try {
+            const d = await syncPull();
+            if (applyCloudState(d)) {
+                restoreAIConfig();
+                toast('Données récupérées du cloud ✓');
+            } else {
+                toast('Aucune donnée dans le cloud', 'error');
+            }
+        } catch (e) {
+            console.error('[Sync] Pull échoué', e);
+            toast('Synchronisation impossible', 'error');
+        }
+    },
+    pushToFirebase: async () => {
+        try {
+            await syncPush(state);
+            toast('Données envoyées au cloud ✓');
+        } catch (e) {
+            console.error('[Sync] Push échoué', e);
+            toast('Envoi impossible', 'error');
+        }
+    },
+    exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji,
+    // Appelee en inline depuis index.html (oninput du champ de recherche d'emoji) :
+    // sans cette exposition, chaque frappe levait une ReferenceError.
+    updateEmojiSuggestions: _updateEmojiSuggestionsDebounced
 });
