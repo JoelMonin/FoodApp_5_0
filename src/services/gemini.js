@@ -1,12 +1,14 @@
+import { AI_ROLES } from '../constants.js';
+
 /**
  * Appelle l'API Gemini pour générer du contenu.
  * @param {string} prompt - Le message à envoyer.
  * @param {string} apiKey - La clé API de l'utilisateur.
- * @param {string} model - Le modèle à utiliser (ex: gemini-3.6-flash).
+ * @param {string} model - Le modèle à utiliser (voir AI_ROLES dans constants.js).
  * @param {Object} options - Options de génération (température, maxTokens, etc.)
  * @returns {Promise<string>} - La réponse textuelle de l'IA.
  */
-export async function callAI(prompt, apiKey, model = 'gemini-3.6-flash', options = {}) {
+export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options = {}) {
   if (!apiKey) throw new Error("Clé API manquante.");
 
   const temp = options.temperature !== undefined ? options.temperature : 0.1;
@@ -95,7 +97,7 @@ STOCK DISPONIBLE : ${stockList}
 Format JSON uniquement:
 [{"name":"...","description":"...","time":"...","difficulty":"...","people":${aiConfig.ppl},"cuisine":"...","ingredients":[{"n":"...","q":"...","e":"...","c":"...","s":"stock|pinned|missing"}],"steps":["..."]}]`;
 
-  const model = aiConfig.models?.recipeGeneration || 'gemini-3.6-flash';
+  const model = aiConfig.models?.recipeGeneration || AI_ROLES.REASONING;
   
   const rawText = await callAI(prompt, apiKey, model, {
     temperature: temp,
@@ -137,7 +139,7 @@ Format JSON uniquement:
 /**
  * Transforme un texte brut ou du HTML de recette en objet JSON structuré.
  */
-export async function transformRecipeFromText(text, apiKey, model = 'gemini-3.6-flash') {
+export async function transformRecipeFromText(text, apiKey, model = AI_ROLES.REASONING) {
   const prompt = `Tu es un expert culinaire. Tu reçois un texte brut (éventuellement du HTML) d'une recette.
 Extrais les informations pour créer un objet JSON structuré.
 Si le texte contient des scories HTML, ignore-les et concentre-toi sur le contenu culinaire.

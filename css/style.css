@@ -907,7 +907,16 @@
       font-size: 11px;
       font-weight: 500;
       line-height: 1.25;
-      color: var(--txt)
+      color: var(--txt);
+      /* Les cartes font ~105px de large : sans limite, un nom long
+         (« Alternative végétale au lait d'amande ») pousse les boutons vers le bas
+         et casse l'alignement de la grille. Deux lignes maximum, puis points de suspension. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
     }
 
     .ing-cat {
@@ -2301,10 +2310,17 @@
       transition: all .15s;
     }
 
-    .modal-btn:hover {
+    .modal-btn:hover:not(:disabled) {
       background: var(--green-lt);
       border-color: var(--green);
       color: var(--green)
+    }
+
+    /* Meme convention que .generate-btn:disabled : un bouton grise doit se voir
+       et ne pas reagir au survol. */
+    .modal-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
 
     .modal-btn.primary {
@@ -2313,7 +2329,7 @@
       border-color: var(--green)
     }
 
-    .modal-btn.primary:hover {
+    .modal-btn.primary:hover:not(:disabled) {
       background: var(--green-mid)
     }
 

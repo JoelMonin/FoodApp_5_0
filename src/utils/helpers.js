@@ -67,10 +67,25 @@ export function areSimilar(recipeIng, inventoryIng) {
 }
 
 /**
- * Devine l'émoji d'un ingrédient en fonction de son nom.
+ * Devine l'émoji d'un ingrédient à partir de son nom.
+ *
+ * Reprend la recherche déjà utilisée par le formulaire d'ajout : correspondance
+ * exacte du nom normalisé dans la base d'ingrédients. Auparavant cette logique
+ * n'existait qu'en ligne dans le formulaire, si bien que les autres écrans
+ * (recette IA vers liste de courses) retombaient sur un caddie générique.
+ *
+ * @param {string} name - Nom de l'ingrédient recherché.
+ * @param {Array} db - Base d'ingrédients (`DEFAULT_DB`), injectée pour garder ce
+ *   module sans dépendance vers les données.
+ * @param {string} [fallback='🛒'] - Émoji rendu si rien n'est trouvé (typiquement
+ *   l'émoji de la catégorie de l'ingrédient).
+ * @returns {string}
  */
-export function autoEmoji(name, categories = []) {
-  return '🛒';
+export function autoEmoji(name, db = [], fallback = '🛒') {
+  if (!name) return fallback;
+  const target = normalizeString(name);
+  const match = db.find(i => normalizeString(i.name) === target);
+  return match?.emoji || fallback;
 }
 
 /**
