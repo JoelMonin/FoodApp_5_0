@@ -44,6 +44,50 @@ portait.** Le quatrième (boucle d'envois) reste et est traité en §4.5.
 
 ---
 
+## 0 bis. CE LOT RESTAURE UN COMPORTEMENT PERDU — pas une nouveauté
+
+**Vérifié dans `foodapp-v5-Joel.html` (monolithe d'avant la migration).** La synchronisation
+automatique **existait et fonctionnait**. Elle a été perdue lors du découpage en modules
+(LOT 001/002), sans que personne ne le remarque.
+
+| Ce que faisait le monolithe | Preuve | État actuel |
+|---|---|---|
+| **Envoi automatique à chaque action** | `saveState(push = true)` → `if (push) pushToFirebase()` (l.4335-4339) | ❌ perdu — `saveState` a été migré dans `src/state.js` sans cet appel |
+| **Téléchargement au démarrage** | `await pullFromFirebase()` dans `init()` (l.6755) | ❌ perdu |
+| **Verrou anti-boucle** | `saveState(false)` appelé dans `pushToFirebase` et `pullFromFirebase` (l.4419, 4441) | ❌ perdu — c'est exactement le défaut C4 de l'audit |
+| **Remise à zéro des champs d'affichage après réception** | `state.search=""; state.filter="all"; state.showInStockOnly=false;` avec le commentaire *« ALWAYS RESET SEARCH/FILTER after Cloud Pull to avoid ghost locks »* (l.4415-4418) | ❌ perdu — c'est le fait **F6** |
+| **Clé API préservée sans condition** | `state.aiConfig.apiKey = localKey` — inconditionnel (l.4409-4413) | ❌ dégradé — la version actuelle ne préserve que si le cloud a une clé vide (**F8**) |
+| **Voyant d'état branché** | `setSyncStatus('thinking'/'success'/'error')` (l.4400, 4421, 4423) | ❌ perdu — c'est le fait **F7** |
+| **Garde sur un cloud vide ou malformé** | `if (data && data.ingredients)` (l.4405) | ❌ perdu |
+
+> **Troisième perte confirmée de la même migration**, après le sélecteur d'articles (LOT 006)
+> et les styles du détail de recette (hotfix du 2026-07-28). Le monolithe était **plus correct
+> que le code actuel** sur au moins deux points : le verrou anti-boucle et la préservation de
+> la clé API.
+>
+> **Conséquence pour l'implémentation : on porte ces mécanismes, on ne les réinvente pas.**
+> Le défaut C4 relevé par l'audit avait déjà sa solution écrite il y a trois mois.
+
+### Deux points où l'on fait mieux que l'original
+
+1. **Temporisation de 2 s.** Le monolithe envoyait à **chaque** action, sans temporisation :
+   cocher 30 articles en rayon = 30 envois de ~70 Ko, soit ~2 Mo de données mobiles. La
+   temporisation ramène cela à **un seul envoi**.
+2. **Délai d'expiration et nouvelle tentative.** Le monolithe n'en avait aucun (§4.7).
+
+### Un point qui est réellement nouveau
+
+**Les cases cochées n'étaient synchronisées ni avant ni maintenant.** Dans le monolithe,
+`shoppingChecked` était déjà hors de `state` (l.4262), avec le commentaire explicite
+*« IDs of checked cart items (in-trip) »* — c'était un choix délibéré : les coches étaient
+propres à une sortie de courses et à un appareil.
+
+**Les inclure (décision de Joel) est donc une vraie nouveauté, pas une restauration.**
+À surveiller à l'usage : si deux personnes font leurs courses séparément en même temps, leurs
+coches se mélangeront.
+
+---
+
 ## 1. FAITS ÉTABLIS
 
 Faits vérifiés en phase découverte, **tous confirmés par l'audit**. Si l'un est faux, la
@@ -170,6 +214,11 @@ en attente et exécutée après — jamais accumulée.
 
 Le défaut : recevoir des données déclenche une sauvegarde, qui déclenche un envoi, qui
 déclenche la réception d'en face, indéfiniment.
+
+**Le monolithe avait déjà résolu ce problème** : ses fonctions d'envoi et de réception
+appelaient `saveState(false)` — le `false` coupant précisément le réenvoi (§0 bis). Le
+mécanisme existe encore aujourd'hui sous une autre forme : `saveState(updateUI)` dans
+`src/state.js`. **On restaure le principe, on ne l'invente pas.**
 
 **Deux verrous indépendants**, l'un suffirait, les deux se couvrent mutuellement :
 
