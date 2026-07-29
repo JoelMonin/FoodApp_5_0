@@ -1,6 +1,6 @@
 # LOT 005 — Quick wins UX
 
-> **Statut :** 🟡 TERMINÉ — en attente de publication (feu vert de Joel)
+> **Statut :** ✅ CLÔTURÉ — publié en **Version 5.4** le 2026-07-29 (feu vert de Joel)
 > **Branche :** `feat/lot5-quick-wins-ux` · commit `9b85026` (+ 2 correctifs d'audit)
 > **Effort réel :** ~4 h · **Validation :** 23/23 Vitest + 13/13 Pytest, build OK
 > **Origine :** audit #2 (`ULTRA_AUDIT_REPORT.md`), ex-chantier `PERF_BOOT_AND_RENDER`

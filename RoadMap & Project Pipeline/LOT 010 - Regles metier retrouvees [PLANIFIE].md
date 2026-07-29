@@ -84,15 +84,21 @@ unités collées). Fonctionne pour les trois sources du modal (IA, favori, recet
 La valeur d'origine reste la référence : revenir au nombre initial redonne les quantités
 initiales EXACTES (pas d'erreurs d'arrondi cumulées).
 
-### 6. ARBITRAGE JOEL — le menu « Moteur Tâches Complexes »
+### 6. Menu « Moteur Tâches Complexes » — TRANCHÉ par Joel (2026-07-29)
 
 Le choix de l'utilisateur y est écrasé à chaque chargement (`sanitizeGlobalState` force les
-modèles à chaque démarrage — c'est voulu depuis l'incident des modèles périmés).
-**Recommandation : SUPPRIMER le menu** — les modèles sont gouvernés par `AI_ROLES`
-(`src/constants.js`, SSOT) et un menu sans effet est pire qu'aucun menu.
-Alternative si Joel préfère : faire respecter le choix, ce qui exige de sortir le
-rôle choisi du forçage de `sanitizeGlobalState` (plus de travail, réintroduit le risque de
-modèles périmés). **→ à trancher par Joel à l'ouverture du lot, avant le code.**
+modèles à chaque démarrage — voulu depuis l'incident des modèles périmés).
+
+**Décision de Joel : SUPPRIMER le menu.** À la place, afficher une **information en lecture
+seule** : quel(s) modèle(s) l'app utilise et pour quoi faire. Concrètement :
+- retirer le `<select>` et son câblage (3 recherches convergentes avant suppression,
+  `CLAUDE.md` §5) ;
+- afficher à sa place un petit bloc informatif dérivé de `AI_ROLES` (`src/constants.js`,
+  SSOT — ne JAMAIS écrire les noms de modèles en dur dans le HTML), du type :
+  « Recettes, nutrition et analyse : `gemini-3.6-flash` · Catégories et emojis :
+  `gemini-3.5-flash-lite` », libellés générés depuis la table des rôles ;
+- si un second `<select>` du même écran est lui aussi sans effet, appliquer le même
+  traitement (vérifier — les deux menus de modèles partagent probablement le même défaut).
 
 ## Plan de test
 

@@ -68,20 +68,12 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
 
-## 🟡 En attente de publication
-
-| Lot | Sujet | Branche |
-|---|---|---|
-| [006](LOT%20006%20-%20Comportements%20produit%20%5BA%20PUBLIER%5D.md) | Liste de courses intelligente, emojis devinés, Cloud Sync réparé | `feat/lot6-comportements-produit` |
-| [005](LOT%20005%20-%20Quick%20wins%20UX%20%5BA%20PUBLIER%5D.md) | Démarrage instantané, recherche fluide, réparations d'usage | `feat/lot5-quick-wins-ux` |
-
-> Recommandation : publier 005+006 avant d'entamer la campagne, pour partir d'une base en
-> ligne saine. Feu vert de Joel requis au moment même (VERROU PRODUCTION).
-
 ## ✅ Clôturés
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [006](LOT%20006%20-%20Comportements%20produit%20%5BCLOTURE%5D.md) | Liste de courses intelligente, emojis devinés, Cloud Sync réparé | **5.4** |
+| [005](LOT%20005%20-%20Quick%20wins%20UX%20%5BCLOTURE%5D.md) | Démarrage instantané, recherche fluide, réparations d'usage | **5.4** |
 | [004](LOT%20004%20-%20Versionnage%20SSOT%20%5BCLOTURE%5D.md) | Versionnage SSOT (`APP_VERSION` + propagateur + verrou) | 5.2 |
 | [003](LOT%20003%20-%20Refactorisation%20UI%20%5BCLOTURE%5D.md) | Refactorisation UI (DOM sûr, vues extraites) | 5.1 → 5.2 |
 | [002](LOT%20002%20-%20Modernisation%20Vite%20et%20ESM%20%5BCLOTURE%5D.md) | Modernisation Vite et modules ES6 | 5.1 |

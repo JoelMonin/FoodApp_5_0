@@ -1,6 +1,6 @@
 # LOT 006 — Comportements produit
 
-> **Statut :** 🟡 TERMINÉ — en attente de publication (feu vert de Joel)
+> **Statut :** ✅ CLÔTURÉ — publié en **Version 5.4** le 2026-07-29 (feu vert de Joel)
 > **Branche :** `feat/lot6-comportements-produit` · commit `a35e74c`
 > **Effort réel :** ~4 h · **Validation :** 33/33 Vitest + 13/13 Pytest, build OK
 > **Origine :** audit #2 (`ULTRA_AUDIT_REPORT.md`), ex-chantier `RACE_CONDITIONS_AI`

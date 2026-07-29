@@ -22,8 +22,8 @@ d'import/réinitialisation en perte de données multi-appareils.
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
   fiches détaillées prêtes à confier à un exécutant
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
-- **005 + 006** — TERMINÉS, en attente du feu vert de Joel pour publication
-  (recommandé AVANT la campagne)
+- **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29** (feu vert de Joel) — la
+  campagne part d'une base en ligne saine
 
 ## Vérités à ne pas perdre
 
@@ -35,11 +35,11 @@ d'import/réinitialisation en perte de données multi-appareils.
   sélecteur intelligent, `applyCloudState`).
 - `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
   campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ».
-- 1 arbitrage Joel en attente : menu « Moteur Tâches Complexes » (LOT 010 §6,
-  recommandation : le supprimer).
+- Arbitrage « Moteur Tâches Complexes » TRANCHÉ (2026-07-29) : menu supprimé, remplacé par
+  une information en lecture seule dérivée de `AI_ROLES` (LOT 010 §6).
 
 ## Prochaine étape
 
-Audit externe des fiches de campagne (demandé par Joel : « on fera auditer tout ce que tu as
-préparé »), puis GO de Joel → ouverture du LOT 008.
+Audit externe des fiches de campagne, en duel Gemini × Codex (prompt fourni à Joel le
+2026-07-29), puis GO de Joel → ouverture du LOT 008.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
