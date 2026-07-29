@@ -7,7 +7,7 @@
 > | Points | Lot |
 > |---|---|
 > | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** ✅ terminé, double audit passé (2026-07-29), À PUBLIER |
-> | §2 (info-last-sync, info-network, online/offline, voyant) | **LOT 007** |
+> | §2 (info-last-sync, info-network, online/offline, voyant) + synchro auto (A11) | **LOT 007** ✅ terminé, audit Dur double GO (2026-07-30), À PUBLIER |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
 > | C5, C9, C10, C11, C12 | **LOT 010** |
 > | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |
@@ -51,13 +51,15 @@ rebranché de travers.
 | C11 | **Tri alphabétique de l'inventaire perdu** | Un ingrédient ajouté apparaît en fin de grille au lieu de sa place alphabétique | `js/app.js:281-301` (aucun tri) vs monolithe l.4646 (`localeCompare 'fr'`) |
 | C12 | **Quantités non recalculées selon le nb de personnes** | Les boutons −/+ changent le chiffre affiché mais plus les quantités (300 g restait 300 g au lieu de 450 g) | `js/app.js:533-540` (commentaire « could be added ») vs monolithe l.5467-5540 (`scaleQty`) |
 
-## 2. À ABSORBER PAR LE LOT 007 (périmètre synchro — déjà à moitié dans la spec)
+## 2. ✅ ABSORBÉ PAR LE LOT 007 (clôturé le 2026-07-30, À PUBLIER)
 
-- `#info-last-sync` (date de dernière synchro) et `#info-network` (état réseau) du panneau
-  C8 : leur alimentation naturelle est le moteur de synchro du lot 7.
-- Écouteurs `online`/`offline` : le lot 7 prévoit déjà un déclencheur de pull sur `online`.
-- L'indicateur animé `.sync-indicator.thinking/.success/.error` : déjà dans la spec v2.
-- Le reste du panneau C8 (`info-api-key`, `info-fb-user`, `info-storage`) reste hors lot 7.
+- ✅ `#info-last-sync` (date de dernière synchro) et `#info-network` (état réseau) du panneau
+  C8 : alimentés par le moteur de synchro (`updateSystemInfo` restauré, oracle l.4466-4482).
+- ✅ Écouteurs `online`/`offline` : rebranchés, et promus déclencheurs de synchro
+  (envoi d'abord si modifications en attente, puis récupération).
+- ✅ L'indicateur animé `.sync-indicator.thinking/.success/.error` : rebranché
+  (`setSyncStatus` porté du monolithe, + état « Hors ligne »).
+- Le reste du panneau C8 (`info-api-key`, `info-fb-user`, `info-storage`) reste au LOT 009.
 
 ## 3. CONFORT PERDU (restaurations légères, à grouper dans un lot « restauration »)
 

@@ -1,9 +1,12 @@
 # LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v3
 
-> **Statut :** 🔵 EN COURS — code écrit le 2026-07-29 (`8c9e8fc`) ; **AUDIT DUR PASSÉ
-> le 2026-07-30** : Gemini 3.6 Flash GO (cloud restauré, SHA-256 identique) · Codex 5.6
-> **GO final** après deux cycles de corrections (`1560763`, `24d8cb3`) — NO-GO levé,
-> détail §12 bis. **Reste UNIQUEMENT : tests §6.2 par Joel, à deux appareils.**
+> **Statut :** 🟢 **A PUBLIER** (clôturé le 2026-07-30) — code écrit le 2026-07-29
+> (`8c9e8fc`) ; **AUDIT DUR PASSÉ le 2026-07-30** : Gemini 3.6 Flash GO (cloud restauré,
+> SHA-256 identique) · Codex 5.6 **GO final** après deux cycles de corrections
+> (`1560763`, `24d8cb3`) — détail §12 bis.
+> **Tests §6.2 LEVÉS par décision explicite de Joel (2026-07-30)** : « on passe cette
+> étape, et si j'ai des problèmes dans la vraie vie on en reparle » — le constat se
+> fera à l'usage réel, après publication.
 > **Branche :** `feat/lot7-synchro-collaborative`
 > **Niveau d'audit : DUR** (`CLAUDE.md` §5) · **Effort estimé :** ~4 h *(v1 : 6 h, v2 : 3 h)*
 > **v1 le 2026-07-28** · **v2 le 2026-07-28 (audit Gemini + arbitrage de Joel)** ·
@@ -477,6 +480,11 @@ le moteur vivant dans `js/app.js` (§4.2), ses points d'entrée sont exportés p
 
 ### 6.2 Tests manuels à deux appareils (validation par Joel)
 
+> **LEVÉS par décision explicite de Joel à la clôture (2026-07-30)** — non exécutés,
+> pas cochés. Le constat se fera à l'usage réel après publication ; tout problème
+> rencontré rouvrira ce point (les scénarios ci-dessous servent alors de grille de
+> diagnostic). Le GO statique des deux auditeurs n'est pas remis en cause par ce report.
+
 - [ ] Ajout sur A → apparaît sur B dans la minute
 - [ ] **Suppression sur A → l'article ne revient pas** sur un appareil à jour (le défaut qui a
       fait tomber la v1). Cas limite assumé, à constater une fois : B resté sur un état
@@ -526,7 +534,8 @@ le moteur vivant dans `js/app.js` (§4.2), ses points d'entrée sont exportés p
 - [x] Tous les tests du §6.1 passent *(2026-07-29 : 82/82 vitest, dont 35 nouveaux)*
 - [x] Validation unifiée verte (`.\validate.bat`) et `npm run build` OK *(13/13 pytest, build 562 ms)*
 - [x] `PROJECT_MAP.md` à jour *(2 suites ajoutées)*
-- [ ] Tests manuels du §6.2 validés **par Joel, à deux appareils, en conditions réelles**
+- [~] Tests manuels du §6.2 : **LEVÉS par décision explicite de Joel (2026-07-30)** —
+      constat reporté à l'usage réel, critère non exigé pour la clôture
 - [x] Audit Dur rendu, réserves traitées *(2026-07-30 : Gemini GO + Codex GO final après
       2 cycles de corrections — 5 findings et 2 scénarios maintenus, tous fermés avec tests)*
 - [x] Aucun changement de comportement observable **non listé** dans cette spec ni dans les
