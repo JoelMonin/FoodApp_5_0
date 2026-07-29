@@ -1,5 +1,20 @@
 # BACKLOG — Régressions de la migration monolithe → modules
 
+> **⚑ CHECK-LIST DE LA CAMPAGNE « Restauration & Refonte » (2026-07-29).** Cet inventaire
+> est ventilé dans les lots ; chaque lot coche ses points ici à sa clôture. Fin du LOT 012 :
+> tout §1-§4 coché ou explicitement reporté.
+>
+> | Points | Lot |
+> |---|---|
+> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** |
+> | §2 (info-last-sync, info-network, online/offline, voyant) | **LOT 007** |
+> | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
+> | C5, C9, C10, C11, C12 | **LOT 010** |
+> | §4 (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |
+> | §3 restant (picker 🎲, clavier, topbar, styles neufs…) | **LOT 012** |
+> | §5 (faux morts) : NE PAS restaurer — garde-fou permanent | tous |
+> | Duplication `.generate-btn` (§ fin) | **LOT 014** |
+>
 > **Origine :** balayage systématique du 2026-07-29, déclenché par la découverte que la
 > synchro automatique du LOT 007 était la **troisième** perte silencieuse de la même
 > migration (LOTS 001-003). Quatre agents en parallèle (fonctions, câblage événementiel,

@@ -1,9 +1,15 @@
-# LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v2
+# LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v3
 
-> **Statut :** 🔵 EN COURS — spec v2 après audit, aucune ligne de code écrite
+> **Statut :** 🔵 EN COURS — spec v3 après double audit, aucune ligne de code écrite
 > **Branche :** `feat/lot7-synchro-collaborative`
-> **Niveau d'audit : DUR** (`CLAUDE.md` §5) · **Effort estimé :** ~3 h *(v1 : 6 h)*
-> **v1 rédigée le 2026-07-28** · **v2 le 2026-07-28 après audit Gemini 3.1 Pro + arbitrage de Joel**
+> **Niveau d'audit : DUR** (`CLAUDE.md` §5) · **Effort estimé :** ~4 h *(v1 : 6 h, v2 : 3 h)*
+> **v1 le 2026-07-28** · **v2 le 2026-07-28 (audit Gemini + arbitrage de Joel)** ·
+> **v3 le 2026-07-29 (duel Gemini 3.1 Pro × Codex 5.6 sur la v2 : double NO-GO, §0 ter)**
+>
+> **⛔ PRÉALABLE BLOQUANT : `LOT 008 — Données en sécurité`.** L'envoi automatique
+> amplifierait les casses d'import/réinitialisation recensées dans
+> `Backlog/BACKLOG - Regressions de la migration.md` en perte de données multi-appareils.
+> Aucune ligne de ce lot ne s'écrit tant que le LOT 008 n'est pas clos.
 
 ---
 
@@ -41,6 +47,29 @@ portait.** Le quatrième (boucle d'envois) reste et est traité en §4.5.
 | **C4** — boucle d'envois mutuels | ✅ **Fondé** | Traité en §4.5 |
 | **C1** — horodatage par instantané non fiable | ⚠️ **Fondé sur le principe, faux sur le motif** | Sans objet en v2. La performance annoncée comme bloquante a été mesurée : **0,46 ms** sur 70 Ko (≈ 2 ms sur mobile, seuil de perception 16 ms). Le vrai argument était la fiabilité, pas le coût. |
 | **C2** — collision d'identifiants | ❌ **Non fondé** | Vérifié : les seules collisions de `normalizeString` sont entre deux orthographes du **même** ingrédient (pommes de terre/PDT, Thé/The, Ail/Aïl). Deux ingrédients distincts restent distincts. Sans objet en v2. |
+
+---
+
+## 0 ter. AUDIT DE LA v2 — duel Gemini 3.1 Pro × Codex 5.6 (2026-07-29)
+
+La v2 a été soumise en duel à deux auditeurs indépendants, avec l'inventaire complet des
+régressions de la migration en lecture obligatoire. **Double NO-GO** — pas sur le principe du
+remplacement entier (validé par les deux), mais sur des trous que cette v3 corrige.
+
+| Constat (auditeur) | Contre-vérification | Réponse v3 |
+|---|---|---|
+| L'envoi auto **amplifie** les casses d'import/réinitialisation en perte multi-appareils *(les deux)* | ✅ Fondé | **LOT 008 créé, préalable bloquant** |
+| Un pull peut **écraser une modification locale non envoyée** — fenêtre des 2 s, retour réseau, rechargement *(les deux)* | ✅ Fondé, trou de conception | Drapeau **« EN ATTENTE » persisté** : tant qu'il est levé, aucun pull n'est appliqué, l'envoi passe d'abord (§4.3-4.4) |
+| `lastSync` dans le document synchronisé **réamorce la boucle** : chaque succès modifie le document mémorisé *(Codex seul — Gemini l'a manqué)* | ✅ Fondé | `lastSync` devient une **métadonnée locale**, hors document, hors comparaison (§4.1) |
+| « La suppression ne revient JAMAIS » est **survendu** : un appareil resté sur un état ancien la ressuscite s'il écrit avant son pull *(Codex)* | ✅ Fondé | §3 et §6.2 réécrits honnêtement |
+| Contradiction §4.1/§4.2 : `shoppingChecked` synchronisé mais « transport inchangé » *(les deux)* | ✅ Fondé | §4.2 corrigé : `firebase.js` **est** modifié |
+| L'import JSON contourne la protection de la clé API *(les deux)* | ✅ Fondé | LOT 008 : point d'entrée unique `applyExternalState` pour cloud ET fichiers |
+| Slider de créativité non restauré → un « 50 » par défaut serait **diffusé partout** *(Codex)* | ✅ Fondé | LOT 008 |
+| `shoppingChecked` garde des **ids orphelins** → état incohérent diffusé *(Codex)* | ✅ Fondé | LOT 008 (hygiène du Set) |
+| Un ancien client qui écrit **supprime** `shoppingChecked` du cloud *(Codex)* | ✅ Fondé, impact faible (parc = les appareils de Joel, migrés ensemble) | Règle du champ absent = vide, jamais une erreur (§4.1) |
+
+> Gemini avait validé l'anti-boucle (son B2) là où Codex a trouvé le réamorçage par `lastSync`.
+> **Deux auditeurs, deux angles morts différents — c'est la démonstration de l'intérêt du duel.**
 
 ---
 
@@ -128,8 +157,11 @@ conception qui en découle l'est aussi.
 1. Toute modification locale déclenche un envoi **temporisé de 2 secondes**.
 2. L'envoi remplace le document cloud (`PUT`, comportement actuel conservé).
 3. Une récupération applique le document cloud **en entier** à l'état local.
-4. Aucune fusion, aucun arbitrage : **la suppression fonctionne parfaitement**, puisque
-   l'absence d'un article est une information transmise comme une autre.
+4. Aucune fusion, aucun arbitrage : **la suppression se propage**, puisque l'absence d'un
+   article est une information transmise comme une autre. **Honnêteté imposée par l'audit
+   v2** : un appareil resté sur un état ANTÉRIEUR à la suppression peut encore la ressusciter
+   s'il écrit avant son prochain pull. Cette fenêtre est bornée par les pulls automatiques
+   (§4.4) ; elle n'est jamais nulle.
 
 ### Conséquence assumée, énoncée sans détour
 
@@ -157,7 +189,7 @@ Joel, d'une suppression qui fonctionne et d'une mécanique simple.
 | `aiConfig.apiKey` | ❌ **jamais envoyée, jamais écrasée** | §4.6 |
 | `currentView`, `filter`, `search`, `showInStockOnly`, `showInCartOnly`, `currentSuggestionIdx` | ❌ | F6 — sinon l'écran de Joel changerait tout seul en plein magasin |
 | `aiSuggestions` | ❌ | Volatile, sans identifiant, adressé par index (`js/app.js:452`) |
-| `lastSync` | ✅ | Horodatage du document, alimente le voyant |
+| `lastSync` | ❌ **métadonnée locale** | Correction d'audit v2 (Codex) : dans le document, chaque succès de synchro modifiait le contenu mémorisé et réamorçait un envoi. Stockée hors document (localStorage), exclue de la comparaison anti-boucle. Alimente le voyant et `#info-last-sync` |
 
 **Changement observable annoncé** : aujourd'hui `syncPush` envoie **tout** `state`. Restreindre
 le périmètre est un changement de comportement assumé. Conséquence sur les données déjà dans le
@@ -168,33 +200,50 @@ Sans effet pratique — `loadState` réinitialise déjà ces champs à chaque d�
 
 `shoppingChecked` est un `Set` hors de `state` (F5), persisté dans sa propre clé localStorage.
 Il est **sérialisé en tableau d'identifiants** dans le document synchronisé, et reconstruit en
-`Set` à la réception. Son stockage local séparé reste inchangé : **aucune modification du
-modèle de données**, seulement du périmètre d'envoi.
+`Set` à la réception — **extrait AVANT l'appel à `setState`** : il ne doit jamais apparaître
+dans `state` (ce serait une seconde représentation, contraire au SSOT — réserve Codex). Son
+stockage local séparé reste inchangé.
+
+**Règle du champ absent** (correction d'audit v2) : un document cloud sans `shoppingChecked`
+(écrit par un ancien client) est traité comme « aucune coche », jamais comme une erreur.
+Aucun champ du périmètre n'est obligatoire à la réception : chaque absence retombe sur la
+valeur par défaut de `sanitizeGlobalState`.
 
 ### 4.2 Ce qui n'est pas touché
 
 - **Aucun champ ajouté à aucun élément.** Pas de `updatedAt`, pas de `deletedAt`.
 - **Aucun des 20 sites de mutation n'est modifié.**
-- `src/services/firebase.js` : transport inchangé, sauf ajout du délai d'expiration (§4.7).
-- Aucun nouveau module. Tout tient dans `js/app.js` et une extension de `firebase.js`.
+- `src/services/firebase.js` : **modifié** (correction d'audit v2 — la v2 se contredisait en
+  le disant « inchangé ») : construction du document selon le périmètre §4.1, injection de
+  `shoppingChecked` sérialisé, exclusion de `lastSync`, délai d'expiration (§4.7). C'est le
+  SEUL endroit qui décide de ce qui part au cloud — SSOT du périmètre.
+- Aucun nouveau module. Tout tient dans `js/app.js` et `firebase.js`.
 
 ### 4.3 Séquence d'une synchronisation
 
 ```
 ENVOI (déclenché par une modification locale, temporisé 2 s)
-  1. construire le document à envoyer (périmètre §4.1, clé API retirée)
-  2. si identique au dernier document envoyé avec succès → NE RIEN FAIRE   ← anti-boucle
-  3. PUT vers Firebase
-  4. succès → mémoriser le document envoyé + horodater lastSync + voyant « à jour »
-     échec  → voyant « échec », une nouvelle tentative à 10 s, l'état local reste la référence
+  0. toute modification locale lève le drapeau « EN ATTENTE » (persisté en localStorage)
+  1. construire le document à envoyer (périmètre §4.1, clé API retirée, sans lastSync)
+  2. GARDE-FOU : document sans `ingredients` exploitable → REFUS + voyant erreur (§4.9)
+  3. si identique au dernier document envoyé avec succès → baisser le drapeau, NE RIEN FAIRE
+  4. PUT vers Firebase
+  5. succès → mémoriser le document envoyé + baisser le drapeau + lastSync locale + voyant
+     échec  → voyant « échec », drapeau MAINTENU, une nouvelle tentative à 10 s
 
-RÉCUPÉRATION (démarrage, retour sur l'app, toutes les 60 s, clic manuel)
+RÉCUPÉRATION (démarrage, retour sur l'app, toutes les 60 s, retour réseau, clic manuel)
+  0. drapeau « EN ATTENTE » levé → NE PAS APPLIQUER de pull : envoyer d'abord (§4.4)
   1. GET depuis Firebase
-  2. document nul (base vide) → ne rien appliquer
+  2. document nul (base vide) ou malformé (§4.9) → ne rien appliquer
   3. appliquer le document : périmètre §4.1 uniquement, clé API locale préservée
   4. marquer l'application comme « issue de la synchro »                   ← anti-boucle
   5. reconstruire shoppingChecked, redessiner la vue
 ```
+
+**Le drapeau persisté couvre aussi le rechargement de page** (correction d'audit v2) : si
+l'app est fermée avec des modifications non envoyées, le démarrage suivant ENVOIE avant
+d'appliquer le moindre pull. Sans lui, le pull de démarrage écraserait silencieusement les
+modifications faites hors ligne juste avant la fermeture.
 
 ### 4.4 Déclenchement
 
@@ -204,11 +253,22 @@ RÉCUPÉRATION (démarrage, retour sur l'app, toutes les 60 s, clic manuel)
 | Modification locale | Envoi temporisé **2 s** |
 | Retour sur l'application (`visibilitychange`) | Récupération |
 | Toutes les **60 s**, application visible | Récupération |
-| Retour du réseau (`online`) | Récupération puis envoi si nécessaire |
+| Retour du réseau (`online`) | **Envoi d'abord** si modifications en attente, récupération ensuite (§4.4) |
 | Clic sur « Cloud Sync » | Récupération **puis** envoi, immédiatement |
 
 **Une seule opération à la fois.** Une demande arrivant pendant une opération en vol est mise
 en attente et exécutée après — jamais accumulée.
+
+**Arbitrage local/cloud** (correction d'audit v2, relevée par les deux auditeurs) :
+
+- Drapeau « EN ATTENTE » levé → tout déclencheur de récupération devient **envoi d'abord**,
+  récupération ensuite, seulement si l'envoi a réussi.
+- Retour du réseau : même règle — jamais de pull destructif par-dessus des modifications
+  non envoyées.
+- Une nouvelle modification pendant qu'un retry est programmé : le retry est **annulé** et
+  remplacé par la temporisation normale de 2 s. Il n'existe jamais qu'UN timer d'envoi.
+- L'état réseau (`#info-network`) est affiché dès le démarrage (`navigator.onLine`), pas
+  seulement au premier événement `online`/`offline`.
 
 ### 4.5 Anti-boucle — correction du défaut C4 de l'audit
 
@@ -226,7 +286,16 @@ mécanisme existe encore aujourd'hui sous une autre forme : `saveState(updateUI)
    telle et **ne planifie aucun envoi**.
 2. **Comparaison de contenu.** Un envoi dont le document est identique au dernier envoi réussi
    est **abandonné avant la requête réseau**. Même si le drapeau était oublié un jour, la
-   boucle ne pourrait pas s'établir.
+   boucle ne pourrait pas s'établir. Condition de validité (correction Codex) : `lastSync`
+   étant hors document (§4.1), un succès de synchro ne modifie plus le contenu comparé —
+   sinon ce verrou se réamorçait lui-même.
+
+**Précision d'implémentation** (correction d'audit v2, Codex) : le `saveState(false)` actuel
+de `src/state.js` ne supprime que l'événement de RENDU (`stateUpdated`) — il ne coupe aucun
+envoi. La planification d'envoi ne doit donc **PAS** être accrochée à l'événement
+`stateUpdated` : elle vit DANS `saveState`, derrière un paramètre explicite, pour que le
+chemin « application d'un pull » puisse sauvegarder localement SANS jamais planifier d'envoi —
+exactement le contrat du `saveState(false)` du monolithe (l.4335-4340).
 
 ### 4.6 Invariants de sécurité — non négociables
 
@@ -263,6 +332,23 @@ Les deux voyants (`#sync-indicator-desktop`, `#sync-indicator-mobile`) sont mis 
 **Aucun toast pour une synchro automatique réussie** — ce serait du bruit toutes les minutes.
 Le toast est conservé pour le **clic manuel** et pour **tous les échecs**.
 
+### 4.9 Garde-fous sortants et entrants — ajout d'audit v2
+
+1. **Jamais d'envoi d'un état non exploitable.** Un document dont `ingredients` n'est pas un
+   tableau non vide alors que le dernier document envoyé en avait un → envoi REFUSÉ, voyant
+   en erreur, aucun retry. Symétrique du garde `if (data && data.ingredients)` que le
+   monolithe avait côté réception (l.4405). Une vidange volontaire (réinitialisation assumée,
+   LOT 008) passe par un chemin explicite qui l'autorise.
+2. **Jamais d'application d'un document malformé.** À la réception : `ingredients` absent ou
+   non-tableau → document ignoré, voyant en erreur discrète. (La validation de schéma
+   complète reste au LOT 014.)
+3. **Import de fichier et réinitialisation** : comportements définis au LOT 008 (préalable).
+   Règles héritées ici : la restauration TOTALE d'un fichier est suivie d'un envoi normal —
+   c'est voulu, restaurer = restaurer partout, et le texte du bouton l'annonce ; l'import
+   « stock seulement » est une fusion (LOT 008), son envoi est un envoi ordinaire ; la
+   réinitialisation reconstruit l'inventaire par défaut et le propage, le texte de
+   confirmation l'annonce.
+
 ---
 
 ## 5. MIGRATION
@@ -291,11 +377,25 @@ envoi réécrit simplement le document cloud selon le périmètre §4.1.
 - [ ] Expiration du délai → traité comme un échec, aucune perte locale
 - [ ] **Anti-boucle** : un document identique au dernier envoyé n'est pas renvoyé
 - [ ] **Anti-boucle** : une application issue de la synchro ne planifie pas d'envoi
+- [ ] Le document envoyé **ne contient pas** `lastSync` (métadonnée locale, §4.1)
+- [ ] Drapeau « EN ATTENTE » levé → une récupération n'applique RIEN et déclenche l'envoi
+- [ ] Drapeau persisté : rechargement avec modifications non envoyées → envoi avant tout pull
+- [ ] Un document sans `ingredients` exploitable n'est **jamais envoyé** (garde §4.9)
+- [ ] Un document reçu malformé (`ingredients` non-tableau) est **ignoré sans exception**
+- [ ] Un document reçu **sans** `shoppingChecked` → « aucune coche », sans erreur
+- [ ] Une modification pendant un retry programmé → le retry est annulé, un seul timer d'envoi
 
 ### 6.2 Tests manuels à deux appareils (validation par Joel)
 
 - [ ] Ajout sur A → apparaît sur B dans la minute
-- [ ] **Suppression sur A → l'article ne revient JAMAIS** (le défaut qui a fait tomber la v1)
+- [ ] **Suppression sur A → l'article ne revient pas** sur un appareil à jour (le défaut qui a
+      fait tomber la v1). Cas limite assumé, à constater une fois : B resté sur un état
+      antérieur qui écrit AVANT son pull le ressuscite — vérifier que le pull suivant de B
+      (≤ 60 s) referme la fenêtre
+- [ ] Modification sur A hors ligne → retour du réseau → la modification est ENVOYÉE, pas
+      écrasée par le pull du retour réseau
+- [ ] Modification puis rechargement immédiat de la page → la modification part au démarrage
+      suivant (drapeau persisté)
 - [ ] Case cochée sur A → visible sur B
 - [ ] 15 cases cochées d'affilée → **un seul** envoi (onglet réseau)
 - [ ] Mode avion pendant un envoi → voyant en échec, **aucune perte**, renvoi au retour
@@ -311,8 +411,12 @@ envoi réécrit simplement le document cloud selon le périmètre §4.1.
    de l'arbitrage de Joel. Si cela devient gênant à l'usage, la fusion article par article
    redevient possible dans un lot ultérieur, avec ses pierres tombales.
 2. **Horloges désynchronisées** : `lastSync` sert d'affichage, pas d'arbitrage — sans impact ici.
-3. **Pas de mode hors ligne durable** : les modifications restent locales et repartent au retour
-   du réseau, mais aucune file d'attente persistante n'est mise en place.
+3. **Hors ligne : un drapeau, pas une file.** Les modifications restent locales ; le drapeau
+   « EN ATTENTE » persisté garantit qu'elles repartent au retour du réseau OU au démarrage
+   suivant. Mais il n'y a qu'UN état à envoyer (le dernier), pas un historique : deux
+   appareils hors ligne en même temps se départagent par « le dernier envoi gagne ».
+4. **Résurrection résiduelle d'une suppression** (§3) : fenêtre bornée par les pulls (60 s,
+   retour d'app, démarrage), jamais nulle. Acceptée.
 
 ---
 
@@ -320,8 +424,10 @@ envoi réécrit simplement le document cloud selon le périmètre §4.1.
 
 - Authentification Firebase (risque accepté, `.claude/audit_memory.md`)
 - Validation de schéma des données cloud (→ `Backlog/BACKLOG - Validation des donnees externes.md`)
-- Alias `state` fragile (→ `Backlog/BACKLOG - Alias state fragile.md`)
-- Panneau « Informations Système » mort (`updateSystemInfo` cible `#system-storage`, inexistant)
+- Alias `state` fragile (→ LOT 014)
+- Panneau « Informations Système » : ce lot ne restaure QUE `#info-last-sync` et
+  `#info-network` (périmètre synchro, fiche régressions §2) ; les trois autres champs
+  (`info-api-key`, `info-fb-user`, `info-storage`) → LOT 009
 
 ---
 
@@ -352,5 +458,10 @@ démarrage (F6). **Aucune destruction mutuelle possible entre les deux versions.
 ## 11. TRAÇABILITÉ
 
 - Finding d'origine : `ULTRA_AUDIT_REPORT.md` A11
-- Audit de la v1 : Gemini 3.1 Pro, 2026-07-28 — verdict NO-GO, 2 défauts sur 4 retenus
-- Dépend de : `applyCloudState` (LOT 006), `debounce` (LOT 005)
+- Audit de la v1 : Gemini 3.1 Pro, 2026-07-28 — NO-GO, 2 défauts sur 4 retenus
+- Audit de la v2 : **duel Gemini 3.1 Pro × Codex 5.6**, 2026-07-29 — double NO-GO, tous les
+  constats fondés intégrés dans cette v3 (§0 ter)
+- Dépend de : **LOT 008 (préalable bloquant)**, `applyExternalState` (créé au LOT 008,
+  extension de l'`applyCloudState` du LOT 006), `debounce` (LOT 005)
+- Absorbe : `#info-last-sync`, `#info-network`, écouteurs `online`/`offline`
+  (`Backlog/BACKLOG - Regressions de la migration.md` §2)

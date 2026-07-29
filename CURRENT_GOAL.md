@@ -1,47 +1,45 @@
 # CURRENT GOAL
 
-## Objectif Principal
-**LOT 5 — Quick wins UX — TERMINÉ le 28/07/2026, validé en navigateur par Joel.**
-Branche `feat/lot5-quick-wins-ux`. En attente de feu vert pour merge vers `main`.
-Premier lot issu de l'audit #2, vérifié point par point par Gemini.
+## Objectif principal — campagne « Restauration & Refonte » (décidée par Joel le 2026-07-29)
 
-## Ce qui a été fait
-- [x] **A — Démarrage instantané** : l'inventaire local s'affiche sans attendre le réseau,
-  la synchro cloud passe en arrière-plan et redéclenche le rendu à son retour
-- [x] **B — Recherche et emojis fluides** : `debounce` unique et réutilisable créé dans
-  `src/utils/helpers.js` (aucun n'existait), appliqué à la recherche et aux suggestions d'emoji
-- [x] **C — Compteurs en une passe** : `countStockAndCart()` remplace 4 `filter()` par rendu
-- [x] **D — Export presse-papier linéaire** : `groupByCategory()` en une passe, ordre de tri
-  conservé à l'identique (tri par défaut volontaire, pas `localeCompare`)
-- [x] **E — Double rendu supprimé** : plus de rendu manuel après `saveState()`
-- [x] **F — Nettoyage SSOT** : `defaultAiModels()` factorisé, import mort retiré d'`actions.js`
-  (supprimé après 3 recherches convergentes)
-- [x] **G — CSS mort et empilement** : `--txt-main` et `--shadow-sm` définis, variables
-  d'empilement introduites (notifications > fenêtres > barre du bas)
-- [x] **H — Tests assainis** : mock `localStorage` par clé, reset complet du state, +1 test
-  qui prouve l'absence d'erreur silencieuse au chargement
+Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe → modules a perdu
+**~30 comportements en silence**. Le projet est désormais de **tout rebrancher** (le
+comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
+maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Trouvés pendant le lot (hors audit) et corrigés
-- [x] `updateEmojiSuggestions` n'était pas exposée → erreur JS à chaque frappe
-- [x] La croix d'effacement de la recherche n'a **jamais** fonctionné : `display:none` en CSS
-  et aucun code ne l'affichait
-- [x] `clearSearch` ne vidait que le champ bureau, pas le champ mobile
-- [x] **`setState` n'assainissait pas les données externes** : la config cloud réinjectait
-  `gemini-2.0-flash` (modèle hors service) par-dessus les valeurs saines. Les 3 portes
-  d'entrée externes (synchro cloud, restauration JSON) passent maintenant par le même verrou
-- [x] `AI_ROLES.FAST` basculé sur `gemini-3.5-flash-lite` (micro-tâches), REASONING reste
-  sur `gemini-3.6-flash`
+## Lot actif
 
-## Reste à traiter (audit #2 — plan Gemini)
-- **Lot 2** — comportements produit : liste de courses qui ignore le stock (A9), emojis
-  automatiques (A10), bouton « Sauver » silencieux (A7), collision de requêtes IA (A6),
-  `CAT_EMOJI` dupliqué (C3), modèle en dur ×8 (C5), troncature des noms longs (E4).
-  **4 arbitrages produit de Joel nécessaires** avant implémentation.
-- **Lot 3** — filet de tests UI + validation des données (B1, B4, A11)
-- **Lot 4** — accessibilité et mobile (D1, E5)
-- **Lot 5** — découpage `app.js` / `style.css`, rendu ciblé (C1, C2, C7). Inclut la
-  suppression du CSS mort `.r-tag` (0 usage, 11 blocs)
+**LOT 008 — Données en sécurité** (`[PLANIFIE]`, prochain à coder, branche
+`feat/lot8-donnees-en-securite` à créer). Préalable bloquant du LOT 007 : verdict unanime du
+duel d'audit (Gemini 3.1 Pro + Codex 5.6) — la synchro auto amplifierait les casses
+d'import/réinitialisation en perte de données multi-appareils.
+
+## État des lots
+
+- **008** Données en sécurité — PLANIFIÉ, **à coder en premier**
+- **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter), code
+  bloqué par 008
+- **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
+  fiches détaillées prêtes à confier à un exécutant
+- **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
+- **005 + 006** — TERMINÉS, en attente du feu vert de Joel pour publication
+  (recommandé AVANT la campagne)
+
+## Vérités à ne pas perdre
+
+- **Check-list de campagne** : `Backlog/BACKLOG - Regressions de la migration.md` — chaque
+  lot y coche ses points ; fin du LOT 012 = tout coché ou explicitement reporté.
+- **Le monolithe `foodapp-v5-Joel.html` est l'oracle comportemental** : on porte, on
+  n'invente pas. Lire les lignes citées par chaque fiche AVANT d'écrire.
+- **Ne pas reperdre les acquis des LOTS 005/006** (démarrage instantané, anti-course IA,
+  sélecteur intelligent, `applyCloudState`).
+- `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
+  campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ».
+- 1 arbitrage Joel en attente : menu « Moteur Tâches Complexes » (LOT 010 §6,
+  recommandation : le supprimer).
 
 ## Prochaine étape
-Merge du lot 5 vers `main` sur feu vert explicite de Joel, puis arbitrages du lot 2.
+
+Audit externe des fiches de campagne (demandé par Joel : « on fera auditer tout ce que tu as
+préparé »), puis GO de Joel → ouverture du LOT 008.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
