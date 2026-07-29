@@ -59,7 +59,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ — **prochain chantier** | `feat/lot9-boutons-morts` |
+| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BEN%20COURS%5D.md) | Boutons morts rebranchés | EN COURS — implémenté, attend audit Standard + vérif. navigateur de Joel | `feat/lot9-boutons-morts` |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |

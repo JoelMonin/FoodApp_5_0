@@ -17,7 +17,7 @@ import {
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -50,7 +50,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderCurrentView();
   restoreAIConfig();
   initKeyboardShortcuts();
-  
+  initRecipeFullscreenListeners();
+
   // Initialize swipe-to-close and overlay click for all modals
   ['modal-shopping-bulk', 'modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
     .forEach(id => {
@@ -510,7 +511,12 @@ export {
     setSyncStatus,
     isSyncPending,
     syncEngineBarrier,
-    __resetSyncEngineForTests
+    __resetSyncEngineForTests,
+    // LOT 009 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    openEditEmoji,
+    buildEmojiEditSuggestions,
+    applyEditedEmoji,
+    updateSystemInfo
 };
 
 function renderCurrentView() {
@@ -852,7 +858,8 @@ function openRecipeDetail(idx, source = 'ai') {
         saveRecipeOnly: () => saveRecipeOnly(r),
         saveRecipeAndList: () => saveRecipeAndList(r),
         deleteFav: () => deleteFav(favId),
-        analyzeNutrition: () => analyzeNutrition(r, source, favId)
+        analyzeNutrition: () => analyzeNutrition(r, source, favId),
+        printRecipe: () => printRecipe()
     }));
     openModal('modal-recipe-detail');
 }
@@ -893,7 +900,8 @@ async function analyzeNutrition(r, source, favId) {
                 saveRecipeOnly: () => saveRecipeOnly(r),
                 saveRecipeAndList: () => saveRecipeAndList(r),
                 deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
-                analyzeNutrition: () => analyzeNutrition(r, source, favId)
+                analyzeNutrition: () => analyzeNutrition(r, source, favId),
+                printRecipe: () => printRecipe()
             }));
         }
         toast('Analyse nutritionnelle terminée !');
@@ -907,9 +915,53 @@ async function analyzeNutrition(r, source, favId) {
     }
 }
 
+/**
+ * Vrai plein écran d'appareil (LOT 009, casse C6) : la classe CSS
+ * `recipe-fullscreen` assure le repli visuel même si l'API navigateur refuse
+ * (contexte non interactif, permission absente) — la classe est posée AVANT
+ * l'appel API et ne dépend jamais de sa réussite.
+ */
+function isDocumentFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+        document.mozFullScreenElement || document.msFullscreenElement);
+}
+
+function requestElementFullscreen(el) {
+    const request = el.requestFullscreen || el.webkitRequestFullscreen ||
+        el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (!request) return Promise.reject(new Error('Fullscreen API indisponible'));
+    return request.call(el);
+}
+
+function exitDocumentFullscreen() {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen ||
+        document.mozCancelFullScreen || document.msExitFullscreen;
+    if (!exit) return Promise.resolve();
+    return exit.call(document);
+}
+
 function toggleRecipeFullscreen(id) {
     const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (el) el.classList.toggle('fullscreen');
+    if (!el) return;
+    if (el.classList.contains('recipe-fullscreen')) {
+        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+        else el.classList.remove('recipe-fullscreen');
+    } else {
+        el.classList.add('recipe-fullscreen');
+        requestElementFullscreen(el).catch(() => { /* repli CSS pur, cf. commentaire ci-dessus */ });
+    }
+}
+
+// Resynchronise la classe si l'utilisateur sort par Échap ou un geste système —
+// les 4 variantes préfixées de l'évènement (oracle l.5457-5464).
+function syncRecipeFullscreenClass() {
+    const el = document.getElementById('modal-recipe-detail');
+    if (el && !isDocumentFullscreen()) el.classList.remove('recipe-fullscreen');
+}
+
+function initRecipeFullscreenListeners() {
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(evt => document.addEventListener(evt, syncRecipeFullscreenClass));
 }
 
 function changePplScale(delta) {
@@ -1155,10 +1207,9 @@ async function exportClipboard(type) {
 }
 
 function updateSystemInfo() {
-    // LOT 007 : seules les deux tuiles du perimetre synchro sont rebranchees ici
-    // (#info-last-sync, #info-network — oracle l.4466-4482) ; les trois autres
-    // (#info-api-key, #info-fb-user, #info-storage) restent au LOT 009. L'ancien
-    // corps visait #system-storage, un id qui n'existe nulle part (0 occurrence).
+    // LOT 007 a rebranché #info-last-sync/#info-network (oracle l.4466-4482).
+    // LOT 009 complète avec les 3 derniers champs (oracle l.4443-4464) et retire
+    // la branche morte #system-storage, un id qui n'existe nulle part (0 occurrence).
     const syncEl = document.getElementById('info-last-sync');
     if (syncEl) {
         let raw = null;
@@ -1172,6 +1223,33 @@ function updateSystemInfo() {
             });
         }
     }
+
+    const keyEl = document.getElementById('info-api-key');
+    if (keyEl) {
+        const key = state.aiConfig?.apiKey || '';
+        const isConfigured = key.length > 10;
+        const last4 = key.length > 4 ? key.slice(-4) : '****';
+        keyEl.replaceChildren(
+            isConfigured
+                ? h('span', {}, [`****${last4}`, h('span', { class: 'system-info-value tag green' }, 'Configurée (Locale)')])
+                : h('span', {}, ['Non configurée', h('span', { class: 'system-info-value tag red' }, 'Manquante')])
+        );
+    }
+
+    const fbUserEl = document.getElementById('info-fb-user');
+    if (fbUserEl) fbUserEl.textContent = FB_USER;
+
+    const storageEl = document.getElementById('info-storage');
+    if (storageEl) {
+        let raw = '';
+        try { raw = localStorage.getItem(LOCAL_STORAGE_KEY) || ''; } catch { /* affichage seulement */ }
+        const sizeKB = (raw.length / 1024).toFixed(2);
+        storageEl.replaceChildren(
+            h('code', {}, LOCAL_STORAGE_KEY),
+            h('span', { style: { opacity: '0.6', fontSize: '11px', marginLeft: '4px' } }, `(${sizeKB} KB)`)
+        );
+    }
+
     updateNetworkInfo();
     updateApiStatus();
 }
@@ -1249,7 +1327,14 @@ function openModal(id) {
         }
     }
 }
-function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+function closeModal(id) {
+    const el = document.getElementById(id);
+    el?.classList.remove('open');
+    if (el?.classList.contains('recipe-fullscreen')) {
+        el.classList.remove('recipe-fullscreen');
+        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+    }
+}
 
 let _currentEditingIngId = null;
 function openEditEmoji(id) {
@@ -1257,14 +1342,44 @@ function openEditEmoji(id) {
     const ing = state.ingredients.find(i => i.id === id);
     if (!ing) return;
     document.getElementById('edit-emoji-name').textContent = ing.name;
-    document.getElementById('edit-emoji-input').value = ing.emoji;
+    const searchInput = document.getElementById('emoji-search-input');
+    if (searchInput) searchInput.value = '';
+    renderEmojiEditGrid(ing.name);
     openModal('modal-edit-emoji');
 }
 
-function saveEmoji() {
+/**
+ * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
+ * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
+ * de table d'emojis dupliquée (SSOT). Repli sur l'emoji de catégorie + un socle
+ * générique quand le nom ne correspond à rien (ingrédient ajouté manuellement).
+ */
+function buildEmojiEditSuggestions(seed) {
+    const s = (seed || '').toLowerCase();
+    const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
+    let emojis = [...new Set(matches.map(i => i.emoji))].slice(0, 15);
+    if (emojis.length === 0) {
+        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
+        const generic = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
+        emojis = [...new Set([ing ? getCategoryEmoji(ing.category) : null, ...generic].filter(Boolean))];
+    }
+    return emojis;
+}
+
+function renderEmojiEditGrid(seed) {
+    const grid = document.getElementById('edit-emoji-grid');
+    if (!grid) return;
+    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(e =>
+        h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
+    ));
+}
+
+/** Applique l'emoji choisi, sauvegarde, ferme — contrat du `updateEmoji` du
+ * monolithe : pas d'étape intermédiaire, aucun input libre à valider. */
+function applyEditedEmoji(emoji) {
     const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
     if (ing) {
-        ing.emoji = document.getElementById('edit-emoji-input').value;
+        ing.emoji = emoji;
         saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
     }
     closeModal('modal-edit-emoji');
@@ -1782,17 +1897,9 @@ async function searchEmojiAI() {
             const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
             const grid = document.getElementById('edit-emoji-grid');
             if (grid) {
-                grid.replaceChildren();
-                emojis.forEach(e => {
-                    const b = h('button', { 
-                        class: 'emoji-btn', 
-                        onclick: () => {
-                            const editInput = document.getElementById('edit-emoji-input');
-                            if (editInput) editInput.value = e;
-                        } 
-                    }, e);
-                    grid.appendChild(b);
-                });
+                grid.replaceChildren(...emojis.map(e =>
+                    h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
+                ));
             }
         }
     } catch (e) {
@@ -1807,14 +1914,19 @@ async function searchEmojiAI() {
 function initSwipeToClose(modalId) {
     const overlay = document.getElementById(modalId);
     if (!overlay) return;
-    const modal = overlay.querySelector('.modal-content') || overlay.querySelector('.modal');
-    if (!modal) return;
 
     let startY = 0;
     let currentY = 0;
     let isSwiping = false;
+    let modal = null;
 
-    modal.addEventListener('touchstart', (e) => {
+    // Écouteurs posés UNE FOIS sur l'overlay, qui survit à tout `replaceChildren`
+    // de son contenu (ex. `openRecipeDetail`) — le noeud `.modal-content`/`.modal`
+    // visé est recalculé à CHAQUE geste, jamais capturé une fois pour toutes
+    // (LOT 009, casse C7 : le glissement mourait après le premier rendu dynamique).
+    overlay.addEventListener('touchstart', (e) => {
+        modal = overlay.querySelector('.modal-content') || overlay.querySelector('.modal');
+        if (!modal) return;
         const touch = e.touches[0];
         const rect = modal.getBoundingClientRect();
         // Allow swipe from the top 100px (header/drag handle)
@@ -1825,8 +1937,8 @@ function initSwipeToClose(modalId) {
         }
     }, { passive: true });
 
-    modal.addEventListener('touchmove', (e) => {
-        if (!isSwiping) return;
+    overlay.addEventListener('touchmove', (e) => {
+        if (!isSwiping || !modal) return;
         currentY = e.touches[0].clientY;
         const diff = currentY - startY;
         if (diff > 0) {
@@ -1836,8 +1948,8 @@ function initSwipeToClose(modalId) {
         }
     }, { passive: true });
 
-    modal.addEventListener('touchend', () => {
-        if (!isSwiping) return;
+    overlay.addEventListener('touchend', () => {
+        if (!isSwiping || !modal) return;
         isSwiping = false;
         const diff = currentY - startY;
         if (diff > 100) {
@@ -1858,7 +1970,6 @@ function initKeyboardShortcuts() {
             const activeModal = document.querySelector('.modal-overlay.open');
             if (activeModal) {
                 if (activeModal.id === 'modal-api-config') saveApiKey();
-                else if (activeModal.id === 'modal-edit-emoji') saveEmoji();
                 else if (activeModal.id === 'modal-recipe-to-cart') confirmRecipeToCart();
                 else if (activeModal.id === 'modal-shopping-bulk') confirmBulkAdd();
             } else if (state.currentView === 'add') {
@@ -1877,7 +1988,7 @@ expose({
     toggleStock, togglePin, toggleCart, deleteIngredient,
     generateSuggestions, openRecipeDetail, confirmRecipeToCart,
     saveApiKey, resetCart, resetAllData, exportJSON,
-    openModal, closeModal, saveEmoji, openEditEmoji,
+    openModal, closeModal, openEditEmoji,
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
     confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,

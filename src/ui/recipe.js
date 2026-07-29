@@ -16,15 +16,16 @@ export function renderRecipeCard(r, index, handlers) {
 }
 
 export function renderRecipeDetail(r, source, handlers) {
-  const { 
-    closeModal, 
-    toggleRecipeFullscreen, 
-    changePplScale, 
-    saveSuggestionToFav, 
+  const {
+    closeModal,
+    toggleRecipeFullscreen,
+    changePplScale,
+    saveSuggestionToFav,
     addSuggestionToCart,
     saveRecipeOnly,
     saveRecipeAndList,
-    deleteFav
+    deleteFav,
+    printRecipe
   } = handlers;
 
   // Ingredients list
@@ -69,7 +70,8 @@ export function renderRecipeDetail(r, source, handlers) {
             h('div', { class: 'mh-title' }, r.name)
         ]),
         h('div', { class: 'mh-right' }, [
-            h('button', { class: 'mh-btn', onclick: () => toggleRecipeFullscreen('modal-recipe-detail') }, '⛶')
+            h('button', { class: 'mh-btn', onclick: () => printRecipe(), title: 'Imprimer' }, '🖨️'),
+            h('button', { class: 'mh-btn', onclick: () => toggleRecipeFullscreen('modal-recipe-detail'), title: 'Plein écran' }, '⛶')
         ])
     ]),
     h('div', { class: 'modal-body' }, [

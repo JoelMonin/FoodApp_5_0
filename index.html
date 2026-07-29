@@ -105,37 +105,11 @@
     </div>
   </div>
 
-  <!-- Recipe Detail Modal -->
-  <div class="modal-overlay" id="modal-recipe-detail">
-    <div class="modal modal-lg">
-      <div class="modal-drag-handle"></div>
-      <div class="modal-header">
-        <div class="modal-title" id="rd-modal-title">Recette</div>
-        <div class="modal-hdr-actions">
-          <button class="modal-hdr-btn" onclick="printRecipe()" title="Imprimer">🖨️</button>
-          <button class="modal-hdr-btn fs-btn-mobile" onclick="toggleRecipeFullscreen()" title="Plein écran">
-            <span class="fs-icon">⛶</span>
-            <span class="fs-text">Cuisine</span>
-          </button>
-        </div>
-        <button class="modal-close" onclick="closeModal('modal-recipe-detail')">✕</button>
-      </div>
-      <div class="modal-body" id="rd-modal-body"></div>
-      <div class="modal-footer">
-        <div class="rd-scale-bar"
-          style="display:flex; align-items:center; gap:8px; margin-right:auto; background:var(--cream-dk); padding:4px 10px; border-radius:20px; font-size:13px; font-weight:600">
-          <button class="modal-hdr-btn" style="width:24px; height:24px" onclick="changePplScale(-1)">-</button>
-          <span id="rd-ppl-count">2</span> pers.
-          <button class="modal-hdr-btn" style="width:24px; height:24px" onclick="changePplScale(1)">+</button>
-        </div>
-        <button class="modal-btn" id="rd-fav-btn" onclick="saveSuggestionToFav()">⭐ Favoris</button>
-        <button class="modal-btn primary" id="rd-cart-btn" onclick="addSuggestionToCart()">🛍 courses</button>
-        <button class="modal-btn" onclick="closeModal('modal-recipe-detail')">Fermer</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Favorite Recipe Detail Modal (DEPRECATED - now uses Recipe Detail Modal) -->
+  <!-- Recipe Detail Modal — contenu entièrement rendu par renderRecipeDetail()
+       (src/ui/recipe.js) à chaque ouverture ; plus de squelette statique ici
+       (LOT 009, casse C7 : les deux arbres DOM divergeaient et celui-ci n'était
+       jamais visible — `replaceChildren` le détruisait dès le premier rendu). -->
+  <div class="modal-overlay" id="modal-recipe-detail"></div>
 
   <!-- API Key Config Modal -->
   <div class="modal-overlay" id="modal-api-config">
