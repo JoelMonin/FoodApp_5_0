@@ -9,19 +9,20 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 008 — Données en sécurité** (`[EN COURS]`, branche `feat/lot8-donnees-en-securite`).
-Préalable bloquant du LOT 007 : verdict unanime du duel d'audit (Gemini 3.1 Pro + Codex 5.6) —
-la synchro auto amplifierait les casses d'import/réinitialisation en perte de données
-multi-appareils.
+**LOT 008 — Données en sécurité : TERMINÉ, `[A PUBLIER]`** (branche
+`feat/lot8-donnees-en-securite`). Double audit Dur passé le 2026-07-29 (Gemini GO ;
+NO-GO Codex corrigé — reset qui laissait fuir les suggestions IA vers le cloud).
+**Le préalable bloquant du LOT 007 est levé** : le prochain lot à coder est le **007
+(synchro collaborative, spec v3)**.
 
 ## État des lots
 
-- **008** Données en sécurité — 7 chantiers codés, validation unifiée verte (46 tests JS +
-  13 verrous pytest), build OK. **Reste : audit Dur + vérifications manuelles navigateur
-  (Joel) avant clôture.** `DEFAULT_DB` reconstruite le 2026-07-29 depuis l'export réel de
-  Joel (297 ingrédients — l'ancienne base n'en avait que 66).
-- **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter), code
-  bloqué par 008
+- **008** Données en sécurité — ✅ TERMINÉ, À PUBLIER (47 tests JS + 13 verrous pytest verts,
+  build OK, double audit Dur passé, vérifs navigateur faites par les auditeurs).
+  `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
+- **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter),
+  **DÉBLOQUÉ, prochain à coder** (`feat/lot7-synchro-collaborative` existe déjà — la
+  rebaser/brancher sur l'état post-008)
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
   fiches détaillées prêtes à confier à un exécutant
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
@@ -43,8 +44,9 @@ multi-appareils.
 
 ## Prochaine étape
 
-LOT 008 implémenté le 2026-07-29 sur `feat/lot8-donnees-en-securite` (7 chantiers, 13 tests
-dédiés + 46/46 au total, `.\validate.bat` vert, build OK). Reste avant clôture : audit Dur
-(Codex/Gemini) sur le diff final, puis vérifications manuelles en navigateur par Joel (liste
-dans la fiche du lot). Une fois ces deux étapes faites → LOT 008 clôturé, LOT 007 débloqué.
+LOT 008 terminé et audité (2026-07-29). Deux chemins possibles, au choix de Joel :
+1. **Publier maintenant** (version 5.5 partielle) : merge `--no-ff` dans `main` sur feu vert
+   explicite de Joel — la roadmap visait toutefois une 5.5 commune 008+007 ;
+2. **Enchaîner sur le LOT 007** (synchro collaborative, spec v3, débloquée) et publier les
+   deux ensemble en 5.5 — chemin recommandé par la roadmap.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.

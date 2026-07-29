@@ -6,7 +6,7 @@
 >
 > | Points | Lot |
 > |---|---|
-> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** 🟡 codé, audit Dur en attente |
+> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** ✅ terminé, double audit passé (2026-07-29), À PUBLIER |
 > | §2 (info-last-sync, info-network, online/offline, voyant) | **LOT 007** |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
 > | C5, C9, C10, C11, C12 | **LOT 010** |

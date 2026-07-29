@@ -1,6 +1,12 @@
 # LOT 008 — Données en sécurité — SPÉCIFICATION
 
-> **Statut :** 🟡 EN COURS — ouvert le 2026-07-29 sur `feat/lot8-donnees-en-securite`
+> **Statut :** 🟢 À PUBLIER — terminé et audité le 2026-07-29 (branche
+> `feat/lot8-donnees-en-securite`, commits `f7d11ec` + `2483c06` + clôture).
+> Audit Dur : Gemini 3.6 Flash **GO** · Codex 5.6 (Sol) **NO-GO → corrigé** (reset
+> incomplet sur les suggestions IA, corrigé et prouvé par test ; export personnel
+> versionné, levé par décision explicite de Joel). Durcissements résiduels consignés :
+> `Backlog/BACKLOG - Durcissements import et panier.md`. Attend le feu vert de Joel
+> pour la fusion dans `main`.
 > **Branche à créer :** `feat/lot8-donnees-en-securite`
 > **Niveau d'audit : DUR** — touche `src/state.js` et les chemins d'import/export (zone
 > sensible « moteur d'état », `DOCTRINE_PRODUIT.md` §3)
@@ -179,18 +185,23 @@ persistent. `resetCart` vide aussi `customCartItems` (comportement du monolithe)
       (preuve d'ordre) ; `resetAllData` conserve la clé API ; annulation de la confirmation
       → aucune action
 
-### Vérifications manuelles (Joel, en navigateur — seule preuve valable pour le visuel)
+### Vérifications manuelles en navigateur — faites par les DEUX auditeurs (décision Joel :
+### délégation à l'auditeur, qui a sauvegardé puis restauré le cloud de production avant/après)
 
-- [ ] Bouton « Importer uniquement le stock » avec un vieux fichier → favoris et clé intacts,
-      toast « X mis à jour, Y ajoutés »
-- [ ] « Restaurer une sauvegarde » d'un fichier exporté par le monolithe (clé vide) → clé
-      locale toujours là
-- [ ] « Réinitialisation totale » → inventaire par défaut complet, clé API encore configurée
-- [ ] **Réinitialisation avec un cloud NON vide** (le test qui a fait tomber la première
-      version de cette fiche, audit Codex) : reset → rechargement de la page → l'inventaire
-      par défaut est TOUJOURS là, car le cloud contient désormais les défauts, pas l'ancien
-      inventaire
-- [ ] Recharger la page → le slider de créativité affiche la valeur choisie, pas 50
+- [x] Bouton « Importer uniquement le stock » avec un vieux fichier → favoris et clé intacts,
+      toast « X mis à jour, Y ajoutés » (Gemini + Codex : « 📥 Restauration : 297 mis à
+      jour, 0 ajoutés », stock passé de 124 à 132, favoris/créativité/clé inchangés)
+- [x] « Restaurer une sauvegarde » d'un fichier exporté par le monolithe (clé vide) → clé
+      locale toujours là (les deux auditeurs, clé synthétique côté Codex)
+- [x] « Réinitialisation totale » → inventaire par défaut complet (297), clé API encore
+      configurée (les deux auditeurs)
+- [x] **Réinitialisation avec un cloud NON vide** (le test qui a fait tomber la première
+      version de cette fiche, audit Codex) : reset → rechargement → l'inventaire par défaut
+      TOUJOURS là, zéro résurrection des 124 articles en stock ni des 7 favoris cloud
+      (Codex, empreinte SHA-256 du cloud identique avant/après restauration)
+- [x] Recharger la page → le slider de créativité affiche la valeur choisie (47), pas 50
+- [x] *(ajouté suite au NO-GO Codex)* Après reset + rechargement, la vue « Recettes IA »
+      ne montre AUCUNE ancienne suggestion — c'est le finding C1, corrigé en `2483c06`
 
 ## Critères d'acceptation
 
@@ -199,8 +210,15 @@ persistent. `resetCart` vide aussi `customCartItems` (comportement du monolithe)
 - [x] `npm run build` OK (512 ms, aucune erreur)
 - [x] Preuve écrite AVANT vérification pour chaque casse (règle `CLAUDE.md` §5) — chaque
       chantier ci-dessus documente l'attendu avant le code ; testé après coup, résultat conforme
-- [ ] Audit Dur rendu (diff final), réserves traitées — **EN ATTENTE**, prochaine étape
-- [ ] Vérifications manuelles en navigateur (Joel) — voir liste ci-dessus, non encore faites
+- [x] Audit Dur rendu (diff final), réserves traitées — double audit le 2026-07-29 :
+      Gemini 3.6 Flash GO · Codex 5.6 (Sol) NO-GO sur 2 findings CRITIQUES → C1 (reset
+      laissait fuir les suggestions IA vers le cloud) corrigé en `2483c06` avec test de
+      non-régression ; C2 (export personnel versionné sur dépôt public) levé par décision
+      explicite de Joel. Durcissements non bloquants : 2 traités à la clôture (test d'ordre
+      push→reload durci, exportJSON aligné oracle), 2 consignés en backlog
+      (`BACKLOG - Durcissements import et panier.md`)
+- [x] Vérifications manuelles en navigateur — déléguées aux auditeurs par Joel, toutes
+      passées (voir section ci-dessus)
 - [ ] Cocher C2, C3, C4 + les 2 réserves Codex dans
       `Backlog/BACKLOG - Regressions de la migration.md`
 

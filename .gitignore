@@ -5,3 +5,6 @@ dist/
 *.log
 .DS_Store
 audits/bridge/*.json
+
+# Sauvegarde cloud faite par l'auditeur pendant les audits Dur - jamais a versionner
+cloud-backup*.json

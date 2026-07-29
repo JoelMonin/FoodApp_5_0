@@ -142,6 +142,8 @@ export function exportJSON() {
   a.href = url;
   a.download = `foodapp-export-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
+  URL.revokeObjectURL(url);
+  toast('💾 Export téléchargé');
 }
 
 export function importJSON(file) {

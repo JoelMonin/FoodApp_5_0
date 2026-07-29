@@ -221,17 +221,26 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       state.ingredients = [makeIngredient()];
       state.aiConfig = defaultTestAiConfig({ apiKey: 'cle-a-garder' });
 
-      await resetAllData();
+      // Durcissement d'audit Codex : prouver que la promesse du push est RÉSOLUE
+      // avant le rechargement (invocationCallOrder ne prouvait que l'invocation).
+      // On garde la main sur la résolution du fetch : tant qu'il est en vol,
+      // reload ne doit pas avoir été appelé.
+      let resolveFetch;
+      fetch.mockReturnValue(new Promise(resolve => { resolveFetch = resolve; }));
+
+      const resetPromise = resetAllData();
+      await Promise.resolve(); // laisse resetAllData avancer jusqu'à l'await du push
 
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining(FB_URL),
         expect.objectContaining({ method: 'PUT' })
       );
-      expect(reloadSpy).toHaveBeenCalled();
-      // Preuve d'ordre : le push cloud doit être résolu avant le rechargement.
-      const fetchCallOrder = fetch.mock.invocationCallOrder[0];
-      const reloadCallOrder = reloadSpy.mock.invocationCallOrder[0];
-      expect(fetchCallOrder).toBeLessThan(reloadCallOrder);
+      expect(reloadSpy).not.toHaveBeenCalled(); // push en vol → pas encore de reload
+
+      resolveFetch({ ok: true, statusText: 'OK' });
+      await resetPromise;
+
+      expect(reloadSpy).toHaveBeenCalled(); // reload seulement après résolution du push
     });
 
     it('conserve la clé API locale après reset', async () => {

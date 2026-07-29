@@ -59,7 +59,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BEN%20COURS%5D.md) | **Données en sécurité** — import/export/reset sûrs, prérequis synchro | EN COURS | `feat/lot8-donnees-en-securite` |
+| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BA%20PUBLIER%5D.md) | **Données en sécurité** — import/export/reset sûrs, prérequis synchro | **À PUBLIER** (double audit passé) | `feat/lot8-donnees-en-securite` |
 | [007](LOT%20007%20-%20Synchro%20collaborative%20%5BEN%20COURS%5D.md) | **Synchro collaborative** — spec v3 après duel d'audit (double NO-GO v2 intégré) | EN COURS (spec), code bloqué par 008 | `feat/lot7-synchro-collaborative` |
 | [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ | `feat/lot9-boutons-morts` |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
@@ -86,6 +86,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 | Sujet | Priorité | Effort |
 |---|---|---|
 | [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | — | **Check-list de campagne**, ventilée dans les LOTS 007-012 (voir son en-tête) |
+| [Durcissements import et panier](Backlog/BACKLOG%20-%20Durcissements%20import%20et%20panier.md) | Basse | Réserves non bloquantes de l'audit LOT 008 — à absorber par LOTS 012/013/014 |
 | [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | 1-2 j — après la campagne |
 
 Fiches promues le 2026-07-29 (absorbées, traçées dans les fiches de lot) : Filet de tests UI
