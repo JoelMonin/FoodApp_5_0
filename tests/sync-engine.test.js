@@ -157,9 +157,106 @@ describe('Moteur de synchro — LOT 007', () => {
 
       state.filter = 'Fruits'; // champ d'affichage, hors périmètre §4.1
       saveState();
-      await vi.advanceTimersByTimeAsync(2000);
 
+      // Correction audit Sol (C1) : le drapeau ne se lève même PAS — une sauvegarde
+      // qui ne change pas le document synchronisé n'est pas une modification.
+      expect(isSyncPending()).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(2000);
       expect(putCalls()).toHaveLength(0); // référence = dernier cloud connu → identique
+    });
+  });
+
+  describe('Corrections de l\'audit Dur — Codex Sol (2026-07-30)', () => {
+    it('C1 : une navigation ne lève jamais le drapeau — pas d\'envoi d\'un vieil inventaire au retour réseau', async () => {
+      // Un envoi réussi établit la référence « dernier cloud connu »…
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+
+      // …qui est PERSISTÉE : elle survivra à un rechargement de page.
+      expect(localStorage.getItem('pantry_v5_sync_ref')).toBe(cloudStore);
+
+      // Changer d'écran (scénario : démarrage hors ligne + ouverture des Réglages).
+      state.currentView = 'export';
+      saveState();
+
+      expect(isSyncPending()).toBe(false); // rien à envoyer : le cloud n'a rien à recevoir
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1); // aucun envoi parti
+
+      // Au « retour réseau », le pull n'a donc AUCUN envoi à faire d'abord :
+      await requestSyncOp('pull');
+      expect(fetch.mock.calls.at(-1)[1]?.method).toBeUndefined(); // dernier appel = GET
+    });
+
+    it('C2 : un réglage IA modifié pendant un pull en vol n\'est pas écrasé par la photo cloud', async () => {
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient()],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: { creativity: 50 }, shoppingChecked: []
+      });
+      // Le GET aboutit APRÈS que Joel a réglé la créativité de 50 à 80.
+      fetch.mockImplementation(async () => {
+        state.aiConfig.creativity = 80;
+        saveState();
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      await performSyncPull();
+
+      expect(state.aiConfig.creativity).toBe(80); // photo écartée, réglage préservé
+      expect(isSyncPending()).toBe(true); // et il reste marqué « à envoyer »
+    });
+
+    it('D1 : après un refus 4xx, les cycles automatiques ne retentent NI envoi NI pull', async () => {
+      fetch.mockImplementation(async () => ({ ok: false, status: 403, statusText: 'Forbidden' }));
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+      const totalCallsAfterFailure = fetch.mock.calls.length;
+
+      // Pull périodique / retour d'application simulés : rien ne doit partir.
+      await requestSyncOp('pull');
+      await requestSyncOp('pull');
+
+      expect(fetch.mock.calls.length).toBe(totalCallsAfterFailure); // ni PUT ni GET
+      expect(isSyncPending()).toBe(true); // les données restent protégées
+    });
+
+    it('D1 : un clic manuel réautorise l\'envoi après un blocage', async () => {
+      let failing = true;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (failing) return { ok: false, status: 403, statusText: 'Forbidden' };
+          cloudStore = options.body;
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // échec 4xx → envois automatiques suspendus
+
+      failing = false;
+      await requestSyncOp('manual'); // le geste de Joel réessaie
+
+      expect(putCalls().length).toBeGreaterThanOrEqual(2); // l'envoi est reparti
+      expect(isSyncPending()).toBe(false);
+    });
+
+    it('D2 : un démarrage hors ligne garde le voyant « Hors ligne » (aucun pull lancé)', async () => {
+      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+      try {
+        initSyncEngine();
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(fetch).not.toHaveBeenCalled(); // pas de pull voué à l'échec
+        const label = document.querySelector('#sync-indicator-desktop .sync-label');
+        expect(label.textContent).toBe('Hors ligne'); // jamais remplacé par « Échec »
+      } finally {
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+      }
     });
   });
 

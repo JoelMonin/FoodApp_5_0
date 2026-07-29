@@ -8,7 +8,7 @@ import {
   toggleCart,
   deleteIngredient
 } from '../src/actions';
-import { state, shoppingChecked, sanitizeGlobalState, applyExternalState } from '../src/state';
+import { state, shoppingChecked, sanitizeGlobalState, applyExternalState, registerSyncScheduler } from '../src/state';
 import { FB_URL } from '../src/constants';
 import { DEFAULT_DB } from '../src/data';
 
@@ -268,6 +268,27 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       // la clé est carrément ABSENTE (plus strict encore que le null du LOT 008).
       const pushedBody = JSON.parse(fetch.mock.calls[0][1].body);
       expect(pushedBody).not.toHaveProperty('aiSuggestions');
+    });
+
+    it('ne programme AUCUN envoi fantôme via le moteur et écrit la référence anti-boucle (audit Sol C3)', async () => {
+      // Le drapeau résiduel laissé par switchView provoquait, APRÈS le rechargement,
+      // un second PUT du reset capable d'écraser une écriture concurrente d'un
+      // autre appareil. Frontière actions ↔ moteur désormais couverte.
+      const scheduler = vi.fn();
+      registerSyncScheduler(scheduler);
+      try {
+        state.ingredients = [makeIngredient()];
+
+        await resetAllData();
+
+        expect(scheduler).not.toHaveBeenCalled(); // ni drapeau, ni timer d'envoi
+        expect(window.localStorage.setItem).not.toHaveBeenCalledWith('pantry_v5_sync_pending', '1');
+        expect(window.localStorage.setItem).toHaveBeenCalledWith('pantry_v5_sync_ref', expect.any(String));
+        expect(fetch.mock.calls.filter(c => c[1]?.method === 'PUT')).toHaveLength(1); // le SEUL envoi du reset
+        expect(state.currentView).toBe('pantry'); // le retour à l'inventaire est conservé
+      } finally {
+        registerSyncScheduler(null);
+      }
     });
 
     it('n\'agit pas si Joel annule la confirmation', async () => {

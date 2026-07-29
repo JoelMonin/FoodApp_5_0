@@ -3,6 +3,7 @@ import { generateId, normalizeString, areSimilar } from './utils/helpers.js';
 import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
+import { LOCAL_STORAGE_SYNC_REF_KEY } from './constants.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -102,16 +103,27 @@ export async function resetAllData() {
   state.currentSuggestionIdx = null;
 
   // Reconstruit l'inventaire par défaut (chantier 4) et le persiste immédiatement —
-  // on ne compte pas sur le rechargement pour ça. switchView('pantry') persiste déjà
-  // (saveState interne) : pas de second appel redondant.
+  // on ne compte pas sur le rechargement pour ça.
+  // CORRECTION AUDIT SOL (C3) : ne PAS passer par switchView ici — sa sauvegarde
+  // normale levait le drapeau « en attente » et programmait un envoi ; après le
+  // rechargement, ce drapeau résiduel déclenchait un SECOND envoi fantôme du reset,
+  // capable d'écraser une écriture concurrente d'un autre appareil. Sauvegarde
+  // locale SANS planification : le push explicite ci-dessous est le SEUL envoi.
   sanitizeGlobalState();
-  switchView('pantry');
+  state.currentView = 'pantry'; // oracle l.6581-6582 : retour à l'inventaire
+  saveState(true, false);
 
   try {
     // Chemin EXPLICITE de vidange volontaire (LOT 007, §4.9.1) : syncPush applique le
     // périmètre du document (les coches — vides après reset — partent aussi) sans
     // passer par le garde-fou anti-vidange du moteur, puisque cette vidange est voulue.
-    await syncPush(state, Array.from(shoppingChecked));
+    const sentDoc = await syncPush(state, Array.from(shoppingChecked));
+    // Aligne la référence « dernier cloud connu » sur ce qui vient d'être envoyé :
+    // au redémarrage, aucune sauvegarde (navigation comprise) ne pourra confondre
+    // l'état du reset avec une modification restant à envoyer (audit Sol C1/C3).
+    try {
+      localStorage.setItem(LOCAL_STORAGE_SYNC_REF_KEY, JSON.stringify(sentDoc));
+    } catch { /* affichage seulement : sans référence, le pire est un envoi identique */ }
   } catch (e) {
     console.error('[Reset] Push cloud échoué', e);
     toast(

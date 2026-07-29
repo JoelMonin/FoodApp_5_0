@@ -16,7 +16,7 @@ import {
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
-import { AI_ROLES } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -93,13 +93,32 @@ const SYNC_STATUS_RESET_MS = 2000;
 
 let _syncSendTimer = null;      // il n'existe JAMAIS qu'un timer d'envoi : debounce 2 s OU retry 10 s (§4.4)
 let _syncRetryUsed = false;     // une seule nouvelle tentative par echec, puis arret (§4.7)
+let _syncSendBlocked = false;   // apres un 4xx ou l'epuisement du retry : les cycles AUTOMATIQUES
+                                // n'essaient plus d'envoyer (audit Sol, durcissement) — un geste,
+                                // un clic manuel ou le retour reseau reautorisent l'envoi
 let _syncInFlight = false;      // une seule operation a la fois (§4.4)
 let _syncQueuedOp = null;       // une demande en attente, jamais accumulees (§4.4)
 let _syncDirtyGen = 0;          // generation de modification : ne jamais baisser le drapeau
                                 // pour des changements survenus PENDANT l'envoi en vol
-let _lastCloudDocJson = null;   // reference anti-boucle « dernier document cloud connu » (§4.5)
+let _lastCloudDocJson = null;   // reference anti-boucle « dernier document cloud connu » (§4.5) —
+                                // miroir memoire de LOCAL_STORAGE_SYNC_REF_KEY, PERSISTEE (audit
+                                // Sol C1 : elle doit survivre au rechargement pour que le drapeau
+                                // ne se leve que sur une VRAIE modification du document synchronise)
 let _lastCloudHadIngredients = false; // pour le garde-fou sortant (§4.9.1)
 let _syncStatusTimer = null;    // retour du voyant a l'etat neutre (annulable, contrairement a l'oracle)
+
+function readSyncReference() {
+    try { return localStorage.getItem(LOCAL_STORAGE_SYNC_REF_KEY); } catch { return null; }
+}
+function setSyncReference(docJson) {
+    _lastCloudDocJson = docJson;
+    try { localStorage.setItem(LOCAL_STORAGE_SYNC_REF_KEY, docJson); } catch { /* miroir memoire seulement */ }
+}
+
+// Le document synchronise tel qu'il serait envoye MAINTENANT (perimetre §4.1).
+function currentSyncDocJson() {
+    return JSON.stringify(buildSyncDocument(moduleState, Array.from(shoppingChecked)));
+}
 
 function isSyncPending() {
     try { return localStorage.getItem(SYNC_PENDING_KEY) === '1'; } catch { return false; }
@@ -156,14 +175,23 @@ function recordSyncSuccess() {
 }
 
 /**
- * Inscrit dans saveState via registerSyncScheduler : chaque sauvegarde locale leve
- * le drapeau et (re)temporise l'envoi a 2 s. Une modification pendant un retry
- * programme ANNULE le retry — un seul timer d'envoi, toujours (§4.4).
+ * Inscrit dans saveState via registerSyncScheduler. Une modification pendant un
+ * retry programme ANNULE le retry — un seul timer d'envoi, toujours (§4.4).
+ *
+ * CORRECTION AUDIT SOL (C1) : le drapeau « EN ATTENTE » ne represente QUE une
+ * modification du DOCUMENT SYNCHRONISE. Une sauvegarde qui ne le change pas
+ * (navigation, cle API, suggestion IA) ne leve ni drapeau ni timer — sinon un
+ * simple changement d'ecran hors ligne forcait, au retour du reseau, l'envoi
+ * d'un vieil inventaire PAR-DESSUS un cloud plus recent.
  */
 function scheduleSyncPush() {
+    if (currentSyncDocJson() === _lastCloudDocJson) {
+        return; // rien de synchronise n'a change : le cloud n'a rien a recevoir
+    }
     raiseSyncPending();
     _syncDirtyGen++;
     _syncRetryUsed = false;
+    _syncSendBlocked = false; // une vraie modification reautorise l'envoi
     clearTimeout(_syncSendTimer);
     _syncSendTimer = setTimeout(() => {
         _syncSendTimer = null;
@@ -189,6 +217,11 @@ async function requestSyncOp(op) {
             // §4.4 : drapeau leve → ENVOI D'ABORD, recuperation seulement si l'envoi
             // a reussi — jamais de pull destructif par-dessus des modifs non envoyees.
             if (isSyncPending()) {
+                // Envoi bloque (4xx, retry epuise) : un cycle AUTOMATIQUE ne retente
+                // pas — sinon le pull periodique devenait un retry toutes les 60 s
+                // (audit Sol). Le pull est aussi abandonne : il ne pourrait de toute
+                // facon pas etre applique par-dessus des modifs non envoyees.
+                if (_syncSendBlocked) return;
                 const sent = await performSyncSend();
                 if (!sent) return;
             }
@@ -196,6 +229,8 @@ async function requestSyncOp(op) {
         } else if (op === 'manual') {
             // Clic « Cloud Sync » : recuperation PUIS envoi, immediatement (§4.4) —
             // precede d'un envoi si des modifications attendent (meme regle que pull).
+            // Un clic manuel est un GESTE : il reautorise toujours l'envoi.
+            _syncSendBlocked = false;
             if (isSyncPending()) {
                 const sent = await performSyncSend({ manual: true });
                 if (!sent) return;
@@ -243,7 +278,7 @@ async function performSyncSend({ manual = false, quiet = false } = {}) {
     setSyncStatus('thinking');
     try {
         await syncPush(moduleState, checkedIds);
-        _lastCloudDocJson = docJson;
+        setSyncReference(docJson);
         _lastCloudHadIngredients = doc.ingredients.length > 0;
         // Ne baisser le drapeau que si RIEN n'a change pendant le vol de la requete :
         // une modification pendant l'envoi doit rester protegee jusqu'a SON envoi.
@@ -259,7 +294,9 @@ async function performSyncSend({ manual = false, quiet = false } = {}) {
         if (status >= 400 && status < 500) {
             // REFUS SERVEUR 4xx (§4.9) : les donnees locales sont VALIDES et jamais
             // parties — drapeau MAINTENU (aucun pull ne les ecrasera), AUCUN retry
-            // automatique. Toute nouvelle modification ou clic manuel retentera.
+            // automatique, cycles automatiques suspendus (audit Sol). Toute nouvelle
+            // modification, un clic manuel ou le retour reseau retenteront.
+            _syncSendBlocked = true;
             setSyncStatus('error');
             toast('Envoi refusé par le serveur — vos données restent protégées sur cet appareil', 'error');
         } else if (!_syncRetryUsed) {
@@ -274,6 +311,9 @@ async function performSyncSend({ manual = false, quiet = false } = {}) {
                 requestSyncOp('send');
             }, SYNC_RETRY_DELAY_MS);
         } else {
+            // Retry unique epuise : arret des tentatives AUTOMATIQUES (§4.7 tenu
+            // meme avec les pulls periodiques actifs — audit Sol, durcissement).
+            _syncSendBlocked = true;
             setSyncStatus('error');
             toast('Synchronisation impossible — vos données restent sur cet appareil', 'error');
         }
@@ -291,12 +331,11 @@ async function performSyncPull({ manual = false } = {}) {
     // l'attente reseau. Si les donnees locales ont bouge entre l'envoi de la
     // requete et sa reponse, la photo est ecartee — les donnees locales sont plus
     // recentes, par construction. Le drapeau (leve par ces gestes) enverra ensuite.
-    const dataFingerprint = () => JSON.stringify([
-        moduleState.ingredients, moduleState.customCartItems,
-        moduleState.favorites, moduleState.extraIngredients,
-        Array.from(shoppingChecked)
-    ]);
-    const fingerprintBefore = dataFingerprint();
+    // CORRECTION AUDIT SOL (C2) : l'empreinte couvre le document synchronise
+    // ENTIER (perimetre §4.1, reglages IA compris) — l'ancienne, limitee aux
+    // quatre tableaux + coches, laissait un reglage de creativite modifie pendant
+    // le vol se faire ecraser par la photo cloud, puis passer pour « deja envoye ».
+    const fingerprintBefore = currentSyncDocJson();
     const aiFormBefore = aiFormFingerprint();
 
     setSyncStatus('thinking');
@@ -316,7 +355,7 @@ async function performSyncPull({ manual = false } = {}) {
             if (manual) toast('Données cloud illisibles — rien n\'a été modifié', 'error');
             return false;
         }
-        if (dataFingerprint() !== fingerprintBefore) {
+        if (currentSyncDocJson() !== fingerprintBefore) {
             console.warn('[Sync] Modifications locales pendant la récupération : '
                 + 'données cloud écartées (aucune perte locale).');
             setSyncStatus('idle');
@@ -333,7 +372,7 @@ async function performSyncPull({ manual = false } = {}) {
         // Reference anti-boucle = le document tel qu'il existe LOCALEMENT apres
         // application (sanitisation comprise) : ainsi une simple sauvegarde d'un
         // champ NON synchronise redonne exactement ce document → aucun envoi (§4.5).
-        _lastCloudDocJson = JSON.stringify(buildSyncDocument(moduleState, Array.from(shoppingChecked)));
+        setSyncReference(currentSyncDocJson());
         _lastCloudHadIngredients = (moduleState.ingredients || []).length > 0;
 
         recordSyncSuccess();
@@ -368,6 +407,11 @@ function updateNetworkInfo() {
 function initSyncEngine() {
     registerSyncScheduler(scheduleSyncPush);
 
+    // La reference « dernier cloud connu » survit au rechargement (audit Sol C1) :
+    // sans elle, toute sauvegarde d'un demarrage hors ligne (meme une simple
+    // navigation) passait pour une modification a envoyer.
+    _lastCloudDocJson = readSyncReference();
+
     // Etat reseau affiche DES le demarrage (§4.4), pas au premier evenement.
     updateNetworkInfo();
     if (!navigator.onLine) setSyncStatus('offline');
@@ -377,6 +421,8 @@ function initSyncEngine() {
         setSyncStatus('idle');
         // Un retry programme est ANNULE et absorbe par ce cycle (§4.4) : jamais
         // deux envois pour la meme cause. Le pull enverra d'abord si necessaire.
+        // Le retour du reseau est une cause NOUVELLE : il reautorise l'envoi.
+        _syncSendBlocked = false;
         clearTimeout(_syncSendTimer);
         _syncSendTimer = null;
         requestSyncOp('pull');
@@ -396,7 +442,10 @@ function initSyncEngine() {
         if (document.visibilityState === 'visible' && navigator.onLine) requestSyncOp('pull');
     }, SYNC_PULL_INTERVAL_MS);
 
-    requestSyncOp('pull');
+    // Pas de pull initial hors ligne (audit Sol, benin) : son echec assure
+    // remplacait le voyant « Hors ligne » par « Échec — réessayer ». L'ecouteur
+    // `online` declenchera la recuperation au retour du reseau.
+    if (navigator.onLine) requestSyncOp('pull');
 }
 
 /**
@@ -409,11 +458,13 @@ function __resetSyncEngineForTests() {
     clearTimeout(_syncStatusTimer);
     _syncStatusTimer = null;
     _syncRetryUsed = false;
+    _syncSendBlocked = false;
     _syncInFlight = false;
     _syncQueuedOp = null;
     _syncDirtyGen = 0;
     _lastCloudDocJson = null;
     _lastCloudHadIngredients = false;
+    try { localStorage.removeItem(LOCAL_STORAGE_SYNC_REF_KEY); } catch { /* tests */ }
     clearSyncPending();
 }
 

@@ -1,6 +1,9 @@
 # LOT 007 — Synchro bidirectionnelle — SPÉCIFICATION v3
 
-> **Statut :** 🔵 EN COURS — spec v3 après double audit, aucune ligne de code écrite
+> **Statut :** 🔵 EN COURS — code écrit le 2026-07-29 (`8c9e8fc`) ; audit Dur du code :
+> **Gemini 3.6 Flash GO** (cloud restauré, SHA-256 identique) · **Codex 5.6 NO-GO**
+> (3 findings CRITIQUES, tous fondés) → **corrigés le 2026-07-30** avec tests de
+> régression (§12 bis). Restent : contre-vérification Codex + tests §6.2 par Joel.
 > **Branche :** `feat/lot7-synchro-collaborative`
 > **Niveau d'audit : DUR** (`CLAUDE.md` §5) · **Effort estimé :** ~4 h *(v1 : 6 h, v2 : 3 h)*
 > **v1 le 2026-07-28** · **v2 le 2026-07-28 (audit Gemini + arbitrage de Joel)** ·
@@ -603,3 +606,26 @@ critère §9 « aucun changement non listé ») :
 **Validation du 2026-07-29** : 82/82 vitest (35 nouveaux tests synchro) · 13/13 pytest ·
 `npm run build` OK. Les cases restantes du §9 attendent l'audit Dur et les tests à deux
 appareils de Joel.
+
+---
+
+## 12 bis. AUDIT DUR DU CODE (2026-07-29/30) — verdicts et corrections
+
+**Gemini 3.6 Flash : GO** sur les 7 points, protocole cloud respecté (restauration
+prouvée, SHA-256 identique avant/après). **Codex 5.6 (Sol) : NO-GO** — 3 findings
+CRITIQUES + 2 réserves, tous CONTRE-VÉRIFIÉS FONDÉS. Racine commune : le drapeau
+« EN ATTENTE » se levait pour N'IMPORTE QUELLE sauvegarde, pas seulement pour une
+modification du document synchronisé. Corrections livrées le 2026-07-30 :
+
+| # | Finding (Codex) | Correction | Test de régression |
+|---|---|---|---|
+| C1 | Changer d'écran hors ligne levait le drapeau → au retour réseau, un VIEIL inventaire partait AVANT le pull et écrasait un cloud plus récent | La référence « dernier cloud connu » est **persistée** (`pantry_v5_sync_ref`, SSOT dans `constants.js`) ; `scheduleSyncPush` ne lève le drapeau que si le document synchronisé **diffère réellement** de cette référence | `sync-engine` : « une navigation ne lève jamais le drapeau » |
+| C2 | Un réglage IA modifié pendant un pull en vol était écrasé par la photo cloud, puis considéré « déjà envoyé » | L'empreinte du garde-fou de pull = le **document synchronisé entier** (`currentSyncDocJson`), plus seulement les 4 tableaux + coches | `sync-engine` : « un réglage IA modifié pendant un pull… » |
+| C3 | Le reset (via `switchView` → `saveState`) laissait un drapeau résiduel → **second PUT fantôme** au redémarrage, capable d'écraser une écriture concurrente | `resetAllData` sauvegarde SANS planification (`saveState(true, false)`) et écrit lui-même la référence après son PUT explicite | `actions-data` : « ne programme AUCUN envoi fantôme… » |
+| D1 (durcissement) | Drapeau maintenu après 4xx/retry épuisé + pulls périodiques = un retry toutes les 60 s, contrairement à la promesse « une seule tentative » | `_syncSendBlocked` : après 4xx ou épuisement du retry, les cycles AUTOMATIQUES ne tentent plus rien ; une modification, un clic manuel ou le retour réseau réautorisent | `sync-engine` : 2 tests (blocage + réautorisation manuelle) |
+| D2 (bénin) | Au démarrage hors ligne, l'échec du pull remplaçait « Hors ligne » par « Échec — réessayer » | Pas de pull initial si `navigator.onLine` est faux — l'écouteur `online` s'en chargera | `sync-engine` : « un démarrage hors ligne garde le voyant » |
+
+**Validation post-corrections (2026-07-30)** : 88/88 vitest (6 tests de régression
+d'audit ajoutés) · 13/13 pytest · build OK. Ce que Gemini avait validé (périmètre
+étanche, anti-boucle après référence connue, clé API) reste intact — Codex l'avait
+d'ailleurs confirmé dans son propre rapport.

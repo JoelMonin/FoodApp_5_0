@@ -15,8 +15,10 @@ complet : envoi temporisé 2 s à chaque modification, drapeau « EN ATTENTE » 
 anti-boucle « dernier cloud connu », pulls périodiques 60 s + visibilité + retour réseau,
 voyant d'état restauré, panneau `#info-last-sync`/`#info-network` rebranché.
 Validation verte (82/82 vitest dont 35 nouveaux, 13/13 pytest, build OK).
-**Reste avant clôture : audit Dur (2 auditeurs) + tests §6.2 par Joel à deux appareils.**
-Détail des choix d'implémentation : fiche du lot, §12.
+Audit Dur du code passé : Gemini GO · Codex NO-GO (3 findings critiques fondés —
+drapeau levé par des sauvegardes non synchronisées) **corrigé le 2026-07-30**
+(88/88 vitest, 6 tests de régression d'audit). Détail : fiche du lot, §12 et §12 bis.
+**Reste avant clôture : contre-vérification Codex + tests §6.2 par Joel à deux appareils.**
 
 ## État des lots
 

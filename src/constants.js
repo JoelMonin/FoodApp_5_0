@@ -15,3 +15,8 @@ export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebase
 
 export const LOCAL_STORAGE_KEY = 'pantry_v5';
 export const LOCAL_STORAGE_CHECKED_KEY = 'pantry_v5_checked';
+
+// Référence anti-boucle de la synchro : dernier document cloud connu, PERSISTÉ
+// (audit Sol du LOT 007, C1) — partagé entre le moteur (js/app.js) et le chemin
+// explicite de réinitialisation (src/actions.js). SSOT du nom de la clé.
+export const LOCAL_STORAGE_SYNC_REF_KEY = 'pantry_v5_sync_ref';
