@@ -1,4 +1,4 @@
-import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig } from './state.js';
+import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig, awaitSyncQuiescence } from './state.js';
 import { generateId, normalizeString, areSimilar } from './utils/helpers.js';
 import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
@@ -84,6 +84,12 @@ export async function resetAllData() {
     'conservée. Continuer ?'
   );
   if (!confirmed) return;
+
+  // CONTRE-VÉRIFICATION AUDIT SOL (C3) : sérialise la remise à zéro avec le moteur
+  // de synchro — annule tout envoi temporisé et ATTEND la fin d'un envoi en vol.
+  // Sans cela, un PUT parti AVANT le clic pouvait aboutir APRÈS le PUT du reset et
+  // restaurer l'ancien état dans le cloud.
+  await awaitSyncQuiescence();
 
   const preservedApiKey = state.aiConfig?.apiKey || '';
 

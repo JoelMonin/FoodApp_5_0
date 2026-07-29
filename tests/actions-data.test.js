@@ -229,7 +229,9 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       fetch.mockReturnValue(new Promise(resolve => { resolveFetch = resolve; }));
 
       const resetPromise = resetAllData();
-      await Promise.resolve(); // laisse resetAllData avancer jusqu'à l'await du push
+      // Laisse resetAllData franchir la barrière de quiescence (immédiate ici : aucun
+      // moteur inscrit) puis avancer jusqu'à l'await du push.
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining(FB_URL),

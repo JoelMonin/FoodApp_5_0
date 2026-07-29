@@ -5,6 +5,7 @@ import {
   shoppingChecked,
   saveState,
   registerSyncScheduler,
+  registerSyncBarrier,
   defaultAiConfig
 } from '../src/state';
 import {
@@ -14,8 +15,11 @@ import {
   performSyncPull,
   initSyncEngine,
   isSyncPending,
+  syncEngineBarrier,
   __resetSyncEngineForTests
 } from '../js/app.js';
+import { resetAllData } from '../src/actions';
+import { DEFAULT_DB } from '../src/data';
 
 // LOT 007 — moteur de synchro (spec §4.3-4.9) : temporisation, drapeau « EN
 // ATTENTE », anti-boucle, retry unique et garde-fous. Le moteur vit dans js/app.js
@@ -257,6 +261,131 @@ describe('Moteur de synchro — LOT 007', () => {
       } finally {
         Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
       }
+    });
+  });
+
+  describe('Contre-vérification audit Sol (2026-07-30) — référence absente et frontière reset↔moteur', () => {
+    let confirmSpy;
+    let reloadSpy;
+
+    beforeEach(() => {
+      confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      reloadSpy = vi.fn();
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, reload: reloadSpy },
+        configurable: true,
+        writable: true
+      });
+      registerSyncBarrier(syncEngineBarrier);
+    });
+
+    afterEach(() => {
+      confirmSpy.mockRestore();
+      registerSyncBarrier(null);
+    });
+
+    it('C1 : référence ABSENTE + démarrage hors ligne + navigation + retour réseau → aucun PUT furtif avant le GET', async () => {
+      // Premier lancement de cette version : pas de pantry_v5_sync_ref en stockage.
+      expect(localStorage.getItem('pantry_v5_sync_ref')).toBeNull();
+      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+      try {
+        initSyncEngine(); // amorce la référence depuis l'état local (drapeau baissé)
+        await vi.advanceTimersByTimeAsync(1);
+        expect(fetch).not.toHaveBeenCalled();
+
+        // Navigation hors ligne : une sauvegarde qui ne change AUCUNE donnée synchronisée.
+        state.currentView = 'export';
+        saveState();
+        expect(isSyncPending()).toBe(false);
+
+        // Le cloud, lui, a été mis à jour par un autre appareil entre-temps.
+        cloudStore = JSON.stringify({
+          ingredients: [makeIngredient({ id: 'cloud_recent', name: 'Plus récent' })],
+          favorites: [], extraIngredients: [], customCartItems: [],
+          aiConfig: {}, shoppingChecked: []
+        });
+
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+        window.dispatchEvent(new Event('online'));
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(putCalls()).toHaveLength(0); // AUCUN vieil inventaire envoyé
+        expect(getCalls().length).toBeGreaterThan(0); // le cloud a bien été LU
+        expect(state.ingredients[0].id).toBe('cloud_recent'); // et appliqué
+      } finally {
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+      }
+    });
+
+    it('C1 : drapeau persisté + référence absente → PAS d\'amorçage, les modifications en attente partent d\'abord', async () => {
+      // L'amorçage ne doit jamais faire passer des modifications non envoyées
+      // pour « déjà envoyées » (elles seraient écrasées par le premier pull).
+      localStorage.setItem('pantry_v5_sync_pending', '1');
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'vieux_cloud' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+
+      initSyncEngine();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(fetch.mock.calls[0][1]?.method).toBe('PUT'); // l'état local part D'ABORD
+      expect(state.ingredients[0].id).toBe('ing_1'); // jamais écrasé
+    });
+
+    it('C3 : un envoi du moteur EN VOL au moment du reset ne peut pas écrire APRÈS le PUT du reset', async () => {
+      const writes = []; // ordre RÉEL des écritures cloud abouties
+      let releaseEnginePut = null;
+      fetch.mockImplementation((url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (!releaseEnginePut) {
+            // 1er PUT = l'envoi du moteur : retenu EN VOL jusqu'à releaseEnginePut()
+            return new Promise(resolve => {
+              releaseEnginePut = () => {
+                writes.push('moteur');
+                cloudStore = options.body;
+                resolve({ ok: true, status: 200, statusText: 'OK' });
+              };
+            });
+          }
+          writes.push('reset');
+          cloudStore = options.body;
+          return Promise.resolve({ ok: true, status: 200, statusText: 'OK' });
+        }
+        return Promise.resolve({
+          ok: true, status: 200, statusText: 'OK',
+          json: async () => (cloudStore ? JSON.parse(cloudStore) : null)
+        });
+      });
+
+      state.ingredients[0].name = 'Avant reset';
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // l'envoi du moteur part… et reste en vol
+      expect(releaseEnginePut).toBeTruthy();
+
+      const resetPromise = resetAllData(); // la barrière fait ATTENDRE le reset
+      await vi.advanceTimersByTimeAsync(0);
+      expect(writes).toEqual([]); // le reset n'a PAS écrit pendant que l'envoi vole
+
+      releaseEnginePut(); // l'envoi antérieur aboutit enfin
+      await resetPromise;
+
+      expect(writes).toEqual(['moteur', 'reset']); // le reset écrit STRICTEMENT en dernier
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(DEFAULT_DB.length); // cloud final = reset
+      expect(reloadSpy).toHaveBeenCalled();
+    });
+
+    it('C3 : un envoi temporisé pas encore parti est ANNULÉ par le reset — un seul PUT, celui du reset', async () => {
+      state.ingredients[0].name = 'Modif juste avant le clic';
+      saveState(); // timer de 2 s armé, envoi pas encore parti
+
+      await resetAllData(); // barrière : le timer est annulé avant le PUT du reset
+
+      expect(putCalls()).toHaveLength(1); // le SEUL envoi est celui du reset
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(putCalls()).toHaveLength(1); // le timer annulé ne tire jamais
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(DEFAULT_DB.length);
     });
   });
 

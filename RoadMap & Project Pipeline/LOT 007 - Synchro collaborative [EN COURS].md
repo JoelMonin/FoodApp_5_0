@@ -629,3 +629,16 @@ modification du document synchronisé. Corrections livrées le 2026-07-30 :
 d'audit ajoutés) · 13/13 pytest · build OK. Ce que Gemini avait validé (périmètre
 étanche, anti-boucle après référence connue, clé API) reste intact — Codex l'avait
 d'ailleurs confirmé dans son propre rapport.
+
+### Contre-vérification Codex (2026-07-30) : C2/D1/D2 fermés, C1/C3 MAINTENUS → 2e correction
+
+Sol a validé C2, D1 et D2 mais maintenu C1 et C3 avec des scénarios plus fins,
+tous deux contre-vérifiés fondés et corrigés :
+
+| # | Scénario maintenu (Codex) | Correction | Test exigé par Codex, livré |
+|---|---|---|---|
+| C1 | **Référence ABSENTE** (premier lancement de cette version) : toute sauvegarde comparait à `null` → une navigation hors ligne relevait le drapeau → PUT furtif avant le GET au retour réseau | **Amorçage** : à l'init, référence absente + drapeau baissé → la référence devient l'état local tel quel (persistée). EXCEPTION : drapeau levé → pas d'amorçage, les modifications en attente partent d'abord (la garantie du drapeau persisté est conservée) | « référence absente + démarrage hors ligne + navigation + retour réseau → aucun PUT furtif avant le GET » + le cas drapeau levé |
+| C3 | Le reset restait **hors de la file du moteur** : un envoi temporisé déjà armé, ou un PUT déjà EN VOL, pouvait aboutir APRÈS le PUT du reset et restaurer l'ancien état dans le cloud | **Barrière de quiescence** (`registerSyncBarrier`/`awaitSyncQuiescence` dans `state.js`, sans cycle d'import) : le reset annule tout envoi temporisé et ATTEND la fin d'un envoi en vol avant son propre PUT | « un PUT du moteur retenu en vol aboutit AVANT le PUT du reset, jamais après » (vrai moteur, requête contrôlée, ordre des écritures vérifié) + le cas timer armé |
+
+**Validation (2026-07-30)** : 92/92 vitest (4 tests de contre-vérification ajoutés) ·
+13/13 pytest · build OK.

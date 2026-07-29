@@ -64,6 +64,21 @@ export function registerSyncScheduler(fn) {
 }
 
 /**
+ * Barrière de synchro (contre-vérification d'audit Sol, C3) : permet à un chemin
+ * EXPLICITE (la réinitialisation) de se sérialiser avec le moteur — annuler tout
+ * envoi temporisé et attendre la fin d'une opération en vol — sans que
+ * `src/actions.js` n'importe jamais le moteur (pas de cycle). Sans moteur inscrit
+ * (tests, démarrage), la barrière est immédiate.
+ */
+let syncBarrier = null;
+export function registerSyncBarrier(fn) {
+  syncBarrier = fn;
+}
+export function awaitSyncQuiescence() {
+  return syncBarrier ? syncBarrier() : Promise.resolve();
+}
+
+/**
  * Remplace le contenu du Set des coches de courses (réception d'un pull, §4.1).
  * `shoppingChecked` est un export ESM non réassignable depuis l'extérieur :
  * on mute le Set en place, jamais par affectation côté appelant (réserve Codex).

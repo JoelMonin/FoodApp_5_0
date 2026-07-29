@@ -5,6 +5,7 @@ import {
   shoppingChecked,
   applyExternalState,
   registerSyncScheduler,
+  registerSyncBarrier,
   replaceShoppingChecked
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
@@ -98,6 +99,8 @@ let _syncSendBlocked = false;   // apres un 4xx ou l'epuisement du retry : les c
                                 // un clic manuel ou le retour reseau reautorisent l'envoi
 let _syncInFlight = false;      // une seule operation a la fois (§4.4)
 let _syncQueuedOp = null;       // une demande en attente, jamais accumulees (§4.4)
+let _syncIdleWaiters = [];      // barriere de quiescence (contre-verif Sol C3) : resolus
+                                // des que l'operation en vol se termine
 let _syncDirtyGen = 0;          // generation de modification : ne jamais baisser le drapeau
                                 // pour des changements survenus PENDANT l'envoi en vol
 let _lastCloudDocJson = null;   // reference anti-boucle « dernier document cloud connu » (§4.5) —
@@ -242,8 +245,23 @@ async function requestSyncOp(op) {
         _syncInFlight = false;
         const queued = _syncQueuedOp;
         _syncQueuedOp = null;
+        while (_syncIdleWaiters.length) _syncIdleWaiters.shift()();
         if (queued) requestSyncOp(queued);
     }
+}
+
+/**
+ * Barriere de quiescence (contre-verification d'audit Sol, C3), inscrite via
+ * registerSyncBarrier : annule tout envoi temporise, vide la file, et attend la
+ * fin de l'operation en vol. Garantit qu'aucun PUT du moteur ANTERIEUR a un
+ * chemin explicite (reset) ne peut ecrire APRES le PUT de ce chemin.
+ */
+function syncEngineBarrier() {
+    clearTimeout(_syncSendTimer);
+    _syncSendTimer = null;
+    _syncQueuedOp = null;
+    if (!_syncInFlight) return Promise.resolve();
+    return new Promise(resolve => _syncIdleWaiters.push(resolve));
 }
 
 /**
@@ -406,11 +424,23 @@ function updateNetworkInfo() {
  */
 function initSyncEngine() {
     registerSyncScheduler(scheduleSyncPush);
+    registerSyncBarrier(syncEngineBarrier);
 
     // La reference « dernier cloud connu » survit au rechargement (audit Sol C1) :
     // sans elle, toute sauvegarde d'un demarrage hors ligne (meme une simple
     // navigation) passait pour une modification a envoyer.
     _lastCloudDocJson = readSyncReference();
+
+    // AMORCAGE (contre-verification Sol, C1) : reference ABSENTE = premiere
+    // execution de cette version. Elle devient l'etat local TEL QUEL : ainsi une
+    // sauvegarde qui ne change rien (navigation) ne passe JAMAIS pour une
+    // modification a envoyer — seul un vrai geste posterieur levera le drapeau.
+    // EXCEPTION : drapeau deja leve = des modifications attendent reellement leur
+    // envoi ; on n'amorce pas, sinon elles passeraient pour « deja envoyees » et
+    // seraient ecrasees par le premier pull (garantie du drapeau persiste, §4.3).
+    if (_lastCloudDocJson === null && !isSyncPending()) {
+        setSyncReference(currentSyncDocJson());
+    }
 
     // Etat reseau affiche DES le demarrage (§4.4), pas au premier evenement.
     updateNetworkInfo();
@@ -461,6 +491,7 @@ function __resetSyncEngineForTests() {
     _syncSendBlocked = false;
     _syncInFlight = false;
     _syncQueuedOp = null;
+    _syncIdleWaiters = [];
     _syncDirtyGen = 0;
     _lastCloudDocJson = null;
     _lastCloudHadIngredients = false;
@@ -478,6 +509,7 @@ export {
     performSyncPull,
     setSyncStatus,
     isSyncPending,
+    syncEngineBarrier,
     __resetSyncEngineForTests
 };
 
