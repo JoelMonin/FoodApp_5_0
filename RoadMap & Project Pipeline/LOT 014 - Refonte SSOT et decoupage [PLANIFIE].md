@@ -65,16 +65,36 @@ compensatoires. Condition de la fiche d'origine à démontrer par un test : équ
 sur `aiConfig` (remplacement entier, pas de fusion profonde — comportement actuel à
 conserver) et sur les tableaux. Au moindre écart observable → STOP, ça devient une spec.
 
-### C. Validation des données externes (ex-fiche SCHEMA_VALIDATION, reprise actualisée)
+### C. Validation des données externes — CHANGEMENT DE COMPORTEMENT ASSUMÉ
 
-Créer `src/utils/validate.js` (léger, zéro dépendance) : `isValidIngredient`,
-`isValidRecipe`, `isValidAiConfig`, `validateState`, `escapePromptValue` — les squelettes de
-la fiche d'origine font foi. Application :
-- `syncPull` rejette un document cloud malformé (généralise le garde minimal du LOT 007 §4.9
-  — le remplacer par cette couche, ne pas empiler deux gardes) ;
+⚠️ **Exception au pare-feu A/B de ce lot** (l'audit de campagne Codex a relevé la
+contradiction : « zéro changement observable » + « rejets de données » sont incompatibles).
+Ce volet C introduit des comportements NOUVEAUX — des rejets de données invalides — validés
+par Joel via cette spec. Tout le reste du lot reste à zéro changement observable. **Livrer
+ce volet dans un commit SÉPARÉ des volets de refonte**, pour qu'un problème se revert seul.
+
+Créer `src/utils/validate.js` (léger, zéro dépendance). **Règles COMPLÈTES — la fiche
+backlog d'origine a été supprimée à la promotion, cette fiche est la SEULE référence
+(correction d'autonomie, audit Codex)** :
+- `isValidIngredient(i)` : objet avec `id` string, `name` string, `category` string ;
+- `isValidRecipe(r)` : objet avec `name` string de moins de 200 caractères ; `ingredients`
+  et `steps` soit absents, soit tableaux ;
+- `isValidAiConfig(c)` : objet ; `apiKey` absente ou string ;
+- `validateState(s)` : objet ; **`ingredients` PRÉSENT et tableau — c'est l'invariant du
+  garde §4.9 du LOT 007, que cette couche généralise** ; `favorites` et `extraIngredients`
+  absents ou tableaux ; `aiConfig` absent ou valide ;
+- `escapePromptValue(str)` : échappe `\` et `"`, remplace les sauts de ligne par des
+  espaces, tronque à 100 caractères.
+
+Application — périmètres STRICTS :
+- `syncPull` rejette un document cloud qui échoue `validateState` (REMPLACE le garde minimal
+  du LOT 007, ne pas empiler deux gardes — l'invariant `ingredients` ci-dessus le couvre) ;
 - `loadState` ignore un localStorage corrompu (état par défaut conservé, warning console) ;
-- `transformRecipeAI` refuse une recette IA invalide (toast) ;
-- les prompts n'incluent plus de saisie utilisateur brute (`escapePromptValue`, 100 car. max).
+- `transformRecipeAI` refuse une recette IA qui échoue `isValidRecipe` (toast explicite) ;
+- `escapePromptValue` s'applique **UNIQUEMENT au champ ingrédient du formulaire d'ajout**
+  (`handleAddInput` → prompts de catégorie/emoji). **JAMAIS au texte de recette collé ni à
+  aucun contenu long** : tronquer une recette à 100 caractères détruirait la fonctionnalité
+  de collage (audit Codex).
 
 ### D. Traque SSOT transverse (demande de Joel)
 
@@ -121,6 +141,11 @@ Pas de « grand soir » : si une étape déraille, on la revert seule.
 - [ ] Les 2 verrous anti-récidive en place et rouges quand on les provoque
 - [ ] Validation unifiée verte, build OK, **check-list de la fiche régressions re-parcourue
       intégralement** : aucun comportement restauré n'a re-disparu
+- [ ] **Oracle visuel après le découpage CSS (audit Codex + leçon gravée du LOT 005)** :
+      preuve NAVIGATEUR avant/après pour les 5 vues ET les modales (détail de recette,
+      sélecteur, icône, API), en bureau ET en mobile. jsdom ne prouve ni cascade, ni
+      géométrie, ni plein écran ; « le texte des règles est présent dans le fichier » n'est
+      pas une preuve (incident du commentaire CSS, LOT 005).
 - [ ] Audit DUR final de campagne
 
 ## Traçabilité

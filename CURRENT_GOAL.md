@@ -9,16 +9,20 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 008 — Données en sécurité** (`[PLANIFIE]`, prochain à coder, branche
-`feat/lot8-donnees-en-securite` à créer). Préalable bloquant du LOT 007 : verdict unanime du
-duel d'audit (Gemini 3.1 Pro + Codex 5.6) — la synchro auto amplifierait les casses
-d'import/réinitialisation en perte de données multi-appareils.
+**Aucun — VERSION 5.5 PUBLIÉE le 2026-07-30** (feu vert explicite de Joel) : les
+LOTS 007 (synchro collaborative) et 008 (données en sécurité) sont en production.
+**Point de vigilance à l'usage** : les tests à deux appareils du §6.2 ont été levés
+par décision de Joel — au moindre comportement étrange de la synchro, la fiche du
+LOT 007 (§6.2) sert de grille de diagnostic.
+**Prochain chantier : LOT 009 — Boutons morts rebranchés** (fiche prête, branche
+`feat/lot9-boutons-morts` à ouvrir sur signal de Joel).
 
 ## État des lots
 
-- **008** Données en sécurité — PLANIFIÉ, **à coder en premier**
-- **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter), code
-  bloqué par 008
+- **008** Données en sécurité — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30**.
+  `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
+- **007** Synchro collaborative — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30** (audit Dur
+  double GO ; tests réels levés par Joel, constat à l'usage)
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
   fiches détaillées prêtes à confier à un exécutant
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
@@ -40,6 +44,7 @@ d'import/réinitialisation en perte de données multi-appareils.
 
 ## Prochaine étape
 
-Audit externe des fiches de campagne, en duel Gemini × Codex (prompt fourni à Joel le
-2026-07-29), puis GO de Joel → ouverture du LOT 008.
+Version 5.5 en ligne. **Prochain chantier : LOT 009 — Boutons morts rebranchés**
+(icône d'ingrédient C1, plein écran C6, imprimer C7, panneau système C8 restant) —
+ouvrir `feat/lot9-boutons-morts` sur signal de Joel (« on attaque le lot 9 »).
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.

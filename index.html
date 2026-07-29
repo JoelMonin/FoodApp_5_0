@@ -198,7 +198,7 @@
     <nav id="sidebar">
       <div class="sb-logo">
         <div class="sb-logo-name">🥘 FoodApp</div>
-        <div class="sb-logo-sub">Version 5.4</div>
+        <div class="sb-logo-sub">Version 5.5</div>
       </div>
       <div class="sb-section-label" id="sb-label-principal">Principal</div>
       <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
@@ -254,7 +254,7 @@
         <div class="mh-top">
           <div>
             <div class="mh-logo">🥘 FoodApp</div>
-            <div class="mh-sub" id="mh-subtitle">Version 5.4</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.5</div>
           </div>
           <div class="mh-icons">
             <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
@@ -585,7 +585,7 @@
               </button>
             </div>
             <input type="file" id="import-file" accept=".json" onchange="restoreJSON(event)" hidden>
-            <input type="file" id="restore-file" accept=".json" onchange="restoreJSON(event)" hidden>
+            <input type="file" id="restore-file" accept=".json" onchange="importStockOnly(event)" hidden>
             <div class="export-section-title" style="color:var(--terra)">Réinitialisation</div>
             <div class="export-grid" style="padding-bottom:20px">
               <button class="export-btn export-danger" onclick="resetCart()">

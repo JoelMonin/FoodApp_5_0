@@ -43,7 +43,8 @@ ingrédient, section « État des stocks », description et cuisine, Nutri-Score
 (`ns-bar`), étapes cochables (`toggle('done')`), et l'affichage des favoris « texte brut »
 (`r.content`) — un favori collé tel quel s'affiche aujourd'hui VIDE.
 
-**Attendu (oracle : le bloc détail du monolithe, autour de `renderRecipeDetail`/l.5340+) :**
+**Attendu (oracle : monolithe `openRecipeDetail` l.5362 et `renderRecipeBody` l.5486 — les
+noms diffèrent des modules actuels, correction d'ancrage d'audit Codex) :**
 restaurer ces six éléments. Le cas `r.content` est le plus important : un favori sans
 `ingredients`/`steps` structurés affiche son texte brut, jamais une fiche vide.
 
@@ -97,6 +98,10 @@ carte, CTA « Coller une recette » sur l'état vide, et date de sauvegarde stoc
 
 ## Pièges connus
 
+- **`renderRecipeDetail` est un composant partagé de la campagne** : le LOT 009 y aura posé
+  le bouton 🖨️ et le plein écran, le LOT 010 le recalcul des quantités (`scaleQty`).
+  Ré-enrichir le détail SANS supprimer ces ajouts — vérifier leur présence avant/après
+  (rappel d'audit de campagne, Gemini 3.6 Flash).
 - **Jeton anti-course du LOT 006** (`_aiSuggestGenId`) : les chantiers 3-5 touchent les mêmes
   fonctions — le préserver, tests à l'appui.
 - Le rendu passe par `h()` (`src/utils/dom.js`) — sûr par construction. **Interdiction
@@ -113,6 +118,11 @@ carte, CTA « Coller une recette » sur l'état vide, et date de sauvegarde stoc
 - [ ] Manuels (Joel) : cartes riches avec tags colorés fidèles au stock ; détail complet ;
       étapes cochables ; 🎲 varié ; textes d'attente animés ; scroll mobile ; import d'URL
       avec titre auto ; favoris riches datés
+- [ ] **Rejouer OBJECTIVEMENT les acquis 009/010 après la refonte du modal** (audit Codex :
+      un rappel textuel peut être « respecté » en apparence tout en reperdant un acquis) :
+      bouton 🖨️ présent et fonctionnel après 3 réouvertures · plein écran + resynchronisation
+      à la sortie par Échap · fermeture par glissement · recalcul des quantités −/+ avec
+      aller-retour exact. Ces quatre points sont des CRITÈRES D'ACCEPTATION, pas des rappels.
 
 ## Critères d'acceptation
 

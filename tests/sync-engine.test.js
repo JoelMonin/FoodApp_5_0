@@ -1,0 +1,572 @@
+/** @vitest-environment jsdom */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  state,
+  shoppingChecked,
+  saveState,
+  registerSyncScheduler,
+  registerSyncBarrier,
+  defaultAiConfig
+} from '../src/state';
+import {
+  scheduleSyncPush,
+  requestSyncOp,
+  performSyncSend,
+  performSyncPull,
+  initSyncEngine,
+  isSyncPending,
+  syncEngineBarrier,
+  __resetSyncEngineForTests
+} from '../js/app.js';
+import { resetAllData } from '../src/actions';
+import { DEFAULT_DB } from '../src/data';
+
+// LOT 007 — moteur de synchro (spec §4.3-4.9) : temporisation, drapeau « EN
+// ATTENTE », anti-boucle, retry unique et garde-fous. Le moteur vit dans js/app.js
+// (décision de spec §4.2 : aucun nouveau module) ; ses points d'entrée sont
+// exportés uniquement pour ces tests.
+//
+// Harnais : un FAUX FIREBASE en mémoire — le GET rend ce que le dernier PUT a
+// stocké, comme le vrai. `putCalls()` isole les envois dans l'historique fetch.
+
+function makeIngredient(overrides = {}) {
+  return {
+    id: 'ing_1', name: 'Pomme', emoji: '🍎', category: 'Fruits',
+    inStock: false, inCart: false, pinned: false, frozen: false,
+    shoppingSource: null, ...overrides
+  };
+}
+
+describe('Moteur de synchro — LOT 007', () => {
+  let cloudStore; // contenu du faux Firebase (chaîne JSON ou null)
+  let warnSpy;
+  let errorSpy;
+
+  const putCalls = () => fetch.mock.calls.filter(c => c[1]?.method === 'PUT');
+  const getCalls = () => fetch.mock.calls.filter(c => !c[1]?.method);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+
+    document.body.innerHTML = `
+      <div id="ing-grid"></div><div id="ing-empty"></div>
+      <div id="sync-indicator-desktop" class="sync-indicator"><span class="sync-label">Cloud Sync</span></div>
+      <div id="sync-indicator-mobile" class="sync-indicator"><span class="sync-label">Cloud Sync</span></div>
+      <div id="info-last-sync">--</div>
+      <div id="info-network">--</div>
+    `;
+
+    // Reset du singleton d'état partagé entre les tests.
+    Object.assign(state, {
+      ingredients: [makeIngredient()],
+      customCartItems: [],
+      favorites: [],
+      extraIngredients: [],
+      currentView: 'pantry',
+      filter: 'all',
+      search: '',
+      aiSuggestions: null,
+      currentSuggestionIdx: null,
+      lastSync: null,
+      showInStockOnly: false,
+      showInCartOnly: false,
+      aiConfig: defaultAiConfig()
+    });
+    shoppingChecked.clear();
+    __resetSyncEngineForTests();
+    registerSyncScheduler(scheduleSyncPush);
+
+    cloudStore = null;
+    vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+      if (options.method === 'PUT') {
+        cloudStore = options.body;
+        return { ok: true, status: 200, statusText: 'OK' };
+      }
+      return {
+        ok: true, status: 200, statusText: 'OK',
+        json: async () => (cloudStore ? JSON.parse(cloudStore) : null)
+      };
+    }));
+
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    registerSyncScheduler(null);
+    __resetSyncEngineForTests();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  describe('Temporisation de l\'envoi (§4.4)', () => {
+    it('une modification ne part pas immédiatement, mais après 2 s', async () => {
+      state.ingredients[0].inStock = true;
+      saveState();
+
+      expect(putCalls()).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+    });
+
+    it('15 modifications d\'affilée → UN seul envoi (§6.2 : cocher en rayon)', async () => {
+      for (let i = 0; i < 15; i++) {
+        state.ingredients[0].inStock = !state.ingredients[0].inStock;
+        saveState();
+        await vi.advanceTimersByTimeAsync(100); // gestes espacés de 100 ms
+      }
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+    });
+  });
+
+  describe('Anti-boucle (§4.5)', () => {
+    it('un document identique au dernier envoyé n\'est PAS renvoyé', async () => {
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+
+      // Sauvegarde sans AUCUN changement de donnée synchronisée.
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1); // toujours un seul
+      expect(isSyncPending()).toBe(false); // drapeau baissé sans requête réseau
+    });
+
+    it('une application issue de la synchro ne planifie AUCUN envoi', async () => {
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'cloud_1', name: 'Poire' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: ['cloud_1']
+      });
+
+      await performSyncPull();
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(state.ingredients[0].id).toBe('cloud_1'); // données bien appliquées
+      expect([...shoppingChecked]).toEqual(['cloud_1']); // Set reconstruit (§4.1)
+      expect(putCalls()).toHaveLength(0); // et rien ne repart
+    });
+
+    it('après un pull appliqué, sauvegarder un champ NON synchronisé ne déclenche aucun envoi (constat Codex)', async () => {
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'cloud_1', name: 'Poire' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+      await performSyncPull();
+
+      state.filter = 'Fruits'; // champ d'affichage, hors périmètre §4.1
+      saveState();
+
+      // Correction audit Sol (C1) : le drapeau ne se lève même PAS — une sauvegarde
+      // qui ne change pas le document synchronisé n'est pas une modification.
+      expect(isSyncPending()).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(0); // référence = dernier cloud connu → identique
+    });
+  });
+
+  describe('Corrections de l\'audit Dur — Codex Sol (2026-07-30)', () => {
+    it('C1 : une navigation ne lève jamais le drapeau — pas d\'envoi d\'un vieil inventaire au retour réseau', async () => {
+      // Un envoi réussi établit la référence « dernier cloud connu »…
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+
+      // …qui est PERSISTÉE : elle survivra à un rechargement de page.
+      expect(localStorage.getItem('pantry_v5_sync_ref')).toBe(cloudStore);
+
+      // Changer d'écran (scénario : démarrage hors ligne + ouverture des Réglages).
+      state.currentView = 'export';
+      saveState();
+
+      expect(isSyncPending()).toBe(false); // rien à envoyer : le cloud n'a rien à recevoir
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1); // aucun envoi parti
+
+      // Au « retour réseau », le pull n'a donc AUCUN envoi à faire d'abord :
+      await requestSyncOp('pull');
+      expect(fetch.mock.calls.at(-1)[1]?.method).toBeUndefined(); // dernier appel = GET
+    });
+
+    it('C2 : un réglage IA modifié pendant un pull en vol n\'est pas écrasé par la photo cloud', async () => {
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient()],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: { creativity: 50 }, shoppingChecked: []
+      });
+      // Le GET aboutit APRÈS que Joel a réglé la créativité de 50 à 80.
+      fetch.mockImplementation(async () => {
+        state.aiConfig.creativity = 80;
+        saveState();
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      await performSyncPull();
+
+      expect(state.aiConfig.creativity).toBe(80); // photo écartée, réglage préservé
+      expect(isSyncPending()).toBe(true); // et il reste marqué « à envoyer »
+    });
+
+    it('D1 : après un refus 4xx, les cycles automatiques ne retentent NI envoi NI pull', async () => {
+      fetch.mockImplementation(async () => ({ ok: false, status: 403, statusText: 'Forbidden' }));
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+      const totalCallsAfterFailure = fetch.mock.calls.length;
+
+      // Pull périodique / retour d'application simulés : rien ne doit partir.
+      await requestSyncOp('pull');
+      await requestSyncOp('pull');
+
+      expect(fetch.mock.calls.length).toBe(totalCallsAfterFailure); // ni PUT ni GET
+      expect(isSyncPending()).toBe(true); // les données restent protégées
+    });
+
+    it('D1 : un clic manuel réautorise l\'envoi après un blocage', async () => {
+      let failing = true;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (failing) return { ok: false, status: 403, statusText: 'Forbidden' };
+          cloudStore = options.body;
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // échec 4xx → envois automatiques suspendus
+
+      failing = false;
+      await requestSyncOp('manual'); // le geste de Joel réessaie
+
+      expect(putCalls().length).toBeGreaterThanOrEqual(2); // l'envoi est reparti
+      expect(isSyncPending()).toBe(false);
+    });
+
+    it('D2 : un démarrage hors ligne garde le voyant « Hors ligne » (aucun pull lancé)', async () => {
+      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+      try {
+        initSyncEngine();
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(fetch).not.toHaveBeenCalled(); // pas de pull voué à l'échec
+        const label = document.querySelector('#sync-indicator-desktop .sync-label');
+        expect(label.textContent).toBe('Hors ligne'); // jamais remplacé par « Échec »
+      } finally {
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+      }
+    });
+  });
+
+  describe('Contre-vérification audit Sol (2026-07-30) — référence absente et frontière reset↔moteur', () => {
+    let confirmSpy;
+    let reloadSpy;
+
+    beforeEach(() => {
+      confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      reloadSpy = vi.fn();
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, reload: reloadSpy },
+        configurable: true,
+        writable: true
+      });
+      registerSyncBarrier(syncEngineBarrier);
+    });
+
+    afterEach(() => {
+      confirmSpy.mockRestore();
+      registerSyncBarrier(null);
+    });
+
+    it('C1 : référence ABSENTE + démarrage hors ligne + navigation + retour réseau → aucun PUT furtif avant le GET', async () => {
+      // Premier lancement de cette version : pas de pantry_v5_sync_ref en stockage.
+      expect(localStorage.getItem('pantry_v5_sync_ref')).toBeNull();
+      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+      try {
+        initSyncEngine(); // amorce la référence depuis l'état local (drapeau baissé)
+        await vi.advanceTimersByTimeAsync(1);
+        expect(fetch).not.toHaveBeenCalled();
+
+        // Navigation hors ligne : une sauvegarde qui ne change AUCUNE donnée synchronisée.
+        state.currentView = 'export';
+        saveState();
+        expect(isSyncPending()).toBe(false);
+
+        // Le cloud, lui, a été mis à jour par un autre appareil entre-temps.
+        cloudStore = JSON.stringify({
+          ingredients: [makeIngredient({ id: 'cloud_recent', name: 'Plus récent' })],
+          favorites: [], extraIngredients: [], customCartItems: [],
+          aiConfig: {}, shoppingChecked: []
+        });
+
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+        window.dispatchEvent(new Event('online'));
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(putCalls()).toHaveLength(0); // AUCUN vieil inventaire envoyé
+        expect(getCalls().length).toBeGreaterThan(0); // le cloud a bien été LU
+        expect(state.ingredients[0].id).toBe('cloud_recent'); // et appliqué
+      } finally {
+        Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+      }
+    });
+
+    it('C1 : drapeau persisté + référence absente → PAS d\'amorçage, les modifications en attente partent d\'abord', async () => {
+      // L'amorçage ne doit jamais faire passer des modifications non envoyées
+      // pour « déjà envoyées » (elles seraient écrasées par le premier pull).
+      localStorage.setItem('pantry_v5_sync_pending', '1');
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'vieux_cloud' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+
+      initSyncEngine();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(fetch.mock.calls[0][1]?.method).toBe('PUT'); // l'état local part D'ABORD
+      expect(state.ingredients[0].id).toBe('ing_1'); // jamais écrasé
+    });
+
+    it('C3 : un envoi du moteur EN VOL au moment du reset ne peut pas écrire APRÈS le PUT du reset', async () => {
+      const writes = []; // ordre RÉEL des écritures cloud abouties
+      let releaseEnginePut = null;
+      fetch.mockImplementation((url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (!releaseEnginePut) {
+            // 1er PUT = l'envoi du moteur : retenu EN VOL jusqu'à releaseEnginePut()
+            return new Promise(resolve => {
+              releaseEnginePut = () => {
+                writes.push('moteur');
+                cloudStore = options.body;
+                resolve({ ok: true, status: 200, statusText: 'OK' });
+              };
+            });
+          }
+          writes.push('reset');
+          cloudStore = options.body;
+          return Promise.resolve({ ok: true, status: 200, statusText: 'OK' });
+        }
+        return Promise.resolve({
+          ok: true, status: 200, statusText: 'OK',
+          json: async () => (cloudStore ? JSON.parse(cloudStore) : null)
+        });
+      });
+
+      state.ingredients[0].name = 'Avant reset';
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // l'envoi du moteur part… et reste en vol
+      expect(releaseEnginePut).toBeTruthy();
+
+      const resetPromise = resetAllData(); // la barrière fait ATTENDRE le reset
+      await vi.advanceTimersByTimeAsync(0);
+      expect(writes).toEqual([]); // le reset n'a PAS écrit pendant que l'envoi vole
+
+      releaseEnginePut(); // l'envoi antérieur aboutit enfin
+      await resetPromise;
+
+      expect(writes).toEqual(['moteur', 'reset']); // le reset écrit STRICTEMENT en dernier
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(DEFAULT_DB.length); // cloud final = reset
+      expect(reloadSpy).toHaveBeenCalled();
+    });
+
+    it('C3 : un envoi temporisé pas encore parti est ANNULÉ par le reset — un seul PUT, celui du reset', async () => {
+      state.ingredients[0].name = 'Modif juste avant le clic';
+      saveState(); // timer de 2 s armé, envoi pas encore parti
+
+      await resetAllData(); // barrière : le timer est annulé avant le PUT du reset
+
+      expect(putCalls()).toHaveLength(1); // le SEUL envoi est celui du reset
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(putCalls()).toHaveLength(1); // le timer annulé ne tire jamais
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(DEFAULT_DB.length);
+    });
+  });
+
+  describe('Drapeau « EN ATTENTE » (§4.3-4.4)', () => {
+    it('drapeau levé → une récupération ENVOIE d\'abord, ne s\'applique qu\'ensuite', async () => {
+      state.ingredients[0].name = 'Modif locale';
+      saveState(); // drapeau levé, envoi temporisé pas encore parti
+
+      await requestSyncOp('pull');
+
+      // Ordre des requêtes : l'envoi PRÉCÈDE la récupération.
+      expect(fetch.mock.calls[0][1]?.method).toBe('PUT');
+      expect(getCalls()).toHaveLength(1);
+      // Le pull a rendu notre propre document : la modification locale a survécu.
+      expect(state.ingredients[0].name).toBe('Modif locale');
+    });
+
+    it('drapeau persisté : un démarrage avec des modifications non envoyées ENVOIE avant tout pull', async () => {
+      localStorage.setItem('pantry_v5_sync_pending', '1'); // fermeture précipitée simulée
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'vieux_cloud', name: 'Périmé' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+
+      initSyncEngine();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(fetch.mock.calls[0][1]?.method).toBe('PUT'); // l'état local part D'ABORD
+      expect(state.ingredients[0].id).toBe('ing_1'); // jamais écrasé par le vieux cloud
+    });
+
+    it('si l\'envoi échoue, la récupération n\'est PAS appliquée (§4.4)', async () => {
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') return { ok: false, status: 500, statusText: 'Server Error' };
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'cloud_1' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+
+      state.ingredients[0].name = 'Jamais envoyée';
+      saveState();
+      await requestSyncOp('pull');
+
+      expect(getCalls()).toHaveLength(0); // aucun GET : pas de pull destructif
+      expect(state.ingredients[0].name).toBe('Jamais envoyée');
+      expect(isSyncPending()).toBe(true); // la modification reste protégée
+    });
+  });
+
+  describe('Échecs et retry (§4.7, §4.9)', () => {
+    it('échec récupérable → UNE seule nouvelle tentative à 10 s, puis arrêt', async () => {
+      fetch.mockImplementation(async () => ({ ok: false, status: 500, statusText: 'Server Error' }));
+
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1); // 1er essai échoué
+
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(putCalls()).toHaveLength(2); // le retry unique
+
+      await vi.advanceTimersByTimeAsync(60000);
+      expect(putCalls()).toHaveLength(2); // puis plus rien
+      expect(isSyncPending()).toBe(true); // rien n'est perdu : drapeau maintenu
+    });
+
+    it('une modification pendant un retry programmé ANNULE le retry — un seul timer d\'envoi', async () => {
+      let failing = true;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (failing) return { ok: false, status: 500, statusText: 'Server Error' };
+          cloudStore = options.body;
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => null };
+      });
+
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // échec, retry armé à 10 s
+      expect(putCalls()).toHaveLength(1);
+
+      failing = false;
+      state.ingredients[0].name = 'Nouvelle modif';
+      saveState(); // annule le retry, re-temporise à 2 s
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(2); // l'envoi normal
+
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(putCalls()).toHaveLength(2); // le retry annulé n'a JAMAIS tiré
+    });
+
+    it('refus serveur 4xx → drapeau MAINTENU, AUCUN retry automatique (constat Codex)', async () => {
+      fetch.mockImplementation(async () => ({ ok: false, status: 403, statusText: 'Forbidden' }));
+
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1);
+
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(putCalls()).toHaveLength(1); // pas de retry
+      expect(isSyncPending()).toBe(true); // données valides jamais envoyées : protégées
+    });
+
+    it('garde-fou sortant : un état sans ingrédient exploitable n\'est JAMAIS envoyé, drapeau BAISSÉ (constat Flash)', async () => {
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(putCalls()).toHaveLength(1); // le cloud a connu un inventaire non vide
+
+      state.ingredients = []; // corruption simulée (sans passer par sanitize)
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(putCalls()).toHaveLength(1); // l'envoi destructeur n'est jamais parti
+      expect(isSyncPending()).toBe(false); // et l'appareil n'est pas verrouillé
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(1); // cloud intact
+    });
+  });
+
+  describe('Garde-fous entrants (§4.9.2)', () => {
+    it('un document malformé (ingredients non-tableau) est ignoré sans exception', async () => {
+      cloudStore = JSON.stringify({ ingredients: 'corrompu' });
+
+      const ok = await performSyncPull();
+
+      expect(ok).toBe(false);
+      expect(state.ingredients[0].id).toBe('ing_1'); // état local intact
+    });
+
+    it('une base vide (null) n\'applique rien et n\'est pas une erreur', async () => {
+      cloudStore = null;
+
+      const ok = await performSyncPull();
+
+      expect(ok).toBe(true);
+      expect(state.ingredients[0].id).toBe('ing_1');
+    });
+
+    it('des gestes pendant la requête de pull écartent la photo cloud (garde-fou d\'empreinte, LOT 005 généralisé)', async () => {
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ id: 'cloud_1', name: 'Photo périmée' })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        aiConfig: {}, shoppingChecked: []
+      });
+      // Le GET aboutit APRÈS un geste local : la réponse est une photo d'avant.
+      fetch.mockImplementation(async (url, options = {}) => {
+        state.ingredients.push(makeIngredient({ id: 'geste_pendant_vol', name: 'Ajout' }));
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      await performSyncPull();
+
+      expect(state.ingredients.some(i => i.id === 'geste_pendant_vol')).toBe(true); // rien de perdu
+      expect(state.ingredients.some(i => i.id === 'cloud_1')).toBe(false); // photo écartée
+    });
+  });
+
+  describe('Voyant d\'état (§4.8)', () => {
+    it('envoi réussi → « À jour ✓ », puis retour à « Cloud Sync » après 2 s', async () => {
+      const desktop = document.getElementById('sync-indicator-desktop');
+      const label = desktop.querySelector('.sync-label');
+
+      await performSyncSend();
+
+      expect(desktop.className).toContain('success');
+      expect(label.textContent).toBe('À jour ✓');
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(desktop.className).toBe('sync-indicator');
+      expect(label.textContent).toBe('Cloud Sync');
+    });
+
+    it('la date de dernière synchro est enregistrée et affichée (#info-last-sync)', async () => {
+      await performSyncSend();
+
+      expect(localStorage.getItem('pantry_v5_last_sync')).toBeTruthy();
+      expect(document.getElementById('info-last-sync').textContent).not.toBe('--');
+      expect(document.getElementById('info-network').textContent).toBe('🌐 Connecté');
+    });
+  });
+});

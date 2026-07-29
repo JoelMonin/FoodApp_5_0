@@ -59,9 +59,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BPLANIFIE%5D.md) | **Données en sécurité** — import/export/reset sûrs, prérequis synchro | PLANIFIÉ — **prochain à coder** | `feat/lot8-donnees-en-securite` |
-| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BEN%20COURS%5D.md) | **Synchro collaborative** — spec v3 après duel d'audit (double NO-GO v2 intégré) | EN COURS (spec), code bloqué par 008 | `feat/lot7-synchro-collaborative` |
-| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ | `feat/lot9-boutons-morts` |
+| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ — **prochain chantier** | `feat/lot9-boutons-morts` |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |
@@ -72,6 +70,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BCLOTURE%5D.md) | **Synchro collaborative** — moteur bidirectionnel complet (la restauration phare) | **5.5** |
+| [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BCLOTURE%5D.md) | **Données en sécurité** — import/export/reset sûrs, catalogue 297 ingrédients | **5.5** |
 | [006](LOT%20006%20-%20Comportements%20produit%20%5BCLOTURE%5D.md) | Liste de courses intelligente, emojis devinés, Cloud Sync réparé | **5.4** |
 | [005](LOT%20005%20-%20Quick%20wins%20UX%20%5BCLOTURE%5D.md) | Démarrage instantané, recherche fluide, réparations d'usage | **5.4** |
 | [004](LOT%20004%20-%20Versionnage%20SSOT%20%5BCLOTURE%5D.md) | Versionnage SSOT (`APP_VERSION` + propagateur + verrou) | 5.2 |
@@ -86,6 +86,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 | Sujet | Priorité | Effort |
 |---|---|---|
 | [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | — | **Check-list de campagne**, ventilée dans les LOTS 007-012 (voir son en-tête) |
+| [Durcissements import et panier](Backlog/BACKLOG%20-%20Durcissements%20import%20et%20panier.md) | Basse | Réserves non bloquantes de l'audit LOT 008 — à absorber par LOTS 012/013/014 |
 | [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | 1-2 j — après la campagne |
 
 Fiches promues le 2026-07-29 (absorbées, traçées dans les fiches de lot) : Filet de tests UI

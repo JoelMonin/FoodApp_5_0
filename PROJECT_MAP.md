@@ -34,9 +34,12 @@
 ## 3. SUITE DE TESTS (`tests/`)
 
 - `tests/state.test.js` : Tests unitaires du moteur d'état.
+- `tests/actions-data.test.js` : Tests des actions données (LOT 008 — import/export/reset).
 - `tests/helpers.test.js` : Tests des utilitaires algorithmiques.
 - `tests/dom.test.js` : Tests de manipulation DOM.
-- `tests/firebase.test.js` : Mocks et tests du service Firebase.
+- `tests/firebase.test.js` : Mocks et tests du service Firebase (transport, délai d'expiration).
+- `tests/sync-scope.test.js` : Périmètre du document synchronisé (LOT 007 §4.1) et application clé par clé.
+- `tests/sync-engine.test.js` : Moteur de synchro bidirectionnelle (LOT 007 — temporisation, drapeau, anti-boucle, retry).
 - `tests/gemini.test.js` : Mocks et tests du service IA Gemini.
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.

@@ -40,7 +40,8 @@ dupliquer.
 | `restoreAIConfig` | `js/app.js` | défaut + config pleine + slider créativité (LOT 008) |
 | `renderShoppingList` | `src/ui/shopping.js` | happy + vide + barre de progression |
 | `renderRecipeDetail` | `src/ui/recipe.js` | 1 par source (ai/fav/paste) + `r.content` brut (LOT 011) + sans nutrition |
-| `renderPantryGrid` | `src/ui/pantry.js` | plein + vide + tri français (LOT 010) |
+| `renderPantryGrid` | `src/ui/pantry.js` | plein + vide — PAS le tri : le renderer restitue l'ordre reçu (audit Codex) |
+| `getFilteredIngredients` | `js/app.js` | recherche + filtres + **tri français** (C11, LOT 010 — c'est ICI que le tri vit) |
 
 **+ les mécanismes restaurés par la campagne** : moteur de synchro (compléter les tests du
 LOT 007 si des trous restent), `importStockOnly`/`applyExternalState` (LOT 008),
@@ -63,21 +64,35 @@ LOT 007 si des trous restent), `importStockOnly`/`applyExternalState` (LOT 008),
   d'origine est un bon point de départ, à ALIGNER sur l'`index.html` réel du moment ;
 - fake timers Vitest pour debounce/temporisations (200 ms recherche, 800 ms IA, 2 s synchro).
 
-### D. Stratégie pour `js/app.js` (non importable tel quel)
+### D. Stratégie pour `js/app.js` — TRANCHÉ : Option B, imposée (audit de campagne 2026-07-29)
 
-Deux options héritées de la fiche d'origine — **choisir à l'ouverture** :
-- **Option A** (recommandée) : extraire les fonctions PURES vers `src/` au fil des tests
-  (`getFilteredIngredients`, `exportClipboard`, `guessCategoryLocally`…). ⚠️ C'est un
-  AVANT-GOÛT du LOT 014 : extraction MINIMALE, sans réorganisation — le déplacement complet
-  reste au 014 ;
-- **Option B** : jsdom + mocks lourds sans toucher `app.js`.
+**Tester SANS toucher au code applicatif** : jsdom + `setupTestDOM`, chargement de
+`js/app.js` et accès aux fonctions via les handlers exposés sur `window`, mocks de `fetch`
+et fake timers. **Aucune extraction de fonction pendant ce lot.**
+
+Pourquoi imposé : la fiche d'origine laissait le choix avec une « Option A » (extraire les
+fonctions pures au fil des tests). Les deux auditeurs de campagne ont exigé que le choix soit
+tranché dans la fiche — et l'Option A violait le pare-feu de ce lot (« n'écrit QUE des
+tests ») : elle déplaçait du code applicatif AVANT que le filet soit posé, exactement
+l'anti-motif que la campagne corrige. Toute extraction appartient au LOT 014, qui s'exécutera
+filet en place. Si une fonction s'avère réellement intestable depuis `window` : la consigner
+dans la fiche du LOT 014 (candidate prioritaire à l'extraction), pas la déplacer ici.
 
 ## Critères d'acceptation
 
-- [ ] **≥ 30 nouveaux tests** ; chaque fonction du tableau A couverte (happy path minimum)
+- [ ] **Matrice de couverture des acquis (exigence d'audit Codex — LE critère central)** :
+      un tableau listant chaque acquis des LOTS 005 à 012 (empreinte de boot du 005,
+      sélecteur intelligent complet du 006, moteur de synchro du 007, gestes natifs du 009,
+      règles métier du 010, modal riche + quantités du 011, édition du sélecteur du 012…)
+      avec, en face, LE test qui le fige — ou la preuve navigateur documentée quand jsdom ne
+      peut pas le prouver. **Aucune ligne vide.** Un nombre global de tests n'est PAS un
+      critère de couverture.
+- [ ] **≥ 30 nouveaux tests** (plancher, pas objectif) ; chaque fonction du tableau A
+      couverte (happy path minimum)
 - [ ] `generateId` non-flaky ; 3 modes d'échec Firebase ; 3 réponses IA dégradées
 - [ ] Aucun `.skip`/`.only` ; validation unifiée verte ; build OK
-- [ ] AUCUN comportement applicatif modifié (diff hors `tests/` ≈ vide, sauf Option A minimale)
+- [ ] AUCUN comportement applicatif modifié — **diff strictement vide hors `tests/`**
+      (Option B imposée, §D)
 - [ ] Audit Léger : relecture scope/diff
 
 ## Traçabilité
