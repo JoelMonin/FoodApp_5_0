@@ -37,7 +37,8 @@ contient `edit-emoji-name`, `emoji-search-input`, `edit-emoji-grid` — pas d'in
   dupliquée : règle SSOT) ;
 - clic sur une tuile → applique l'emoji, sauvegarde, ferme (contrat du `updateEmoji` du
   monolithe : pas d'étape intermédiaire) ;
-- la recherche IA (`searchEmojiAI`, `js/app.js:1379+`) continue de remplir la même grille, et
+- la recherche IA (`searchEmojiAI`, `js/app.js:1362` — la grille est remplie l.1379+)
+  continue de remplir la même grille, et
   ses tuiles appliquent au clic de la même façon (aujourd'hui elles écrivent dans l'input
   fantôme) ;
 - supprimer toute référence à `edit-emoji-input` (y compris `saveEmoji`, `js/app.js:866-873`,

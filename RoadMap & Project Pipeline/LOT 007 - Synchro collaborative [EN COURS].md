@@ -166,7 +166,9 @@ conception qui en découle l'est aussi.
 ### Conséquence assumée, énoncée sans détour
 
 Si l'appareil B modifie quoi que ce soit **avant d'avoir récupéré** un changement fait sur
-l'appareil A, l'envoi de B **écrase ce changement**, silencieusement.
+l'appareil A, l'envoi de B **écrase ce changement**, silencieusement. C'est l'ordre
+d'ARRIVÉE des requêtes au serveur qui tranche, pas l'heure du geste de l'utilisateur
+(précision d'audit Codex).
 
 **Fenêtre de risque = le temps écoulé depuis la dernière récupération de B.** Elle est réduite
 par la récupération automatique (§4.4) mais **n'est jamais nulle**. C'est le prix, accepté par
@@ -184,7 +186,7 @@ Joel, d'une suppression qui fonctionne et d'une mécanique simple.
 | `favorites` | ✅ | |
 | `extraIngredients` | ✅ | |
 | `customCartItems` | ✅ | Conservée telle quelle — champ fantôme, aucun code ne l'écrit, mais l'exclure serait un changement gratuit |
-| `aiConfig` **hors `apiKey`** | ✅ | Réglages IA |
+| `aiConfig` **hors `apiKey` et hors `models`** | ✅ | Réglages IA. `models` est EXCLU (correction Codex, SSOT) : valeur dérivée d'`AI_ROLES` et réécrasée à chaque chargement — la synchroniser créerait un faux conflit entre appareils de versions différentes |
 | **`shoppingChecked`** | ✅ **NOUVEAU** | Décision de Joel. Aujourd'hui hors périmètre (F5) |
 | `aiConfig.apiKey` | ❌ **jamais envoyée, jamais écrasée** | §4.6 |
 | `currentView`, `filter`, `search`, `showInStockOnly`, `showInCartOnly`, `currentSuggestionIdx` | ❌ | F6 — sinon l'écran de Joel changerait tout seul en plein magasin |
@@ -204,10 +206,17 @@ Il est **sérialisé en tableau d'identifiants** dans le document synchronisé, 
 dans `state` (ce serait une seconde représentation, contraire au SSOT — réserve Codex). Son
 stockage local séparé reste inchangé.
 
-**Règle du champ absent** (correction d'audit v2) : un document cloud sans `shoppingChecked`
-(écrit par un ancien client) est traité comme « aucune coche », jamais comme une erreur.
-Aucun champ du périmètre n'est obligatoire à la réception : chaque absence retombe sur la
-valeur par défaut de `sanitizeGlobalState`.
+**Règle du champ absent** (correction d'audit v2, précisée par l'audit de campagne) : un
+document cloud sans `shoppingChecked` (écrit par un ancien client) est traité comme
+« aucune coche », jamais comme une erreur. Aucun champ du périmètre n'est obligatoire à la
+réception — mais l'absence retombe sur la valeur PAR DÉFAUT appliquée explicitement clé par
+clé (§4.3), PAS sur `sanitizeGlobalState` : le sanitizer ne remet pas à zéro `favorites` ou
+`extraIngredients`, et `setState` fusionne — la valeur locale survivrait (constat Codex).
+
+⚠️ **Piège technique (Codex)** : `shoppingChecked` est un export ESM de `src/state.js` — il
+n'est PAS réassignable depuis `js/app.js`. La reconstruction du Set à la réception vit donc
+dans `src/state.js` (fonction dédiée, ex. `replaceShoppingChecked(tableau)`), jamais par
+affectation directe côté appelant.
 
 ### 4.2 Ce qui n'est pas touché
 
@@ -217,7 +226,13 @@ valeur par défaut de `sanitizeGlobalState`.
   le disant « inchangé ») : construction du document selon le périmètre §4.1, injection de
   `shoppingChecked` sérialisé, exclusion de `lastSync`, délai d'expiration (§4.7). C'est le
   SEUL endroit qui décide de ce qui part au cloud — SSOT du périmètre.
-- Aucun nouveau module. Tout tient dans `js/app.js` et `firebase.js`.
+- **Le point d'accroche de la planification vit dans `src/state.js::saveState`** (§4.5) —
+  correction Codex : §4.2 disait « tout tient dans app.js » alors que les actions métier de
+  `src/actions.js` appellent `saveState` DIRECTEMENT, sans passer par `app.js` ; un moteur
+  accroché ailleurs manquerait ces mutations réelles. Pour éviter tout cycle d'import,
+  `state.js` n'importe JAMAIS `firebase.js` ni le moteur : il expose une inscription
+  (`registerSyncScheduler(fn)` ou équivalent) que le moteur, hébergé dans `js/app.js`,
+  fournit au démarrage. Aucun autre nouveau module.
 
 ### 4.3 Séquence d'une synchronisation
 
@@ -226,16 +241,27 @@ ENVOI (déclenché par une modification locale, temporisé 2 s)
   0. toute modification locale lève le drapeau « EN ATTENTE » (persisté en localStorage)
   1. construire le document à envoyer (périmètre §4.1, clé API retirée, sans lastSync)
   2. GARDE-FOU : document sans `ingredients` exploitable → REFUS + voyant erreur (§4.9)
-  3. si identique au dernier document envoyé avec succès → baisser le drapeau, NE RIEN FAIRE
+  3. si identique au DERNIER DOCUMENT CLOUD CONNU → baisser le drapeau, NE RIEN FAIRE
+     (référence mise à jour à chaque envoi réussi ET à chaque pull appliqué — §4.5)
   4. PUT vers Firebase
   5. succès → mémoriser le document envoyé + baisser le drapeau + lastSync locale + voyant
-     échec  → voyant « échec », drapeau MAINTENU, une nouvelle tentative à 10 s
+     échec RÉCUPÉRABLE (réseau, délai, 5xx) → voyant « échec », drapeau MAINTENU,
+                                               une nouvelle tentative à 10 s
+     refus du GARDE-FOU client (§4.9)        → drapeau BAISSÉ, voyant erreur persistant,
+                                               aucun retry (document invalide)
+     refus SERVEUR (HTTP 4xx)                → drapeau MAINTENU, AUCUN retry automatique,
+                                               voyant erreur persistant (données valides,
+                                               on les protège — voir §4.9)
 
 RÉCUPÉRATION (démarrage, retour sur l'app, toutes les 60 s, retour réseau, clic manuel)
   0. drapeau « EN ATTENTE » levé → NE PAS APPLIQUER de pull : envoyer d'abord (§4.4)
   1. GET depuis Firebase
   2. document nul (base vide) ou malformé (§4.9) → ne rien appliquer
-  3. appliquer le document : périmètre §4.1 uniquement, clé API locale préservée
+  3. appliquer le document CLÉ PAR CLÉ sur le périmètre §4.1 : valeur du cloud si présente,
+     sinon valeur PAR DÉFAUT (tableau vide…) — JAMAIS la valeur locale. ⚠️ `setState`
+     FUSIONNE (`{...state, ...données}`) : une clé absente du cloud y survivrait
+     localement, contredisant le remplacement entier (correction Codex). Construire
+     l'objet complet clé par clé AVANT de l'appliquer. Clé API locale préservée (§4.6)
   4. marquer l'application comme « issue de la synchro »                   ← anti-boucle
   5. reconstruire shoppingChecked, redessiner la vue
 ```
@@ -267,6 +293,9 @@ en attente et exécutée après — jamais accumulée.
   non envoyées.
 - Une nouvelle modification pendant qu'un retry est programmé : le retry est **annulé** et
   remplacé par la temporisation normale de 2 s. Il n'existe jamais qu'UN timer d'envoi.
+- Retour du réseau alors qu'un retry est programmé : le retry est **annulé et absorbé** par
+  le cycle déclenché par l'événement `online` — jamais deux envois pour la même cause
+  (correction Codex).
 - L'état réseau (`#info-network`) est affiché dès le démarrage (`navigator.onLine`), pas
   seulement au premier événement `online`/`offline`.
 
@@ -284,11 +313,16 @@ mécanisme existe encore aujourd'hui sous une autre forme : `saveState(updateUI)
 
 1. **Drapeau d'origine.** Une application de données issue de la synchro est marquée comme
    telle et **ne planifie aucun envoi**.
-2. **Comparaison de contenu.** Un envoi dont le document est identique au dernier envoi réussi
-   est **abandonné avant la requête réseau**. Même si le drapeau était oublié un jour, la
-   boucle ne pourrait pas s'établir. Condition de validité (correction Codex) : `lastSync`
-   étant hors document (§4.1), un succès de synchro ne modifie plus le contenu comparé —
-   sinon ce verrou se réamorçait lui-même.
+2. **Comparaison de contenu — contre le DERNIER DOCUMENT CLOUD CONNU.** La référence est
+   mise à jour à chaque envoi réussi **ET à chaque pull appliqué** (correction d'audit de
+   campagne, Codex). Comparer au seul « dernier envoyé » laissait réémettre un contenu
+   périmé : B envoie V1, reçoit V2 d'A, puis une simple sauvegarde d'un champ NON
+   synchronisé (vue, filtre) lève le drapeau — V2 ≠ V1, donc B renverrait V2… en écrasant
+   le V3 qu'A a publié entre-temps, sans avoir modifié une seule donnée synchronisée. Avec
+   la référence « dernier cloud connu », le document de B est identique à V2 → aucun envoi.
+   Un envoi identique à la référence est **abandonné avant la requête réseau**. Conditions
+   de validité : `lastSync` hors document (§4.1), sinon chaque succès réamorçait le verrou
+   (constat Codex du duel v2).
 
 **Précision d'implémentation** (correction d'audit v2, Codex) : le `saveState(false)` actuel
 de `src/state.js` ne supprime que l'événement de RENDU (`stateUpdated`) — il ne coupe aucun
@@ -339,6 +373,21 @@ Le toast est conservé pour le **clic manuel** et pour **tous les échecs**.
    en erreur, aucun retry. Symétrique du garde `if (data && data.ingredients)` que le
    monolithe avait côté réception (l.4405). Une vidange volontaire (réinitialisation assumée,
    LOT 008) passe par un chemin explicite qui l'autorise.
+
+   **Règle anti-verrouillage à TROIS cas (affinée par le double audit de campagne :
+   Gemini 3.6 Flash a trouvé le verrouillage, Codex 5.6 a montré que la première correction
+   échangeait le verrouillage contre une perte de données)** :
+   - **Échec récupérable** (réseau, délai, 5xx) : drapeau MAINTENU, une tentative à 10 s.
+   - **Refus du garde-fou client** (document non exploitable) : drapeau **BAISSÉ**, voyant
+     erreur persistant, aucun retry. Un document invalide n'a rien de valide à protéger —
+     le laisser bloquer les pulls verrouillerait l'appareil à jamais (constat Flash).
+   - **Refus serveur HTTP 4xx** (autorisation, règles Firebase) : drapeau **MAINTENU**,
+     aucun retry automatique, voyant erreur persistant. Ici les données locales sont
+     VALIDES — baisser le drapeau permettrait au pull suivant de les écraser sans qu'elles
+     aient jamais été envoyées (constat Codex). Pas de verrouillage réel : un 4xx à l'envoi
+     implique un 4xx à la récupération (mêmes règles d'accès), la synchro est morte dans
+     les DEUX sens tant que l'accès n'est pas réparé ; toute nouvelle modification locale
+     ou clic manuel retente l'envoi.
 2. **Jamais d'application d'un document malformé.** À la réception : `ingredients` absent ou
    non-tableau → document ignoré, voyant en erreur discrète. (La validation de schéma
    complète reste au LOT 014.)
@@ -384,6 +433,14 @@ envoi réécrit simplement le document cloud selon le périmètre §4.1.
 - [ ] Un document reçu malformé (`ingredients` non-tableau) est **ignoré sans exception**
 - [ ] Un document reçu **sans** `shoppingChecked` → « aucune coche », sans erreur
 - [ ] Une modification pendant un retry programmé → le retry est annulé, un seul timer d'envoi
+- [ ] Un refus du garde-fou client (§4.9) **baisse** le drapeau — l'appareil n'est jamais
+      verrouillé
+- [ ] Un refus serveur (HTTP 4xx) **maintient** le drapeau sans retry automatique — des
+      modifications jamais envoyées ne peuvent pas être écrasées par un pull ultérieur
+- [ ] Après un pull appliqué, une sauvegarde d'un champ NON synchronisé (vue, filtre) ne
+      déclenche **aucun** envoi (référence = dernier cloud connu, §4.5)
+- [ ] Un document cloud sans `favorites` → favoris locaux REMPLACÉS par vide, pas conservés
+      (application clé par clé, §4.3)
 
 ### 6.2 Tests manuels à deux appareils (validation par Joel)
 
@@ -461,6 +518,10 @@ démarrage (F6). **Aucune destruction mutuelle possible entre les deux versions.
 - Audit de la v1 : Gemini 3.1 Pro, 2026-07-28 — NO-GO, 2 défauts sur 4 retenus
 - Audit de la v2 : **duel Gemini 3.1 Pro × Codex 5.6**, 2026-07-29 — double NO-GO, tous les
   constats fondés intégrés dans cette v3 (§0 ter)
+- Audit de campagne (2026-07-29, sur la v3) : Gemini 3.6 Flash + Codex 5.6 — intégrés :
+  anti-verrouillage à trois cas (§4.9), référence « dernier cloud connu » (§4.5), accroche
+  dans `saveState` sans cycle (§4.2), application clé par clé (§4.3), `models` exclu du
+  périmètre (§4.1), annulation du retry au retour réseau (§4.4)
 - Dépend de : **LOT 008 (préalable bloquant)**, `applyExternalState` (créé au LOT 008,
   extension de l'`applyCloudState` du LOT 006), `debounce` (LOT 005)
 - Absorbe : `#info-last-sync`, `#info-network`, écouteurs `online`/`offline`

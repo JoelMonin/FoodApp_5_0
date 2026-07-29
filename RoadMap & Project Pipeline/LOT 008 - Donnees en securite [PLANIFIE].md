@@ -62,10 +62,20 @@ laquelle passent TOUS les chemins de données externes : synchro au démarrage, 
 Sync, restauration totale de fichier. Comportement :
 - préservation de la clé API locale **inconditionnelle** (oracle : monolithe l.4409-4413 et
   l.6507 — meilleure que l'actuelle, qui ne préserve que si le cloud est vide) ;
-- passe par `setState` (qui assainit déjà via `sanitizeGlobalState`) ;
-- maintient l'alias `state = moduleState` de `js/app.js` (piège connu, fiche
-  `LOT 014` / ex-backlog alias state).
-- `applyCloudState` est renommée/étendue — mettre à jour ses 2 appelants existants.
+- passe par `setState` (qui assainit déjà via `sanitizeGlobalState`).
+
+**Propriétaire et architecture (correction d'audit de campagne, Codex — indispensable pour
+un exécutant sans contexte)** :
+- `applyExternalState(data)` vit dans **`src/state.js`**, à côté de `setState` dont elle est
+  la porte d'entrée sécurisée. Raison : ses trois appelants sont `js/app.js` (synchro du
+  démarrage), `js/app.js` (bouton Cloud Sync) et `src/actions.js` (restauration de fichier) ;
+  or `app.js` importe déjà `actions.js` — héberger la fonction dans `app.js` forcerait
+  `actions.js` à l'importer en retour (**cycle interdit**). `state.js` est importable par
+  les trois sans cycle.
+- Les appelants d'`app.js` continuent de rafraîchir l'alias (`state = moduleState`) après
+  l'appel, comme aujourd'hui (piège connu → LOT 014).
+- L'actuelle `applyCloudState` (`js/app.js:47-59`) est SUPPRIMÉE au profit de cette version
+  (3 recherches convergentes sur son nom avant suppression, `CLAUDE.md` §5).
 
 ### 4. Inventaire par défaut reconstruit (casse C4a)
 
@@ -81,20 +91,33 @@ mapping exact du monolithe (lire `buildIngredients` avant d'écrire).
 **Piège :** ce repli ne doit PAS se déclencher sur un état où `ingredients` existe mais est
 volontairement réduit. Le déclencheur est « tableau vide ou absent », rien d'autre.
 
+**Effet assumé (hérité de l'oracle, relevé par l'audit Codex)** : supprimer le DERNIER
+ingrédient de l'inventaire déclenche cette reconstruction — l'inventaire « repart » aux
+~273 défauts. C'était le comportement du monolithe (l.4310-4312). Il neutralise au passage
+le scénario « inventaire légitimement vidé par suppressions » face au garde-fou d'envoi du
+LOT 007 §4.9 (un inventaire vide ne peut pas persister). À constater en test manuel, pas à
+« corriger ».
+
 ### 5. Réinitialisation sûre (casse C4b)
 
 **Aujourd'hui :** `resetAllData` (`src/actions.js:64-69`) = `localStorage.clear()` + reload →
 app vide ET clé API perdue.
 
-**Attendu :**
-- préserver la clé API (la réinjecter après le nettoyage, avant le reload — le monolithe la
-  préservait) ;
-- au redémarrage, le repli du chantier 4 reconstruit l'inventaire par défaut ;
-- vider aussi `shoppingChecked` et `customCartItems` ;
-- réécrire le texte de confirmation honnêtement : « Repart de l'inventaire par défaut
-  (~270 ingrédients, tout décoché). Votre clé API est conservée. » — et, quand le LOT 007
-  sera actif, ce reset se propagera aux autres appareils : le LOT 007 ajoutera cette phrase
-  au texte (décision actée en spec 007 §4.9).
+**Attendu (précisé après l'audit de campagne Codex — le reset naïf était immédiatement
+ANNULÉ : après le rechargement, le pull cloud du démarrage réappliquait l'ancien inventaire,
+`js/app.js:112`)** :
+1. préserver la clé API (la réinjecter après le nettoyage — le monolithe la préservait) ;
+2. reconstruire l'inventaire par défaut IMMÉDIATEMENT (mécanisme du chantier 4) et le
+   **persister en localStorage** — ne pas compter sur le rechargement ;
+3. vider `shoppingChecked` et `customCartItems` ;
+4. **pousser AUSSITÔT ce nouvel état vers le cloud** (`syncPush` existe déjà,
+   `src/services/firebase.js`) : c'est ce qui empêche le pull du prochain démarrage de
+   ressusciter l'ancien inventaire. Si l'envoi échoue (hors ligne…) : toast explicite
+   « Réinitialisation locale seulement — l'ancien contenu du cloud peut revenir à la
+   prochaine synchronisation » ;
+5. texte de confirmation honnête : « Repart de l'inventaire par défaut (~270 ingrédients,
+   tout décoché), ici ET dans le cloud. Votre clé API est conservée. » ;
+6. recharger la page en dernier.
 
 ### 6. Slider de créativité restauré (réserve d'audit Codex F7)
 
@@ -144,6 +167,10 @@ persistent. `resetCart` vide aussi `customCartItems` (comportement du monolithe)
 - [ ] « Restaurer une sauvegarde » d'un fichier exporté par le monolithe (clé vide) → clé
       locale toujours là
 - [ ] « Réinitialisation totale » → inventaire par défaut complet, clé API encore configurée
+- [ ] **Réinitialisation avec un cloud NON vide** (le test qui a fait tomber la première
+      version de cette fiche, audit Codex) : reset → rechargement de la page → l'inventaire
+      par défaut est TOUJOURS là, car le cloud contient désormais les défauts, pas l'ancien
+      inventaire
 - [ ] Recharger la page → le slider de créativité affiche la valeur choisie, pas 50
 
 ## Critères d'acceptation

@@ -10,8 +10,8 @@
 > | §2 (info-last-sync, info-network, online/offline, voyant) | **LOT 007** |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
 > | C5, C9, C10, C11, C12 | **LOT 010** |
-> | §4 (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |
-> | §3 restant (picker 🎲, clavier, topbar, styles neufs…) | **LOT 012** |
+> | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |
+> | §3 restant (picker 🎲, clavier, styles neufs…) + **topbar contextuelle (§4)** | **LOT 012** |
 > | §5 (faux morts) : NE PAS restaurer — garde-fou permanent | tous |
 > | Duplication `.generate-btn` (§ fin) | **LOT 014** |
 >
@@ -94,9 +94,10 @@ rebranché de travers.
   boutons ⭐/🛍 directs, pastilles d'état dans le détail, étapes cochables, Nutri-Score visuel,
   affichage des favoris texte bruts (`r.content` plus géré → favori collé « tel quel » vide).
   Monolithe l.5283-5337.
-- **Barre supérieure contextuelle** : le bouton d'action par vue (＋ / Copier / Vider / ⚙️ /
-  Coller) est systématiquement vidé (`js/app.js:214`) ; icônes mobiles figées ; sous-titre
-  mobile figé sur la version. Monolithe l.4520-4579.
+- **Barre supérieure contextuelle** (→ **LOT 012**, seule entrée du §4 hors LOT 011) : le
+  bouton d'action par vue (＋ / Copier / Vider / ⚙️ / Coller) est systématiquement vidé
+  (`js/app.js:214`) ; icônes mobiles figées ; sous-titre mobile figé sur la version.
+  Monolithe l.4520-4579.
 - **Prompts IA appauvris** : `safetySettings BLOCK_NONE`, `topK/topP`, « RÈGLE D'OR »
   (imposés prioritaires sur le régime), consigne guillemets — perdus (risque : recettes
   bloquées par filtre de sécurité, JSON cassé plus fréquent). Le collage de recette a perdu
@@ -115,13 +116,16 @@ rebranché de travers.
 - `.toast.show`, `.search-input`, `.btn-text`, etc. : classes déjà émises sans règle CSS
   dans le monolithe — hooks sémantiques, aucun changement visuel.
 
-## 6. Arbitrages Joel nécessaires (pare-feu A/B — tout ceci touche le comportement observable)
+## 6. Arbitrages Joel — TOUS TRANCHÉS le 2026-07-29
 
-1. Le **retour auto à l'inventaire** après ajout : le restaurer, ou l'écran actuel (rester
-   sur le formulaire pour enchaîner les ajouts) est-il préférable ?
-2. La **barre supérieure contextuelle** (§4) : restaurer, ou la simplification est-elle voulue ?
-3. Priorité entre : casses franches (§1) → lot dédié rapide ; confort (§3) → lot groupé ;
-   fond (§4) → lots séparés.
+Arbitrage global de Joel : **le comportement du monolithe fait référence** (« tout
+rebrancher »). En conséquence :
+
+1. **Retour auto à l'inventaire** après ajout : RESTAURÉ (oracle, → LOT 012).
+2. **Barre supérieure contextuelle** : RESTAURÉE (oracle, → LOT 012).
+3. **Priorités** : ordre de campagne acté dans `ROADMAP.md` (008 → 007 → 009 → … → 014).
+4. (Hors fiche, même jour) **Menu « Moteur Tâches Complexes »** : supprimé, remplacé par une
+   information en lecture seule dérivée d'`AI_ROLES` (→ LOT 010 §6).
 
 ## Duplication SSOT relevée en passant
 

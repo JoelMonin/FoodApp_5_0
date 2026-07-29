@@ -32,7 +32,11 @@ le choix est ignoré. Le monolithe mappait `'cuisine'→'cuisines'` (l.4955-4958
 - vérifier TOUS les lecteurs/écrivains : `toggleAiChip`, `restoreAIConfig` (qui relit le même
   champ pour rallumer les puces), `saveAiConfigFromUI`, `gemini.js` ;
 - migration douce dans `sanitizeGlobalState` : si un vieux `aiConfig.cuisine` existe
-  (localStorage ou cloud), le verser dans `cuisines` puis le supprimer ;
+  (localStorage ou cloud), le verser dans `cuisines` puis le supprimer.
+  ⚠️ `sanitizeGlobalState` aura déjà été modifiée par le LOT 008 (reconstruction de
+  l'inventaire par défaut) : ÉTENDRE l'existant, ne rien réécrire, et vérifier que la
+  migration passe bien par le point d'entrée unique `applyExternalState` (LOT 008) pour les
+  données venant du cloud ou d'un fichier ;
 - test qui fige la règle : une config avec `cuisines:['italienne']` → le prompt généré
   contient « italienne » (étendre `tests/gemini.test.js`).
 
@@ -42,10 +46,17 @@ le choix est ignoré. Le monolithe mappait `'cuisine'→'cuisines'` (l.4955-4958
 que l'UI promet toujours « Max 6 ingrédients imposés au total » (`index.html:404`) et que
 `addExtraIngredient` garde SA limite de 6.
 
-**Attendu (oracle : monolithe l.4733-4742 — LIRE ces lignes avant d'écrire, la règle exacte
-— épinglés seuls ou épinglés+extras — est celle du monolithe) :** blocage au plafond + toast
-d'explication, identiques à l'origine. Cohérence avec la limite d'`addExtraIngredient` et le
-libellé de l'UI : une seule règle, écrite à un seul endroit si possible (SSOT).
+**Attendu — règle TRANCHÉE (l'audit de campagne Codex a montré qu'un exécutant ne pouvait
+pas choisir objectivement entre « 6 épinglés », « 6+6 » et « 6 au total ») :** l'oracle
+prime, conformément à l'arbitrage global de Joel. Le monolithe plafonnait à **6 épinglés**
+(l.4733-4742) ET, séparément, à **6 extras** (`addExtraIngredient` — plafond encore en
+place aujourd'hui, `js/app.js:1219`). Donc :
+- restaurer le plafond de **6 épinglés** dans `togglePin` + toast d'explication, identiques
+  à l'origine (lire l.4733-4742 pour le libellé exact) ;
+- conserver le plafond de 6 extras existant, inchangé ;
+- **corriger le libellé menteur de l'UI** (`index.html:404`, « Max 6 ingrédients imposés au
+  total ») → « Max 6 épinglés + 6 hors stock » (ou équivalent exact) ;
+- une constante par plafond (SSOT), partagée entre le code et le libellé si possible.
 
 ### 3. Zone « Ingrédients imposés » complète + sous-titre vivant (casse C10)
 
@@ -119,4 +130,6 @@ seule** : quel(s) modèle(s) l'app utilise et pour quoi faire. Concrètement :
 ## Traçabilité
 
 - Origine : fiche régressions §1 — balayage 2026-07-29
-- Dépend de : LOT 009 (ordre de campagne ; pas de dépendance technique forte)
+- Dépend de : **LOT 008** (dépendance technique : `sanitizeGlobalState` et
+  `applyExternalState` — correction d'audit de campagne, Gemini 3.1 Pro) ;
+  LOT 009 (ordre de campagne)

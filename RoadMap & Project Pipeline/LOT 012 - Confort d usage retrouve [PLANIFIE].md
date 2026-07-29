@@ -75,6 +75,9 @@ l.5826+.** Le LOT 006 a restauré le style et le pré-cochage ; il manque l'édi
 - Le retour auto à l'inventaire ne doit PAS casser l'enchaînement d'ajouts : le formulaire se
   réinitialise déjà (LOT 006) — reproduire le comportement du monolithe tel quel (500 ms).
 - `updateTopbar` touche `switchView` : vérifier chaque vue après (5 vues × bureau/mobile).
+- La barre supérieure et le header mobile portent les **voyants de synchro et d'état réseau
+  posés par le LOT 007** : ÉTENDRE la fonction existante sans les écraser (rappel d'audit de
+  campagne, Gemini 3.6 Flash).
 
 ## Plan de test
 

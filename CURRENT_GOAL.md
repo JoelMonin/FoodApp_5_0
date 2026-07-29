@@ -40,6 +40,9 @@ d'import/réinitialisation en perte de données multi-appareils.
 
 ## Prochaine étape
 
-Audit externe des fiches de campagne, en duel Gemini × Codex (prompt fourni à Joel le
-2026-07-29), puis GO de Joel → ouverture du LOT 008.
+Triple audit de campagne REÇU et INTÉGRÉ le 2026-07-29 (Gemini 3.6 Flash : GO avec réserves ·
+Gemini 3.1 Pro : NO-GO réfuté sur son point central · Codex 5.6 : NO-GO, le plus profond —
+toutes les corrections fondées sont dans les fiches). Les specs sont prêtes pour un
+**exécutant sans contexte (Sonnet)** : GO de Joel → ouverture du LOT 008 sur
+`feat/lot8-donnees-en-securite`.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
