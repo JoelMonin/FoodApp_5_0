@@ -86,7 +86,19 @@ un journal de versions, pas comme un log technique.
 du lot actif.
 
 **Fichiers de suivi (toujours a jour) :** `CURRENT_GOAL.md` (objectif actif) · `SHIP_LOG.md`
-(livraisons : SHA/metriques/date) · `ROADMAP.md` (`[CLOTURE]` a chaque lot fini).
+(livraisons : SHA/metriques/date) · `ROADMAP.md` (index des lots).
+
+**Roadmap — UN FICHIER PAR LOT (regle Joel 2026-07-28) :**
+- Nommage : `LOT NNN - Nom court [STATUT].md` — numero sur **3 chiffres**, attribue a
+  l'ouverture et **jamais modifie**.
+- Statuts : `[EN COURS]` · `[A PUBLIER]` (fini, attend le feu vert) · `[CLOTURE]` (dans `main`)
+  · `[ABANDONNE]` (fiche conservee avec le motif).
+- Le suffixe de statut se met a jour **dans le meme commit** que le changement d'etat.
+- Pas encore un lot -> `RoadMap & Project Pipeline/Backlog/BACKLOG - Nom court.md`, **sans
+  numero** tant qu'il n'est pas promu.
+- `ROADMAP.md` = index seul (une ligne par lot). Le detail vit dans la fiche du lot.
+- **Rien ne se supprime** : un chantier absorbe ou abandonne garde sa trace. Avant de retirer
+  une fiche, verifier qu'aucun de ses points ne reste non traite (sinon le sauver en backlog).
 
 **Ouverture de chantier :** signal langage naturel ("on se lance/attaque/commence sur X"...) ->
 proposer `/new-lot [N] [nom]` AVANT toute branche/code.
