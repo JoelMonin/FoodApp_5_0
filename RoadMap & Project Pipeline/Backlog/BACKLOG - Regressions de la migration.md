@@ -6,7 +6,7 @@
 >
 > | Points | Lot |
 > |---|---|
-> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** |
+> | C2, C3, C4 + créativité + hygiène `shoppingChecked` | **LOT 008** 🟡 codé, audit Dur en attente |
 > | §2 (info-last-sync, info-network, online/offline, voyant) | **LOT 007** |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** |
 > | C5, C9, C10, C11, C12 | **LOT 010** |
@@ -39,9 +39,9 @@ rebranché de travers.
 | # | Quoi | Impact utilisateur | Ancrage technique |
 |---|---|---|---|
 | C1 | **Changer l'icône d'un ingrédient : mort** | Le clic plante silencieusement avant d'ouvrir la fenêtre (champ `edit-emoji-input` visé nulle part défini — câblage réinventé de travers, cet id n'a JAMAIS existé) | `js/app.js:862` (sans garde), modal `index.html:172-192` |
-| C2 | **« Importer uniquement le stock » ment** | Les DEUX boutons d'import font un remplacement TOTAL ; la fusion douce (statuts seulement, favoris/config intacts) n'existe plus nulle part. Perte de données en croyant faire une maj légère | `index.html:587-588` (2× `restoreJSON`), monolithe l.6517-6562 (fusion `areSimilar`) |
-| C3 | **Clé API en clair dans les sauvegardes** + import qui l'efface | Le fichier exporté contient la clé Gemini (le monolithe la blanchissait) ; importer une vieille sauvegarde écrase la clé locale. Vraie origine probable du bug « ma clé disparaît » | `src/actions.js:76-84` vs monolithe l.6489-6490 et l.6507 |
-| C4 | **Inventaire vide au premier lancement / après réinitialisation** | Le monolithe reconstruisait ~273 ingrédients par défaut ET préservait la clé ; l'actuel fait `localStorage.clear()` + reload → app vide, clé perdue | `src/actions.js:64-69`, `src/state.js:88-115` (aucun repli), monolithe l.4310-4312 |
+| C2 | ✅ **LOT 008** — **« Importer uniquement le stock » ment** | Les DEUX boutons d'import font un remplacement TOTAL ; la fusion douce (statuts seulement, favoris/config intacts) n'existe plus nulle part. Perte de données en croyant faire une maj légère | `index.html:587-588` (2× `restoreJSON`), monolithe l.6517-6562 (fusion `areSimilar`) — `importStockOnly` créée, `#restore-file` recâblé |
+| C3 | ✅ **LOT 008** — **Clé API en clair dans les sauvegardes** + import qui l'efface | Le fichier exporté contient la clé Gemini (le monolithe la blanchissait) ; importer une vieille sauvegarde écrase la clé locale. Vraie origine probable du bug « ma clé disparaît » | `src/actions.js:76-84` vs monolithe l.6489-6490 et l.6507 — `exportJSON` blanchit, `applyExternalState` (point d'entrée unique) préserve la clé |
+| C4 | ✅ **LOT 008** — **Inventaire vide au premier lancement / après réinitialisation** | Le monolithe reconstruisait ~273 ingrédients par défaut ET préservait la clé ; l'actuel fait `localStorage.clear()` + reload → app vide, clé perdue | `src/actions.js:64-69`, `src/state.js:88-115` (aucun repli), monolithe l.4310-4312 — repli sur `DEFAULT_DB` (297 entrées, reconstruites le 2026-07-29 depuis l'export réel de Joel) ; `resetAllData` pousse au cloud avant reload |
 | C5 | **Filtre « Type de cuisine » silencieusement ignoré** | Les puces s'activent visuellement mais l'IA ne reçoit jamais le choix : écrit dans `aiConfig.cuisine`, lu depuis `aiConfig.cuisines` | `index.html:432-442` + `js/app.js:430-436` (écrit) vs `src/services/gemini.js:73` (lit) ; monolithe l.4958 mappait `cuisine→cuisines` |
 | C6 | **Plein écran recette mort trois fois** | Bouton appelé sans argument (no-op) ; classe togglée `fullscreen` inconnue du CSS (qui attend `recipe-fullscreen`) ; API plein écran native (`requestFullscreen` + listeners) disparue | `index.html:116`, `js/app.js:528-531`, `css/style.css:3154-3177`, monolithe l.5432-5464 |
 | C7 | **Bouton Imprimer détruit + swipe mort (modal recette)** | `openRecipeDetail` remplace tout le squelette statique du modal ; le bouton 🖨️ n'est jamais recréé (0 occurrence dans `src/ui/recipe.js`) et les listeners de fermeture par glissement partent avec | `js/app.js:463-464` (`replaceChildren` sur l'overlay), `index.html:115`, `js/app.js:1403-1407` |
@@ -71,8 +71,9 @@ rebranché de travers.
 - **Textes d'étape animés pendant la génération IA** (« Analyse du stock… », l.5052-5058).
 - **Scroll auto vers les résultats IA sur mobile** après génération (l.5068-5072).
 - **Retour auto à l'inventaire** 500 ms après un ajout (l.6458) — à arbitrer (choix produit ?).
-- **Slider de créativité non restauré** au rechargement (revient à 50, puis écrase la vraie
-  valeur à la première sauvegarde) — monolithe l.5033.
+- ✅ **LOT 008** — **Slider de créativité non restauré** au rechargement (revient à 50, puis
+  écrase la vraie valeur à la première sauvegarde) — monolithe l.5033. `restoreAIConfig`
+  repositionne désormais le slider.
 - **Mode 🎲 « recette aléatoire » dégradé** : ne réinitialise plus les filtres ni ne booste
   la créativité (l.5083-5103) — simple alias de la génération normale.
 - **Champs de « Coller une recette » non vidés** à l'ouverture (le lot 6 ne purge que la

@@ -9,14 +9,17 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 008 — Données en sécurité** (`[PLANIFIE]`, prochain à coder, branche
-`feat/lot8-donnees-en-securite` à créer). Préalable bloquant du LOT 007 : verdict unanime du
-duel d'audit (Gemini 3.1 Pro + Codex 5.6) — la synchro auto amplifierait les casses
-d'import/réinitialisation en perte de données multi-appareils.
+**LOT 008 — Données en sécurité** (`[EN COURS]`, branche `feat/lot8-donnees-en-securite`).
+Préalable bloquant du LOT 007 : verdict unanime du duel d'audit (Gemini 3.1 Pro + Codex 5.6) —
+la synchro auto amplifierait les casses d'import/réinitialisation en perte de données
+multi-appareils.
 
 ## État des lots
 
-- **008** Données en sécurité — PLANIFIÉ, **à coder en premier**
+- **008** Données en sécurité — 7 chantiers codés, validation unifiée verte (46 tests JS +
+  13 verrous pytest), build OK. **Reste : audit Dur + vérifications manuelles navigateur
+  (Joel) avant clôture.** `DEFAULT_DB` reconstruite le 2026-07-29 depuis l'export réel de
+  Joel (297 ingrédients — l'ancienne base n'en avait que 66).
 - **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter), code
   bloqué par 008
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
@@ -40,9 +43,8 @@ d'import/réinitialisation en perte de données multi-appareils.
 
 ## Prochaine étape
 
-Triple audit de campagne REÇU et INTÉGRÉ le 2026-07-29 (Gemini 3.6 Flash : GO avec réserves ·
-Gemini 3.1 Pro : NO-GO réfuté sur son point central · Codex 5.6 : NO-GO, le plus profond —
-toutes les corrections fondées sont dans les fiches). Les specs sont prêtes pour un
-**exécutant sans contexte (Sonnet)** : GO de Joel → ouverture du LOT 008 sur
-`feat/lot8-donnees-en-securite`.
+LOT 008 implémenté le 2026-07-29 sur `feat/lot8-donnees-en-securite` (7 chantiers, 13 tests
+dédiés + 46/46 au total, `.\validate.bat` vert, build OK). Reste avant clôture : audit Dur
+(Codex/Gemini) sur le diff final, puis vérifications manuelles en navigateur par Joel (liste
+dans la fiche du lot). Une fois ces deux étapes faites → LOT 008 clôturé, LOT 007 débloqué.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.

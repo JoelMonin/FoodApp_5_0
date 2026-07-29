@@ -1,4 +1,5 @@
 import { AI_ROLES, LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from './constants.js';
+import { DEFAULT_DB } from './data.js';
 
 /**
  * Affectation des modèles IA par rôle métier — représentation canonique unique.
@@ -15,17 +16,26 @@ function defaultAiModels() {
   };
 }
 
-export let state = {
-  ingredients: [],
-  customCartItems: [],
-  favorites: [],
-  aiConfig: {
+/**
+ * Configuration IA par défaut — représentation canonique unique. Utilisée à la fois
+ * pour l'état initial et pour la réinitialisation complète (LOT 008, chantier 5),
+ * afin de ne jamais dupliquer la forme de cet objet (SSOT).
+ */
+export function defaultAiConfig() {
+  return {
     apiKey: '',
     models: defaultAiModels(),
     diet: [], exceptions: '', cuisines: [], equip: [],
     meal: 'indifferent', time: 'libre', diff: 'indifferent', ppl: '2',
     creativity: 50, exclusions: ''
-  },
+  };
+}
+
+export let state = {
+  ingredients: [],
+  customCartItems: [],
+  favorites: [],
+  aiConfig: defaultAiConfig(),
   extraIngredients: [],
   currentView: 'pantry',
   filter: 'all',
@@ -97,6 +107,21 @@ export function sanitizeGlobalState() {
   if (!state.customCartItems) state.customCartItems = [];
 
   state.ingredients = (state.ingredients || []).filter(i => i && typeof i === 'object');
+
+  // Repli sur la base par défaut (~273 ingrédients) si l'inventaire est vide ou
+  // absent — comportement hérité du monolithe (`buildIngredients`, LOT 008 chantier 4).
+  // Se déclenche aussi bien au premier lancement qu'après suppression du dernier
+  // ingrédient : c'est assumé, pas un bug (cf. fiche du lot).
+  if (state.ingredients.length === 0) {
+    state.ingredients = DEFAULT_DB.map(d => ({
+      ...d,
+      inStock: false,
+      inCart: false,
+      pinned: false,
+      shoppingSource: null
+    }));
+  }
+
   state.ingredients.forEach(i => {
     if (i.n && !i.name) i.name = i.n;
     if (!i.category) i.category = 'Autres';
@@ -128,4 +153,28 @@ export function setState(partialState) {
   state = { ...state, ...partialState };
   sanitizeGlobalState();
   saveState();
+}
+
+/**
+ * Point d'entrée UNIQUE pour toute donnée EXTERNE : synchro cloud au démarrage,
+ * bouton Cloud Sync, restauration totale de fichier (LOT 008, casse C3b + F8).
+ *
+ * La clé API locale est préservée de façon INCONDITIONNELLE — même si la donnée
+ * externe contient une clé différente ou vide, la clé du poste l'emporte toujours.
+ * C'est plus strict que l'ancien `applyCloudState` (`js/app.js`), qui ne préservait
+ * la clé locale que si le cloud n'en avait aucune : un fichier restauré ou un cloud
+ * contenant une AUTRE clé écrasait silencieusement la bonne.
+ *
+ * @param {Object|null} data
+ * @returns {boolean} vrai si des données ont été appliquées.
+ */
+export function applyExternalState(data) {
+  if (!data) return false;
+
+  const localApiKey = state.aiConfig?.apiKey || '';
+  setState({
+    ...data,
+    aiConfig: { ...(data.aiConfig || {}), apiKey: localApiKey }
+  });
+  return true;
 }

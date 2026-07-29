@@ -1,6 +1,6 @@
 # LOT 008 — Données en sécurité — SPÉCIFICATION
 
-> **Statut :** ⚪ PLANIFIÉ — prochain lot à coder (décision Joel 2026-07-29)
+> **Statut :** 🟡 EN COURS — ouvert le 2026-07-29 sur `feat/lot8-donnees-en-securite`
 > **Branche à créer :** `feat/lot8-donnees-en-securite`
 > **Niveau d'audit : DUR** — touche `src/state.js` et les chemins d'import/export (zone
 > sensible « moteur d'état », `DOCTRINE_PRODUIT.md` §3)
@@ -84,19 +84,31 @@ un exécutant sans contexte)** :
 
 **Attendu (oracle : monolithe l.4309-4312 + `buildIngredients` l.4332) :** dans
 `sanitizeGlobalState`, si `ingredients` est vide ou absent → reconstruire l'inventaire depuis
-`DEFAULT_DB` (`src/data.js:42`, ~273 entrées) : `{ id, name, emoji, category, inStock:false,
-inCart:false, pinned:false, frozen:false, shoppingSource:null }` par entrée. Reproduire le
-mapping exact du monolithe (lire `buildIngredients` avant d'écrire).
+`DEFAULT_DB` (`src/data.js:42`) : `{ id, name, emoji, category, inStock:false, inCart:false,
+pinned:false, frozen:false, shoppingSource:null }` par entrée. Reproduire le mapping exact du
+monolithe (lire `buildIngredients` avant d'écrire).
+
+**⚠️→✅ Constat fait puis RÉSOLU pendant l'implémentation (2026-07-29) :** `DEFAULT_DB` ne
+contenait QUE 66 entrées, pas ~273. Le fichier `foodapp-data.js` chargé par le monolithe
+(l.4225, `<script src="foodapp-data.js">`) — la vraie source des ~273 ingrédients — **n'a
+jamais existé dans ce dépôt** (recherché sur tout l'historique git, aucune trace) : ce n'était
+pas une régression de la migration, la donnée manquait déjà avant la modularisation.
+**Résolu par Joel** : export réel de son inventaire du 2026-07-29 (« saumon fumé » en stock
+= sa dernière modification, vérifié) fourni comme base de travail. `DEFAULT_DB` reconstruit
+à partir de ces **297 ingrédients** (3 mois d'usage réel, statuts personnels retirés — seuls
+`id/name/emoji/category/frozen` conservés, le catalogue n'a pas de notion de stock), groupés
+par les 17 catégories canoniques. Aucun nombre n'est codé en dur nulle part (code, tests,
+messages utilisateur) : tout dérive de `DEFAULT_DB.length`.
 
 **Piège :** ce repli ne doit PAS se déclencher sur un état où `ingredients` existe mais est
 volontairement réduit. Le déclencheur est « tableau vide ou absent », rien d'autre.
 
 **Effet assumé (hérité de l'oracle, relevé par l'audit Codex)** : supprimer le DERNIER
 ingrédient de l'inventaire déclenche cette reconstruction — l'inventaire « repart » aux
-~273 défauts. C'était le comportement du monolithe (l.4310-4312). Il neutralise au passage
-le scénario « inventaire légitimement vidé par suppressions » face au garde-fou d'envoi du
-LOT 007 §4.9 (un inventaire vide ne peut pas persister). À constater en test manuel, pas à
-« corriger ».
+valeurs par défaut (66 aujourd'hui). C'était le comportement du monolithe (l.4310-4312). Il
+neutralise au passage le scénario « inventaire légitimement vidé par suppressions » face au
+garde-fou d'envoi du LOT 007 §4.9 (un inventaire vide ne peut pas persister). À constater en
+test manuel, pas à « corriger ».
 
 ### 5. Réinitialisation sûre (casse C4b)
 
@@ -149,16 +161,20 @@ persistent. `resetCart` vide aussi `customCartItems` (comportement du monolithe)
 
 ### Tests unitaires (nouveaux : `tests/actions-data.test.js` ou extension des existants)
 
-- [ ] `importStockOnly` : fichier avec 1 id connu + 1 nom similaire + 1 inconnu → statuts mis
+- [x] `importStockOnly` : fichier avec 1 id connu + 1 nom similaire + 1 inconnu → statuts mis
       à jour, inconnu ajouté, favoris et `aiConfig` STRICTEMENT identiques avant/après
-- [ ] `importStockOnly` ne modifie jamais `aiConfig.apiKey`
-- [ ] `exportJSON` : le contenu généré contient `"apiKey":""` et jamais la vraie clé
-- [ ] `applyExternalState` : donnée externe SANS clé + clé locale présente → clé locale intacte
-- [ ] `applyExternalState` : donnée externe AVEC clé ≠ clé locale → clé locale intacte (F8)
-- [ ] `sanitizeGlobalState` : `ingredients: []` → reconstruit ~273 entrées depuis `DEFAULT_DB`
-- [ ] `sanitizeGlobalState` : `ingredients` non vide → AUCUNE reconstruction
-- [ ] `resetCart` : Set `shoppingChecked` vidé + `customCartItems` vidé
-- [ ] `toggleCart` (sortie) et `deleteIngredient` : id retiré du Set
+- [x] `importStockOnly` ne modifie jamais `aiConfig.apiKey`
+- [x] `exportJSON` : le contenu généré contient `"apiKey":""` et jamais la vraie clé
+- [x] `applyExternalState` : donnée externe SANS clé + clé locale présente → clé locale intacte
+- [x] `applyExternalState` : donnée externe AVEC clé ≠ clé locale → clé locale intacte (F8)
+- [x] `sanitizeGlobalState` : `ingredients: []` → reconstruit l'inventaire depuis `DEFAULT_DB`
+      (297 entrées — catalogue reconstruit le 2026-07-29, voir constat §4 ci-dessus)
+- [x] `sanitizeGlobalState` : `ingredients` non vide → AUCUNE reconstruction
+- [x] `resetCart` : Set `shoppingChecked` vidé + `customCartItems` vidé
+- [x] `toggleCart` (sortie) et `deleteIngredient` : id retiré du Set
+- [x] *(hors liste d'origine, ajoutés)* `resetAllData` pousse au cloud AVANT le rechargement
+      (preuve d'ordre) ; `resetAllData` conserve la clé API ; annulation de la confirmation
+      → aucune action
 
 ### Vérifications manuelles (Joel, en navigateur — seule preuve valable pour le visuel)
 
@@ -175,10 +191,13 @@ persistent. `resetCart` vide aussi `customCartItems` (comportement du monolithe)
 
 ## Critères d'acceptation
 
-- [ ] Les 9 tests unitaires ci-dessus passent ; validation unifiée verte (`.\validate.bat`)
-- [ ] `npm run build` OK
-- [ ] Preuve écrite AVANT vérification pour chaque casse (règle `CLAUDE.md` §5)
-- [ ] Audit Dur rendu (diff final), réserves traitées
+- [x] Les 9 tests unitaires ci-dessus passent ; validation unifiée verte (`.\validate.bat`)
+      — 46/46 tests JS + 13/13 verrous pytest, `.\validate.bat` = SUCCESS (2026-07-29)
+- [x] `npm run build` OK (512 ms, aucune erreur)
+- [x] Preuve écrite AVANT vérification pour chaque casse (règle `CLAUDE.md` §5) — chaque
+      chantier ci-dessus documente l'attendu avant le code ; testé après coup, résultat conforme
+- [ ] Audit Dur rendu (diff final), réserves traitées — **EN ATTENTE**, prochaine étape
+- [ ] Vérifications manuelles en navigateur (Joel) — voir liste ci-dessus, non encore faites
 - [ ] Cocher C2, C3, C4 + les 2 réserves Codex dans
       `Backlog/BACKLOG - Regressions de la migration.md`
 

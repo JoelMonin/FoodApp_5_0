@@ -34,6 +34,7 @@
 ## 3. SUITE DE TESTS (`tests/`)
 
 - `tests/state.test.js` : Tests unitaires du moteur d'état.
+- `tests/actions-data.test.js` : Tests des actions données (LOT 008 — import/export/reset).
 - `tests/helpers.test.js` : Tests des utilitaires algorithmiques.
 - `tests/dom.test.js` : Tests de manipulation DOM.
 - `tests/firebase.test.js` : Mocks et tests du service Firebase.

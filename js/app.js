@@ -1,9 +1,9 @@
-import { 
-  state as moduleState, 
-  loadState as loadStateFromModule, 
-  saveState as saveStateToModule, 
-  shoppingChecked, 
-  setState 
+import {
+  state as moduleState,
+  loadState as loadStateFromModule,
+  saveState as saveStateToModule,
+  shoppingChecked,
+  applyExternalState
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
 import {
@@ -31,32 +31,6 @@ let _addSuggestTimer = null;
 let _aiSuggestGenId = 0;
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
-
-/**
- * Applique des données venues du cloud à l'état local.
- *
- * POINT D'ENTRÉE UNIQUE : la clé API n'est volontairement jamais envoyée dans le
- * cloud (cf. `syncPush`), donc toute donnée distante contient une clé vide.
- * L'appliquer telle quelle efface la clé du poste. Cette règle n'existait qu'au
- * démarrage : le bouton « Cloud Sync », qui appelle le même mécanisme, effaçait
- * donc la clé à chaque clic.
- *
- * @param {Object|null} cloudData
- * @returns {boolean} vrai si des données ont été appliquées.
- */
-function applyCloudState(cloudData) {
-    if (!cloudData) return false;
-
-    const localApiKey = state.aiConfig?.apiKey;
-    if (localApiKey && (!cloudData.aiConfig || !cloudData.aiConfig.apiKey)) {
-        if (!cloudData.aiConfig) cloudData.aiConfig = {};
-        cloudData.aiConfig.apiKey = localApiKey;
-    }
-
-    setState(cloudData);
-    state = moduleState;
-    return true;
-}
 
 const expose = (fns) => {
   for (const [name, fn] of Object.entries(fns)) {
@@ -119,7 +93,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        applyCloudState(cloudData);
+        applyExternalState(cloudData);
+        state = moduleState;
 
         // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
         if (aiFormFingerprint() === aiFormBeforeSync) {
@@ -395,7 +370,12 @@ function restoreAIConfig() {
     
     document.getElementById('ai-exceptions') && (document.getElementById('ai-exceptions').value = cfg.exceptions || '');
     document.getElementById('ai-exclusions') && (document.getElementById('ai-exclusions').value = cfg.exclusions || '');
-    
+
+    // Slider de créativité (LOT 008, chantier 6) : ?? plutôt que || pour ne pas
+    // écraser une créativité volontairement réglée à 0 (minimum légitime du slider).
+    const creativitySlider = document.getElementById('creativity-slider');
+    if (creativitySlider) creativitySlider.value = cfg.creativity ?? 50;
+
     // Restore chips active state
     document.querySelectorAll('.ai-settings .chip').forEach(chip => {
         const field = chip.closest('.chips-row').id?.replace('ai-', '').replace('-chips', '');
@@ -1314,6 +1294,12 @@ function restoreJSON(event) {
     if (file) Actions.importJSON(file);
 }
 
+function importStockOnly(event) {
+    const file = event.target.files[0];
+    if (file) Actions.importStockOnly(file);
+    event.target.value = '';
+}
+
 const toggleStock = Actions.toggleStock;
 const togglePin = Actions.togglePin;
 const toggleCart = Actions.toggleCart;
@@ -1477,14 +1463,15 @@ expose({
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
     confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
-    fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON,
+    fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
     saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe),
     saveRecipeAndList: () => saveRecipeAndList(_lastTransformedRecipe),
     toggleRecipeFullscreen, changePplScale,
     pullFromFirebase: async () => {
         try {
             const d = await syncPull();
-            if (applyCloudState(d)) {
+            if (applyExternalState(d)) {
+                state = moduleState;
                 restoreAIConfig();
                 toast('Données récupérées du cloud ✓');
             } else {

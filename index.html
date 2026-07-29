@@ -585,7 +585,7 @@
               </button>
             </div>
             <input type="file" id="import-file" accept=".json" onchange="restoreJSON(event)" hidden>
-            <input type="file" id="restore-file" accept=".json" onchange="restoreJSON(event)" hidden>
+            <input type="file" id="restore-file" accept=".json" onchange="importStockOnly(event)" hidden>
             <div class="export-section-title" style="color:var(--terra)">Réinitialisation</div>
             <div class="export-grid" style="padding-bottom:20px">
               <button class="export-btn export-danger" onclick="resetCart()">
