@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
 | [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BA%20PUBLIER%5D.md) | **Données en sécurité** — import/export/reset sûrs, prérequis synchro | **À PUBLIER** (double audit passé) | `feat/lot8-donnees-en-securite` |
-| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BEN%20COURS%5D.md) | **Synchro collaborative** — spec v3 après duel d'audit (double NO-GO v2 intégré) | EN COURS (spec), code bloqué par 008 | `feat/lot7-synchro-collaborative` |
+| [007](LOT%20007%20-%20Synchro%20collaborative%20%5BEN%20COURS%5D.md) | **Synchro collaborative** — spec v3 après duel d'audit (double NO-GO v2 intégré) | EN COURS — **code écrit** (2026-07-29), attend audit Dur + tests réels | `feat/lot7-synchro-collaborative` |
 | [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ | `feat/lot9-boutons-morts` |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |

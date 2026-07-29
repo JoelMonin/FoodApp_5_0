@@ -9,20 +9,22 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 008 — Données en sécurité : TERMINÉ, `[A PUBLIER]`** (branche
-`feat/lot8-donnees-en-securite`). Double audit Dur passé le 2026-07-29 (Gemini GO ;
-NO-GO Codex corrigé — reset qui laissait fuir les suggestions IA vers le cloud).
-**Le préalable bloquant du LOT 007 est levé** : le prochain lot à coder est le **007
-(synchro collaborative, spec v3)**.
+**LOT 007 — Synchro collaborative (spec v3) : CODE ÉCRIT le 2026-07-29**, branche
+`feat/lot7-synchro-collaborative` (contient tout le travail du 008). Moteur bidirectionnel
+complet : envoi temporisé 2 s à chaque modification, drapeau « EN ATTENTE » persisté,
+anti-boucle « dernier cloud connu », pulls périodiques 60 s + visibilité + retour réseau,
+voyant d'état restauré, panneau `#info-last-sync`/`#info-network` rebranché.
+Validation verte (82/82 vitest dont 35 nouveaux, 13/13 pytest, build OK).
+**Reste avant clôture : audit Dur (2 auditeurs) + tests §6.2 par Joel à deux appareils.**
+Détail des choix d'implémentation : fiche du lot, §12.
 
 ## État des lots
 
 - **008** Données en sécurité — ✅ TERMINÉ, À PUBLIER (47 tests JS + 13 verrous pytest verts,
   build OK, double audit Dur passé, vérifs navigateur faites par les auditeurs).
   `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
-- **007** Synchro collaborative — spec **v3** prête (double audit v2 intégré, §0 ter),
-  **DÉBLOQUÉ, prochain à coder** (`feat/lot7-synchro-collaborative` existe déjà — la
-  rebaser/brancher sur l'état post-008)
+- **007** Synchro collaborative — **CODE ÉCRIT** (2026-07-29), validation verte ;
+  attend audit Dur + tests réels de Joel avant `[A PUBLIER]`
 - **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
   fiches détaillées prêtes à confier à un exécutant
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
@@ -44,9 +46,10 @@ NO-GO Codex corrigé — reset qui laissait fuir les suggestions IA vers le clou
 
 ## Prochaine étape
 
-LOT 008 terminé et audité (2026-07-29). Deux chemins possibles, au choix de Joel :
-1. **Publier maintenant** (version 5.5 partielle) : merge `--no-ff` dans `main` sur feu vert
-   explicite de Joel — la roadmap visait toutefois une 5.5 commune 008+007 ;
-2. **Enchaîner sur le LOT 007** (synchro collaborative, spec v3, débloquée) et publier les
-   deux ensemble en 5.5 — chemin recommandé par la roadmap.
+Joel a choisi le chemin roadmap : **008 + 007 publiés ensemble en version 5.5**.
+1. Audit Dur du LOT 007 (Gemini + Codex, avec sauvegarde/restauration du cloud de
+   production — même protocole qu'au LOT 008) ;
+2. Tests §6.2 par Joel, à deux appareils, en conditions réelles ;
+3. Sur feu vert EXPLICITE de Joel : merge `--no-ff` de la branche dans `main`,
+   commit « Version 5.5 - ... ».
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.

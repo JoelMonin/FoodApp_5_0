@@ -108,7 +108,10 @@ export async function resetAllData() {
   switchView('pantry');
 
   try {
-    await syncPush(state);
+    // Chemin EXPLICITE de vidange volontaire (LOT 007, §4.9.1) : syncPush applique le
+    // périmètre du document (les coches — vides après reset — partent aussi) sans
+    // passer par le garde-fou anti-vidange du moteur, puisque cette vidange est voulue.
+    await syncPush(state, Array.from(shoppingChecked));
   } catch (e) {
     console.error('[Reset] Push cloud échoué', e);
     toast(

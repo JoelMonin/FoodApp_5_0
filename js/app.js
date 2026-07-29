@@ -3,7 +3,9 @@ import {
   loadState as loadStateFromModule,
   saveState as saveStateToModule,
   shoppingChecked,
-  applyExternalState
+  applyExternalState,
+  registerSyncScheduler,
+  replaceShoppingChecked
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
 import {
@@ -15,7 +17,7 @@ import {
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
 import { AI_ROLES } from '../src/constants.js';
-import { syncPush, syncPull } from '../src/services/firebase.js';
+import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
 import { renderShoppingList } from '../src/ui/shopping.js';
@@ -60,56 +62,373 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-  // Synchro cloud en arriere-plan : setState declenche 'stateUpdated', donc le re-rendu
-  // est automatique quand les donnees arrivent.
-  //
-  // GARDE-FOU : la reponse du cloud est une photo prise AVANT les gestes de
-  // l'utilisateur. Comme l'ecran est desormais interactif pendant l'attente reseau,
-  // appliquer cette photo telle quelle effacerait tout ce qu'il a fait entre-temps
-  // (setState remplace les tableaux en bloc). On compare donc les donnees locales
-  // avant/apres : au moindre changement, la reponse cloud est ecartee pour ce
-  // demarrage — les donnees locales sont plus recentes, par construction.
-  const localDataFingerprint = () => JSON.stringify([
-      state.ingredients, state.customCartItems, state.favorites, state.extraIngredients
-  ]);
-  const fingerprintBeforeSync = localDataFingerprint();
-
-  // Meme principe pour les champs libres de la config IA : ils ne sont enregistres
-  // qu'au clic sur « Sauvegarder ». Une saisie en cours ne doit pas etre reecrite par
-  // le retour de la synchro — y compris si l'utilisateur a deja clique ailleurs.
-  const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
-  const aiFormFingerprint = () => JSON.stringify(
-      AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
-  );
-  const aiFormBeforeSync = aiFormFingerprint();
-
-  syncPull()
-    .then(cloudData => {
-        if (!cloudData) return;
-
-        if (localDataFingerprint() !== fingerprintBeforeSync) {
-            console.warn('[Sync] Modifications locales pendant la synchro initiale : '
-                + 'donnees cloud ecartees pour ce demarrage (aucune perte locale).');
-            return;
-        }
-
-        applyExternalState(cloudData);
-        state = moduleState;
-
-        // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
-        if (aiFormFingerprint() === aiFormBeforeSync) {
-            restoreAIConfig();
-        } else {
-            console.warn('[Sync] Saisie en cours dans la configuration IA : champs non reecrits.');
-        }
-    })
-    .catch(e => console.error('Initial Sync failed', e));
+  // Synchro cloud : moteur bidirectionnel (LOT 007). Le pull de demarrage part en
+  // arriere-plan — l'ecran ne depend jamais du reseau (acquis LOT 005). Les
+  // garde-fous d'empreinte (donnees locales + formulaire IA) qui vivaient ici sont
+  // GENERALISES a tous les pulls, dans performSyncPull.
+  initSyncEngine();
 });
 
 window.addEventListener('stateUpdated', () => {
     state = moduleState;
     renderCurrentView();
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOTEUR DE SYNCHRO BIDIRECTIONNELLE (LOT 007, spec v3)
+//
+// Restauration du `saveState(push = true)` du monolithe (l.4336-4340), perdu par
+// la migration, avec les ameliorations VOLONTAIRES de la spec : temporisation 2 s,
+// drapeau « EN ATTENTE » persiste, anti-boucle par reference « dernier document
+// cloud connu », pulls periodiques, delai d'expiration et retry unique.
+// Le perimetre du document vit dans src/services/firebase.js (SSOT, §4.1).
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SYNC_PENDING_KEY = 'pantry_v5_sync_pending'; // drapeau persiste (§4.3) : couvre aussi le rechargement de page
+const SYNC_LAST_KEY = 'pantry_v5_last_sync';       // metadonnee locale, HORS document (§4.1, audit Codex v2)
+const SYNC_PUSH_DELAY_MS = 2000;
+const SYNC_RETRY_DELAY_MS = 10000;
+const SYNC_PULL_INTERVAL_MS = 60000;
+const SYNC_STATUS_RESET_MS = 2000;
+
+let _syncSendTimer = null;      // il n'existe JAMAIS qu'un timer d'envoi : debounce 2 s OU retry 10 s (§4.4)
+let _syncRetryUsed = false;     // une seule nouvelle tentative par echec, puis arret (§4.7)
+let _syncInFlight = false;      // une seule operation a la fois (§4.4)
+let _syncQueuedOp = null;       // une demande en attente, jamais accumulees (§4.4)
+let _syncDirtyGen = 0;          // generation de modification : ne jamais baisser le drapeau
+                                // pour des changements survenus PENDANT l'envoi en vol
+let _lastCloudDocJson = null;   // reference anti-boucle « dernier document cloud connu » (§4.5)
+let _lastCloudHadIngredients = false; // pour le garde-fou sortant (§4.9.1)
+let _syncStatusTimer = null;    // retour du voyant a l'etat neutre (annulable, contrairement a l'oracle)
+
+function isSyncPending() {
+    try { return localStorage.getItem(SYNC_PENDING_KEY) === '1'; } catch { return false; }
+}
+function raiseSyncPending() {
+    try { localStorage.setItem(SYNC_PENDING_KEY, '1'); } catch { /* stockage indisponible : drapeau memoire seulement */ }
+}
+function clearSyncPending() {
+    try { localStorage.removeItem(SYNC_PENDING_KEY); } catch { /* idem */ }
+}
+
+// Champs libres du formulaire IA : enregistres seulement au clic « Sauvegarder ».
+// Une saisie en cours ne doit jamais etre reecrite par le retour d'un pull (LOT 005).
+const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
+const aiFormFingerprint = () => JSON.stringify(
+    AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
+);
+
+/**
+ * Voyant d'etat — porte du monolithe (l.4348-4368), classes CSS deja presentes
+ * (.thinking/.success/.error, F7). Differences assumees par la spec (§4.8) :
+ * libelles francais de la spec, etat « Hors ligne », timer de retour annulable
+ * (l'oracle empilait les setTimeout), et l'erreur reste affichee (pas de retour
+ * automatique : « voyant erreur persistant », §4.9).
+ */
+function setSyncStatus(status, message = null) {
+    const indicators = [
+        document.getElementById('sync-indicator-desktop'),
+        document.getElementById('sync-indicator-mobile')
+    ].filter(Boolean);
+
+    const cssState = status === 'offline' ? 'error' : (status === 'idle' ? '' : status);
+    indicators.forEach(el => {
+        el.className = ('sync-indicator ' + cssState).trim();
+        const label = el.querySelector('.sync-label');
+        if (label) {
+            if (status === 'thinking') label.textContent = 'Synchro…';
+            else if (status === 'success') label.textContent = message || 'À jour ✓';
+            else if (status === 'error') label.textContent = message || 'Échec — réessayer';
+            else if (status === 'offline') label.textContent = 'Hors ligne';
+            else label.textContent = 'Cloud Sync';
+        }
+    });
+
+    clearTimeout(_syncStatusTimer);
+    if (status === 'success') {
+        _syncStatusTimer = setTimeout(() => setSyncStatus('idle'), SYNC_STATUS_RESET_MS);
+    }
+}
+
+function recordSyncSuccess() {
+    try { localStorage.setItem(SYNC_LAST_KEY, new Date().toISOString()); } catch { /* affichage seulement */ }
+    updateSystemInfo();
+}
+
+/**
+ * Inscrit dans saveState via registerSyncScheduler : chaque sauvegarde locale leve
+ * le drapeau et (re)temporise l'envoi a 2 s. Une modification pendant un retry
+ * programme ANNULE le retry — un seul timer d'envoi, toujours (§4.4).
+ */
+function scheduleSyncPush() {
+    raiseSyncPending();
+    _syncDirtyGen++;
+    _syncRetryUsed = false;
+    clearTimeout(_syncSendTimer);
+    _syncSendTimer = setTimeout(() => {
+        _syncSendTimer = null;
+        requestSyncOp('send');
+    }, SYNC_PUSH_DELAY_MS);
+}
+
+/**
+ * Point d'entree unique des operations : UNE seule a la fois. Une demande arrivant
+ * pendant une operation en vol est mise en attente (une seule case, jamais
+ * accumulees) et executee apres ; un clic manuel n'est jamais retrograde (§4.4).
+ */
+async function requestSyncOp(op) {
+    if (_syncInFlight) {
+        if (_syncQueuedOp !== 'manual') _syncQueuedOp = op;
+        return;
+    }
+    _syncInFlight = true;
+    try {
+        if (op === 'send') {
+            await performSyncSend();
+        } else if (op === 'pull') {
+            // §4.4 : drapeau leve → ENVOI D'ABORD, recuperation seulement si l'envoi
+            // a reussi — jamais de pull destructif par-dessus des modifs non envoyees.
+            if (isSyncPending()) {
+                const sent = await performSyncSend();
+                if (!sent) return;
+            }
+            await performSyncPull({ manual: false });
+        } else if (op === 'manual') {
+            // Clic « Cloud Sync » : recuperation PUIS envoi, immediatement (§4.4) —
+            // precede d'un envoi si des modifications attendent (meme regle que pull).
+            if (isSyncPending()) {
+                const sent = await performSyncSend({ manual: true });
+                if (!sent) return;
+            }
+            const pulled = await performSyncPull({ manual: true });
+            if (pulled) await performSyncSend({ manual: true, quiet: true });
+        }
+    } finally {
+        _syncInFlight = false;
+        const queued = _syncQueuedOp;
+        _syncQueuedOp = null;
+        if (queued) requestSyncOp(queued);
+    }
+}
+
+/**
+ * ENVOI (§4.3). Retourne true si le cloud est a jour (envoi reussi ou rien a envoyer).
+ */
+async function performSyncSend({ manual = false, quiet = false } = {}) {
+    const checkedIds = Array.from(shoppingChecked);
+    const doc = buildSyncDocument(moduleState, checkedIds);
+    const genAtBuild = _syncDirtyGen;
+
+    // GARDE-FOU SORTANT (§4.9.1) : jamais d'envoi d'un etat non exploitable. Un
+    // document invalide n'a rien de valide a proteger : drapeau BAISSE, sinon il
+    // bloquerait les pulls et verrouillerait l'appareil a jamais (constat Flash).
+    // La vidange volontaire (reinitialisation, LOT 008) passe par syncPush directement.
+    if (!Array.isArray(doc.ingredients) || (doc.ingredients.length === 0 && _lastCloudHadIngredients)) {
+        clearSyncPending();
+        setSyncStatus('error');
+        toast('Synchro refusée : inventaire local vide ou illisible — le cloud est protégé', 'error');
+        return false;
+    }
+
+    // ANTI-BOUCLE (§4.5) : identique au dernier document cloud connu → rien a faire,
+    // abandon AVANT la requete reseau. La reference est mise a jour a chaque envoi
+    // reussi ET a chaque pull applique.
+    const docJson = JSON.stringify(doc);
+    if (docJson === _lastCloudDocJson) {
+        if (_syncDirtyGen === genAtBuild) clearSyncPending();
+        if (manual && !quiet) toast('Déjà à jour ✓');
+        return true;
+    }
+
+    setSyncStatus('thinking');
+    try {
+        await syncPush(moduleState, checkedIds);
+        _lastCloudDocJson = docJson;
+        _lastCloudHadIngredients = doc.ingredients.length > 0;
+        // Ne baisser le drapeau que si RIEN n'a change pendant le vol de la requete :
+        // une modification pendant l'envoi doit rester protegee jusqu'a SON envoi.
+        if (_syncDirtyGen === genAtBuild) clearSyncPending();
+        _syncRetryUsed = false;
+        recordSyncSuccess();
+        setSyncStatus('success');
+        if (manual && !quiet) toast('Données envoyées au cloud ✓');
+        return true;
+    } catch (e) {
+        console.error('[Sync] Envoi échoué', e);
+        const status = e && e.status;
+        if (status >= 400 && status < 500) {
+            // REFUS SERVEUR 4xx (§4.9) : les donnees locales sont VALIDES et jamais
+            // parties — drapeau MAINTENU (aucun pull ne les ecrasera), AUCUN retry
+            // automatique. Toute nouvelle modification ou clic manuel retentera.
+            setSyncStatus('error');
+            toast('Envoi refusé par le serveur — vos données restent protégées sur cet appareil', 'error');
+        } else if (!_syncRetryUsed) {
+            // ECHEC RECUPERABLE (reseau, delai, 5xx) : drapeau maintenu, UNE seule
+            // nouvelle tentative a 10 s (§4.7).
+            _syncRetryUsed = true;
+            setSyncStatus('error');
+            if (manual) toast('Envoi impossible — nouvelle tentative dans 10 s', 'error');
+            clearTimeout(_syncSendTimer);
+            _syncSendTimer = setTimeout(() => {
+                _syncSendTimer = null;
+                requestSyncOp('send');
+            }, SYNC_RETRY_DELAY_MS);
+        } else {
+            setSyncStatus('error');
+            toast('Synchronisation impossible — vos données restent sur cet appareil', 'error');
+        }
+        return false;
+    }
+}
+
+/**
+ * RECUPERATION (§4.3). Retourne true si le pull s'est conclu sans echec reseau
+ * (y compris « base vide » et « photo ecartee », qui ne sont pas des erreurs).
+ */
+async function performSyncPull({ manual = false } = {}) {
+    // GARDE-FOU D'EMPREINTE (LOT 005, generalise du demarrage a TOUS les pulls) :
+    // la reponse du cloud est une photo prise AVANT les gestes faits pendant
+    // l'attente reseau. Si les donnees locales ont bouge entre l'envoi de la
+    // requete et sa reponse, la photo est ecartee — les donnees locales sont plus
+    // recentes, par construction. Le drapeau (leve par ces gestes) enverra ensuite.
+    const dataFingerprint = () => JSON.stringify([
+        moduleState.ingredients, moduleState.customCartItems,
+        moduleState.favorites, moduleState.extraIngredients,
+        Array.from(shoppingChecked)
+    ]);
+    const fingerprintBefore = dataFingerprint();
+    const aiFormBefore = aiFormFingerprint();
+
+    setSyncStatus('thinking');
+    try {
+        const cloudDoc = await syncPull();
+
+        if (!cloudDoc) {
+            // Base vide : rien a appliquer, ce n'est pas une erreur (§4.3).
+            setSyncStatus('idle');
+            if (manual) toast('Aucune donnée dans le cloud', 'error');
+            return true;
+        }
+        if (!Array.isArray(cloudDoc.ingredients)) {
+            // GARDE-FOU ENTRANT (§4.9.2) : document malforme ignore, erreur discrete.
+            console.warn('[Sync] Document cloud malformé : ignoré, rien n\'est modifié.');
+            setSyncStatus('error');
+            if (manual) toast('Données cloud illisibles — rien n\'a été modifié', 'error');
+            return false;
+        }
+        if (dataFingerprint() !== fingerprintBefore) {
+            console.warn('[Sync] Modifications locales pendant la récupération : '
+                + 'données cloud écartées (aucune perte locale).');
+            setSyncStatus('idle');
+            return true;
+        }
+
+        // Application CLE PAR CLE du perimetre (§4.3) — cle API locale preservee
+        // sans condition (§4.6), coches reconstruites en Set AVANT le rendu.
+        const { patch, checkedIds } = extractSyncedState(cloudDoc);
+        replaceShoppingChecked(checkedIds);
+        applyExternalState(patch, { scheduleSync: false }); // issue de la synchro : ne replanifie JAMAIS d'envoi (§4.5)
+        state = moduleState;
+
+        // Reference anti-boucle = le document tel qu'il existe LOCALEMENT apres
+        // application (sanitisation comprise) : ainsi une simple sauvegarde d'un
+        // champ NON synchronise redonne exactement ce document → aucun envoi (§4.5).
+        _lastCloudDocJson = JSON.stringify(buildSyncDocument(moduleState, Array.from(shoppingChecked)));
+        _lastCloudHadIngredients = (moduleState.ingredients || []).length > 0;
+
+        recordSyncSuccess();
+        setSyncStatus('success');
+
+        // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
+        if (aiFormFingerprint() === aiFormBefore) {
+            restoreAIConfig();
+        } else {
+            console.warn('[Sync] Saisie en cours dans la configuration IA : champs non réécrits.');
+        }
+        if (manual) toast('☁️ Données chargées du Cloud');
+        return true;
+    } catch (e) {
+        console.error('[Sync] Récupération échouée', e);
+        setSyncStatus('error');
+        if (manual) toast('Synchronisation impossible', 'error');
+        return false;
+    }
+}
+
+function updateNetworkInfo() {
+    const netEl = document.getElementById('info-network');
+    if (netEl) netEl.textContent = navigator.onLine ? '🌐 Connecté' : '🚫 Hors-ligne';
+}
+
+/**
+ * Demarrage du moteur (§4.4) : inscription dans saveState, ecouteurs reseau et
+ * visibilite, pull periodique, puis recuperation initiale — qui ENVOIE D'ABORD
+ * si le drapeau persiste est leve (modifications faites juste avant une fermeture).
+ */
+function initSyncEngine() {
+    registerSyncScheduler(scheduleSyncPush);
+
+    // Etat reseau affiche DES le demarrage (§4.4), pas au premier evenement.
+    updateNetworkInfo();
+    if (!navigator.onLine) setSyncStatus('offline');
+
+    window.addEventListener('online', () => {
+        updateNetworkInfo();
+        setSyncStatus('idle');
+        // Un retry programme est ANNULE et absorbe par ce cycle (§4.4) : jamais
+        // deux envois pour la meme cause. Le pull enverra d'abord si necessaire.
+        clearTimeout(_syncSendTimer);
+        _syncSendTimer = null;
+        requestSyncOp('pull');
+    });
+    window.addEventListener('offline', () => {
+        updateNetworkInfo();
+        setSyncStatus('offline');
+    });
+
+    // Retour sur l'application (§4.4).
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && navigator.onLine) requestSyncOp('pull');
+    });
+
+    // Recuperation periodique, application visible et en ligne seulement (§4.4).
+    setInterval(() => {
+        if (document.visibilityState === 'visible' && navigator.onLine) requestSyncOp('pull');
+    }, SYNC_PULL_INTERVAL_MS);
+
+    requestSyncOp('pull');
+}
+
+/**
+ * Remise a zero complete du moteur — reserve aux tests unitaires
+ * (tests/sync-engine.test.js) : le moteur est un singleton de module.
+ */
+function __resetSyncEngineForTests() {
+    clearTimeout(_syncSendTimer);
+    _syncSendTimer = null;
+    clearTimeout(_syncStatusTimer);
+    _syncStatusTimer = null;
+    _syncRetryUsed = false;
+    _syncInFlight = false;
+    _syncQueuedOp = null;
+    _syncDirtyGen = 0;
+    _lastCloudDocJson = null;
+    _lastCloudHadIngredients = false;
+    clearSyncPending();
+}
+
+// Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
+// module, ces exports sont sans effet a l'execution dans le navigateur.
+export {
+    initSyncEngine,
+    scheduleSyncPush,
+    requestSyncOp,
+    performSyncSend,
+    performSyncPull,
+    setSyncStatus,
+    isSyncPending,
+    __resetSyncEngineForTests
+};
 
 function renderCurrentView() {
     const view = state.currentView || 'pantry';
@@ -753,8 +1072,24 @@ async function exportClipboard(type) {
 }
 
 function updateSystemInfo() {
-    const storageEl = document.getElementById('system-storage');
-    if (storageEl) storageEl.textContent = JSON.stringify(state).length + ' bytes';
+    // LOT 007 : seules les deux tuiles du perimetre synchro sont rebranchees ici
+    // (#info-last-sync, #info-network — oracle l.4466-4482) ; les trois autres
+    // (#info-api-key, #info-fb-user, #info-storage) restent au LOT 009. L'ancien
+    // corps visait #system-storage, un id qui n'existe nulle part (0 occurrence).
+    const syncEl = document.getElementById('info-last-sync');
+    if (syncEl) {
+        let raw = null;
+        try { raw = localStorage.getItem(SYNC_LAST_KEY); } catch { /* affichage seulement */ }
+        if (!raw) {
+            syncEl.textContent = 'Jamais synchronisé';
+        } else {
+            syncEl.textContent = new Date(raw).toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+    }
+    updateNetworkInfo();
     updateApiStatus();
 }
 
@@ -1467,30 +1802,11 @@ expose({
     saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe),
     saveRecipeAndList: () => saveRecipeAndList(_lastTransformedRecipe),
     toggleRecipeFullscreen, changePplScale,
-    pullFromFirebase: async () => {
-        try {
-            const d = await syncPull();
-            if (applyExternalState(d)) {
-                state = moduleState;
-                restoreAIConfig();
-                toast('Données récupérées du cloud ✓');
-            } else {
-                toast('Aucune donnée dans le cloud', 'error');
-            }
-        } catch (e) {
-            console.error('[Sync] Pull échoué', e);
-            toast('Synchronisation impossible', 'error');
-        }
-    },
-    pushToFirebase: async () => {
-        try {
-            await syncPush(state);
-            toast('Données envoyées au cloud ✓');
-        } catch (e) {
-            console.error('[Sync] Push échoué', e);
-            toast('Envoi impossible', 'error');
-        }
-    },
+    // Clic « Cloud Sync » : cycle complet immediat via le moteur (LOT 007, §4.4) —
+    // envoi d'abord si des modifications attendent, recuperation, puis envoi
+    // (court-circuite si rien n'a change). Toasts geres par le moteur (manual).
+    pullFromFirebase: () => requestSyncOp('manual'),
+    pushToFirebase: () => requestSyncOp('send'),
     exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji,
     // Appelee en inline depuis index.html (oninput du champ de recherche d'emoji) :
     // sans cette exposition, chaque frappe levait une ReferenceError.

@@ -264,8 +264,10 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       expect(state.currentView).toBe('pantry');
 
       // Le document poussé au cloud ne doit contenir aucune suggestion résiduelle.
+      // Depuis le LOT 007, le périmètre §4.1 exclut aiSuggestions du document :
+      // la clé est carrément ABSENTE (plus strict encore que le null du LOT 008).
       const pushedBody = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(pushedBody.aiSuggestions).toBeNull();
+      expect(pushedBody).not.toHaveProperty('aiSuggestions');
     });
 
     it('n\'agit pas si Joel annule la confirmation', async () => {
