@@ -55,6 +55,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Sujet | Priorité | Effort |
 |---|---|---|
+| [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | **Haute** | 12 casses franches + ~20 conforts |
 | [Filet de tests UI](Backlog/BACKLOG%20-%20Filet%20de%20tests%20UI.md) | Moyenne | 2-3 j |
 | [Validation des données externes](Backlog/BACKLOG%20-%20Validation%20des%20donnees%20externes.md) | Moyenne | 1-2 j |
 | [Découpage `app.js` et `style.css`](Backlog/BACKLOG%20-%20Decoupage%20app.js%20et%20style.css.md) | Moyenne | 2-3 j |
