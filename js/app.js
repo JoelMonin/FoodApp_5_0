@@ -577,7 +577,10 @@ export {
     initFieldEnterShortcuts,
     initChipsRowTouchScroll,
     initSearchAutofillGuard,
-    clearSearch
+    clearSearch,
+    renderTopbar,
+    updateBadges,
+    addIngredient
 };
 
 function renderCurrentView() {
@@ -627,20 +630,47 @@ function countStockAndCart() {
     return { stock, cart };
 }
 
+// Sous-titre "N recette(s)" — partagé par les deux clés 'fav'/'favorites' (alias de la
+// meme vue, cf. `viewMap` de `renderCurrentView`), pour ne pas dupliquer le calcul.
+const _favCountSub = () => {
+    const n = state.favorites.length;
+    return n + ' recette' + (n > 1 ? 's' : '');
+};
+
+/**
+ * LOT 012, zone C (oracle `updateTopbar`, l.4520-4579) — barre superieure contextuelle,
+ * icones mobiles et sous-titres, restaures au mot pres (table verifiee par l'audit de
+ * spec Codex). `.mh-icons` n'est JAMAIS remplace en bloc (contrairement a l'oracle) :
+ * `#sync-indicator-mobile` (LOT 007) porte son etat thinking/success/error dans sa
+ * classe et son texte, un `innerHTML=` le reinitialiserait silencieusement a chaque
+ * changement de vue — l'oracle pouvait se le permettre, son propre voyant est statique.
+ */
 function renderTopbar(view) {
     const titles = {
-        pantry: 'Inventaire', 
-        shopping: 'Mes Courses', 
-        ai: 'Recettes IA', 
-        fav: 'Favoris', 
-        favorites: 'Favoris',
-        add: 'Ajouter un ingrédient', 
+        pantry: 'Inventaire',
+        shopping: 'Liste de courses',
+        ai: 'Recettes IA',
+        favorites: 'Recettes favorites',
+        fav: 'Recettes favorites',
         export: 'Réglages',
-        settings: 'Réglages'
+        settings: 'Réglages',
+        add: 'Ajouter un ingrédient'
     };
+    // Note de portage : l'oracle a un bug d'espace pour n=1 côté "ai" ('ingrédient' +
+    // 'en stock' → « ingrédienten stock », collé) — typo, pas une intention, corrigée
+    // silencieusement (espace ajouté) comme le code mort de la zone A ne l'a pas été.
     const subs = {
-        pantry: () => countStockAndCart().stock + ' articles en stock',
-        shopping: () => countStockAndCart().cart + ' articles à acheter'
+        pantry: () => countStockAndCart().stock + ' en stock',
+        shopping: () => {
+            const n = countStockAndCart().cart;
+            return n + ' article' + (n > 1 ? 's' : '');
+        },
+        ai: () => {
+            const n = countStockAndCart().stock;
+            return 'basé sur ' + n + ' ingrédient' + (n > 1 ? 's en stock' : ' en stock');
+        },
+        favorites: _favCountSub,
+        fav: _favCountSub
     };
 
     // Desktop topbar
@@ -653,9 +683,68 @@ function renderTopbar(view) {
         }
     }
 
-    // Render action buttons for pantry view (handled by renderPantry itself)
+    // Sous-titre mobile — meme table que le desktop.
+    const mhSub = document.getElementById('mh-subtitle');
+    if (mhSub) mhSub.textContent = (subs[view] ? subs[view]() : null) || titles[view] || view;
+
+    // Barre de recherche desktop masquee hors inventaire (oracle l.4542-4547).
+    const tbSearch = document.getElementById('tb-search-wrap');
+    if (tbSearch) {
+        tbSearch.style.display = (view === 'pantry') ? 'flex' : 'none';
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = state.search;
+    }
+
+    // Bouton d'action contextuel desktop (oracle l.4549-4563) — classes CSS deja posees
+    // (`.tb-btn-add`, `.tb-btn`, `.tb-btn.terra`, `.tb-icon-btn`, `.tb-btn.primary`),
+    // aucune a creer. Remplacement complet a chaque rendu : sans etat a proteger ici,
+    // contrairement a l'icone mobile ci-dessous.
     const actionEl = document.getElementById('top-action-btn');
-    if (actionEl) actionEl.replaceChildren();
+    if (actionEl) {
+        if (view === 'pantry') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-btn-add', title: 'Ajouter un ingrédient', onclick: () => switchView('add')
+            }, '＋'));
+        } else if (view === 'shopping') {
+            actionEl.replaceChildren(
+                h('button', { class: 'tb-btn', onclick: () => exportClipboard('cart') }, '📋 Copier'),
+                h('button', { class: 'tb-btn terra', onclick: () => resetCart() }, '🗑️ Vider')
+            );
+        } else if (view === 'ai') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-icon-btn', title: 'Config API', onclick: () => openModal('modal-api-config')
+            }, '⚙️'));
+        } else if (view === 'favorites' || view === 'fav') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-btn primary', onclick: () => openModal('modal-paste-recipe')
+            }, '📋 Coller une recette'));
+        } else {
+            actionEl.replaceChildren();
+        }
+    }
+
+    // Icone mobile contextuelle (oracle l.4565-4578) — mise a jour CHIRURGICALE d'un
+    // noeud STABLE (jamais recree), `.onclick =` et non `addEventListener` : sans ca,
+    // chaque changement de vue empilerait un nouveau gestionnaire sur le meme noeud.
+    const mhIcon = document.getElementById('mh-context-icon');
+    if (mhIcon) {
+        if (view === 'pantry') {
+            mhIcon.textContent = '+';
+            mhIcon.style.cssText = 'background:var(--green);color:white;font-weight:bold';
+            mhIcon.onclick = () => switchView('add');
+        } else if (view === 'ai') {
+            mhIcon.textContent = '⚙️';
+            mhIcon.style.cssText = '';
+            mhIcon.onclick = () => openModal('modal-api-config');
+        } else if (view === 'favorites' || view === 'fav') {
+            mhIcon.textContent = '📋';
+            mhIcon.style.cssText = '';
+            mhIcon.onclick = () => openModal('modal-paste-recipe');
+        } else {
+            mhIcon.style.cssText = 'display:none';
+            mhIcon.onclick = null;
+        }
+    }
 }
 
 function renderPantryFilters() {
@@ -1556,6 +1645,11 @@ function updateBadges() {
     const { stock: stockCount, cart: cartCount } = countStockAndCart();
     const favCount = state.favorites?.length || 0;
 
+    // LOT 012, zone C (oracle l.6638-6639) : compteur de la barre laterale, fige depuis
+    // la migration.
+    const sbPrincipal = document.getElementById('sb-label-principal');
+    if (sbPrincipal) sbPrincipal.textContent = `Principal (${state.ingredients.length} ingrédients)`;
+
     // Sidebar
     const sbStock = document.getElementById('sb-badge-stock');
     const sbCart = document.getElementById('sb-badge-cart');
@@ -1988,6 +2082,11 @@ function addIngredient() {
     _isManualCategory = false;
     renderAdd();
     toast(`"${name}" ajouté ✓`);
+    // LOT 012, zone C (oracle l.6458) : retour a l'inventaire apres un ajout reussi,
+    // pour ne pas laisser Joel sur un formulaire vide sans lien evident avec ce qu'il
+    // vient de faire. Le formulaire s'est deja reinitialise juste au-dessus (LOT 006) :
+    // un enchainement de plusieurs ajouts reste possible avant l'echeance des 500 ms.
+    setTimeout(() => switchView('pantry'), 500);
 }
 
 function addIngredientFromDb(dbItem) {
@@ -2108,7 +2207,10 @@ function addExtraIngredient() {
         if (!confirm(`ℹ️ "${val}" ressemble beaucoup à "${similarInExtra.name}" déjà présent dans la liste. Ajouter quand même ?`)) return;
     }
 
-    state.extraIngredients.push({ name: val, emoji: '✨', id: generateId('extra') });
+    // LOT 012, zone C (oracle l.4933) : emoji devine depuis la base plutot qu'une
+    // etoile fixe qui ne renseignait jamais Joel sur ce qu'il venait de taper.
+    const emoji = autoEmoji(val, DEFAULT_DB);
+    state.extraIngredients.push({ name: val, emoji, id: generateId('extra') });
     input.value = '';
     saveState();
     refreshImposedZone();
@@ -2340,14 +2442,16 @@ const deleteIngredient = Actions.deleteIngredient;
 const toggleShoppingCheck = Actions.toggleShoppingCheck;
 const removeFromCart = Actions.removeFromCart;
 function saveApiKey() {
-    const key = document.getElementById('api-key-input')?.value?.trim();
-    if (!key) { toast('Clé API requise', 'error'); return; }
+    // LOT 012, zone C (oracle l.6589-6594) : aucune garde sur la cle vide — vider le
+    // champ puis Sauver doit pouvoir effacer une cle existante (l'ancien blocage
+    // rendait ce cas impossible, contrairement a l'oracle).
+    const key = document.getElementById('api-key-input')?.value?.trim() || '';
     state.aiConfig.apiKey = key;
 
     saveState();
     updateApiStatus();
     closeModal('modal-api-config');
-    toast('Clé API sauvegardée ✓');
+    toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
 }
 function selectEmoji(e) {
     const input = document.getElementById('add-emoji');

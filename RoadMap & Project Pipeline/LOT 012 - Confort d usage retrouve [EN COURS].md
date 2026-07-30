@@ -8,7 +8,7 @@
 > là-dessus, pas d'escalade de palier pour autant.
 > **Effort estimé :** ~1 journée
 > **Avancement :** Zone A ✅ codée+testée · Zone B ✅ codée+testée · Zone D ✅ codée ·
-> Zone C en cours (la plus sensible, laissée pour la fin)
+> Zone C ✅ codée+testée (356/356 Vitest, 13/13 Pytest, build OK) — reste l'audit final
 
 **Lecture obligatoire :** `CLAUDE.md`, `DOCTRINE_PRODUIT.md`, `PROJECT_MAP.md`,
 `Backlog/BACKLOG - Regressions de la migration.md` (§3), monolithe `foodapp-v5-Joel.html`
