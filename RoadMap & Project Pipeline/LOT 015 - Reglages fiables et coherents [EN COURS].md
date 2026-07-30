@@ -633,6 +633,63 @@ présence de `data.ingredients` (`src/actions.js:206`) — or `[]` est « vrai �
 - **LOT 014** : déplacera ensuite `exportClipboard` hors de `js/app.js` **sans changer
   son comportement** (ce lot-ci fixe le comportement, le 014 déplace le code).
 
+## Plan d'attaque — 3 sous-lots, risque croissant (proposé le 2026-07-30)
+
+Même logique qu'au LOT 012 : on code du moins risqué au plus risqué, chaque sous-lot est
+commité et testé séparément, et le plus dangereux passe en dernier — quand le filet de
+tests de la zone existe déjà.
+
+### Sous-lot A — Le presse-papiers (chantiers 1, 2, 3, 4, 9 + les toasts du 8)
+
+Tout tient dans `exportClipboard` (`js/app.js:1536-1585`) et dans la carte à supprimer
+(`index.html:538-544`). Ordre interne :
+1. **Le garde-fou « rien à copier » d'abord** (chantier 9) — c'est la cause racine commune
+   des états vides malhonnêtes des chantiers 1-3 **et** du cinquième cas trouvé à la
+   découverte (type inconnu). Une seule correction en ferme quatre.
+2. Le **repli de copie** (chantier 9), avec garde d'existence et lecture du retour.
+3. Les **sources** : `simple` → `inStock`, `categorized` → `inStock` groupé avec
+   `getCategoryEmoji`, `cart` → `inCart` **+** `customCartItems`.
+4. La **rubrique des articles libres**, concaténée APRÈS la boucle (jamais via
+   `groupByCategory`, qu'on ne touche pas).
+5. La **suppression sèche** de `'full'` + de sa carte, avec les 3 recherches convergentes
+   consignées (et le faux positif `dist/` cité).
+6. Les **toasts chiffrés** et les messages d'état vide.
+
+⚠️ Point de vigilance : `'cart'` a **deux** boutons (la carte de Réglages et
+`js/app.js:711`, barre supérieure). Les deux doivent être vérifiés.
+
+**Preuve :** `tests/export-clipboard.test.js` (neuf), avec son propre stub de
+`navigator.clipboard` et de `document.execCommand`.
+
+### Sous-lot B — Les textes des cartes (chantier 6 + reste du 8)
+
+Aucun comportement touché : titres de sections (« Partager », « Sauvegarde »), sous-titre
+honnête de « Mise à zéro complète » (clé API conservée, le cloud aussi est remis à zéro),
+paire Restaurer / Importer-stock rendue limpide, toast « Stock fusionné » au lieu de
+« Restauration ». On ne modifie que le contenu de `.export-btn-label` et
+`.export-btn-sub` — la structure de carte reste intacte.
+
+**Preuve :** test léger sur les libellés + relecture visuelle de Joel.
+
+### Sous-lot C — Sauvegarde et restauration (chantiers 5, 7, 10a-d + §G)
+
+Le cœur du risque, donc en dernier. Ordre interne :
+1. **Liste blanche d'export** + `exportedAt` (chantier 10a).
+2. **Gardes d'entrée durcies** : tableau NON vide, en combinant les deux gardes existantes
+   (chantier 10d + P4 + P5).
+3. **Barrière de synchro** sur le chemin de restauration (P6), sur le modèle de
+   `resetAllData`.
+4. **Coches** : format de fichier hors racine, entrée par `replaceShoppingChecked` AVANT
+   `applyExternalState`, filtrage des ids fantômes (10b + 10c).
+5. **Neutralisation** recherche / filtres / vue à la restauration (10a).
+6. **Réarmement** du champ fichier, hors du `if (file)` (chantier 5).
+7. **§G** : purge des coches devenues sans objet sur le chemin de fusion douce.
+
+**Preuve :** `tests/backup-restore.test.js` (neuf), avec faux `FileReader`, faux Firebase
+et `__resetSyncEngineForTests`.
+
+---
+
 ## Plan de test
 
 ⚠️ **Contrainte d'environnement mesurée le 2026-07-30 :** sous jsdom, `navigator.clipboard`
