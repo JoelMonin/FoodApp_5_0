@@ -55,6 +55,7 @@
 - `tests/ai-url-fetch.test.js` : Récupération d'URL de recette (LOT 011 — Jina Reader sans repli sur allorigins, validations d'URL, délai d'expiration 10 s, extraction de titre, réponse vide traitée comme un échec).
 - `tests/ai-cards-rich.test.js` : Cartes de résultats IA complètes (LOT 011 — numéro, méta, pitch, tags colorés (max 6, priorité stock avant nom exact), boutons ⭐/🛍 rendus seulement si leur handler est fourni).
 - `tests/favorites-rich.test.js` : Favoris riches (LOT 011 — carte dédiée distincte des cartes IA, date stockée et affichée, état vide avec CTA, « Sauvegarder tel quel » restauré pour un texte collé sans transformation IA).
+- `tests/recipe-detail-rich.test.js` : Écran de détail complet (LOT 011 — cas `r.content` (favori texte brut jamais vide), pastilles et « État des stocks » sans limite, Nutri-Score visuel, étapes cochables sans persistance, non-régression des 4 acquis 009/010).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).

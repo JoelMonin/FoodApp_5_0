@@ -536,6 +536,39 @@ transformée, `{title, content, date}` sinon) via un builder commun `buildPasted
 dont le chemin complet transformation IA → sauvegarde via `transformRecipeAI`, exportée
 pour l'occasion). **Validation :** 282/282 Vitest, 13/13 Pytest, build OK.
 
+## 16. SOUS-LOT 11B — CHANTIER 2 (2026-07-30) : l'écran de détail, le plus risqué
+
+Racine `.modal-content` inchangée, id `#modal-recipe-detail` toujours ciblé de l'extérieur
+(`js/app.js`) : les 4 acquis 009/010 tiennent tous à ces deux invariants, ni l'un ni
+l'autre n'a été touché.
+
+**Restauré, structure exacte de l'oracle (§2 de la fiche) :** méta complète (temps,
+difficulté avec emoji, personnes+échelle, cuisine), description entre guillemets,
+Nutri-Score visuel (barres A-E, lettre active) ou bouton d'estimation si pas encore
+analysé, ingrédients avec pastille colorée + emoji + quantité mise à l'échelle, section
+« État des stocks » (tags complets, SANS la limite de 6 des cartes), étapes cochables
+(purement visuel — décision D4, aucune persistance), et surtout **le cas `r.content`** :
+bascule sur `!!r.steps`, exactement comme l'oracle — sans étapes structurées, tout le
+corps devient le texte brut, jamais une fiche vide. Bouton panier masqué dans ce cas
+(l'oracle le fait aussi), bouton Supprimer conservé.
+
+**Réutilisation SSOT :** `buildIngredientTags` (chantier 1) sert aussi ici, avec le style
+`'detail'` (info-bulles différentes des cartes, §10-G). Le filet de sécurité emoji
+(`AI_EMOJI_ONLY`, LOT 010) était dupliqué dans `openEnhancedCartPicker` — remonté au
+niveau module et partagé, pour qu'un futur correctif de sécurité ne vive qu'à un endroit.
+
+**Durcissement trouvé en écrivant les tests, avant tout commit :** le bouton d'estimation
+nutritionnelle changeait de texte après un échec (`'✨ Analyse Nutri'`, un ancien libellé
+plus court) sans jamais revenir au nouveau texte plus long affiché à l'ouverture — corrigé
+dans `analyzeNutrition` (`js/app.js`) pour rester cohérent avec `src/ui/recipe.js`.
+
+**Tests ajoutés :** `tests/recipe-detail-rich.test.js` (17), dont 5 tests de
+non-régression dédiés aux 4 acquis (🖨️, ⛶, racine `.modal-content`, contrôles d'échelle) —
+les deux qui n'ont pas de filet automatisé (imprimer, plein écran) restent à vérifier À LA
+MAIN par Joel en navigateur, comme prévu par le plan de test de la fiche.
+
+**Validation :** 299/299 Vitest (+17), 13/13 Pytest, build OK.
+
 ## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
 
 **Fait :**

@@ -24,7 +24,7 @@ cuisiner.
 | # | Chantier | État |
 |---|---|---|
 | 1 | Cartes de résultats IA complètes (méta, pitch, tags stock colorés, boutons directs) | ✅ codé (11B) |
-| 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ⬜ à faire (11B) — le plus risqué, porte les 4 acquis 009/010 |
+| 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ✅ codé (11B) — 4 acquis 009/010 vérifiés par test (sauf 🖨️/⛶, à vérifier à la main) |
 | 3 | Prompts et appels IA re-blindés (+ effort IA adapté par tâche, demande Joel du 2026-07-30) | ✅ codé (11A) |
 | 4 | Mode 🎲 « recette aléatoire » complet | ✅ codé (11A) |
 | 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ⬜ à faire (11B) |

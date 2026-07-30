@@ -40,6 +40,15 @@ let _aiSuggestGenId = 0;
 // (generateSuggestions) refuse desormais tout lancement pendant qu'un autre est en cours.
 let _generationInFlight = false;
 
+// Filet de sécurité emoji ingrédient (LOT 010, casse C12, durci après audit Codex Terra) :
+// un prompt IA sans indication de format a pu, par le passé, faire dériver du texte (une
+// unité comme "g") dans le champ emoji. Ancré sur la chaîne ENTIÈRE (`.test()` cherche
+// n'importe où par défaut — une valeur mixte comme "g🐟" passait sinon). `\p{Emoji}️`
+// (sélecteur de variante 16) couvre en plus les emojis à présentation texte par défaut,
+// explicitement forcés en emoji. SSOT (LOT 011) : partagé par le sélecteur de courses et
+// le détail de recette — un correctif de sécurité ne doit vivre qu'à un seul endroit.
+const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
 
 const expose = (fns) => {
@@ -928,11 +937,13 @@ function buildRecipeHandlers(r, source, favId) {
 function renderRecipeModal() {
     const modal = document.getElementById('modal-recipe-detail');
     if (!modal || !_currentRecipeDetail) return;
+    const tags = buildIngredientTags(_currentRecipeDetail.ingredients, 'detail');
     modal.replaceChildren(renderRecipeDetail(
         _currentRecipeDetail,
         _currentRecipeSource,
         buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
-        _currentScale
+        _currentScale,
+        tags
     ));
 }
 
@@ -995,7 +1006,10 @@ async function analyzeNutrition(r, source, favId) {
         toast("Erreur analyse nutrition", 'error');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '✨ Analyse Nutri';
+            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton
+            // (`src/ui/recipe.js`, NUTRI_BTN_LABEL) — sans ce rappel, un échec laissait
+            // un texte plus court que celui rendu la première fois.
+            btn.textContent = '🔍 Estimer la valeur nutritionnelle (IA)';
         }
     }
 }
@@ -1118,12 +1132,16 @@ function matchIngredientToStock(ingredient) {
 function buildIngredientTags(ingredients, tooltipStyle) {
     return (ingredients || []).map(ing => {
         const name = ing.n || ing.name || '';
+        const category = ing.c || ing.category || 'Autres';
         const status = matchIngredientToStock(ing);
         // Ordre significatif, trouvé en testant : `isExact` (LOT 006) se calcule
         // INDÉPENDAMMENT du stock (le nom le plus proche, même sur un ingrédient épuisé) —
         // sans `inStock` en premier filtre, un nom exact mais épuisé ressortait vert.
         const cls = !status.inStock ? 'red' : (status.isExact ? 'green' : 'orange');
         const matches = (status.allMatchesInStock || []).map(m => m.name).join(', ');
+        // Même filet de sécurité que le sélecteur de courses (SSOT, `AI_EMOJI_ONLY`) :
+        // un ingrédient de recette peut porter le même défaut de format.
+        const aiEmoji = ing.e && AI_EMOJI_ONLY.test(ing.e.trim()) ? ing.e : null;
 
         let tooltip = name;
         if (tooltipStyle === 'card') {
@@ -1134,7 +1152,13 @@ function buildIngredientTags(ingredients, tooltipStyle) {
             tooltip += ` (Stock : ${matches})`;
         }
 
-        return { name, cls, tooltip, isPinned: status.isPinned };
+        return {
+            name,
+            cls,
+            tooltip,
+            isPinned: status.isPinned,
+            emoji: aiEmoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category))
+        };
     });
 }
 
@@ -1145,16 +1169,9 @@ function openEnhancedCartPicker(recipe) {
         const name = i.n || i.name;
         const category = i.c || i.category || 'Autres';
         const status = matchIngredientToStock(i);
-        // Filet de sécurité (LOT 010, casse C12) : un prompt IA sans indication de
-        // format a pu, par le passé, faire dériver du texte (une unité comme "g") dans
-        // ce champ au lieu d'un emoji. Durci après audit Codex Terra du 2026-07-30 :
-        // `.test()` cherche n'importe où dans la chaîne, une valeur mixte ("g🐟") passait
-        // donc le filtre avec la lettre toujours collée devant l'emoji — la correspondance
-        // est désormais ancrée sur la chaîne ENTIÈRE. `\p{Emoji}️` (sélecteur de
-        // variante 16, écrit en échappement explicite pour rester lisible) couvre en
-        // plus les emojis à présentation texte par défaut, explicitement forcés en
-        // emoji, sans quoi ils étaient rejetés à tort.
-        const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+        // Filet de sécurité emoji : cf. la constante module-level `AI_EMOJI_ONLY`
+        // (LOT 010, casse C12 ; remontée au niveau module par le LOT 011, chantier 2,
+        // pour rester SSOT avec le détail de recette).
         const aiEmoji = i.e && AI_EMOJI_ONLY.test(i.e.trim()) ? i.e : null;
         return {
             name,
