@@ -29,8 +29,23 @@ check-list de non-régression finale.
 
 ### A. Découpage de `js/app.js` (ex-fiche SPLIT_APP_JS, actualisée)
 
-`js/app.js` fait ~1500 lignes avant campagne, davantage après les restaurations. Cible :
+`js/app.js` fait **2 810 lignes** (mesuré le 2026-07-30, découverte du LOT 013 — la fiche
+annonçait « ~1500 avant campagne », soit **+87 %** après les restaurations). Cible :
 **un orchestrateur fin (< 700 lignes) + N modules métier.**
+
+**Précisions issues de la découverte du LOT 013 (vérifiées `fichier:ligne`)** :
+- `js/app.js` est un module ESM **plat** : au niveau racine il n'y a que **4 instructions
+  exécutables** (`js/app.js:60-93` le handler `DOMContentLoaded`, `:95-98` l'écouteur
+  `stateUpdated`, `:2191` `window._onManualCategoryChange`, `:2788` `expose({...})`).
+  Aucun IIFE, aucun top-level await, aucun `import()` dynamique.
+- Deux contrats publics coexistent : le bloc **`export {}`** (`js/app.js:538-597`, **54 noms**,
+  « exportés UNIQUEMENT pour les tests ») et le bloc **`expose({})`** (`js/app.js:2788-2810`,
+  **44 noms** sur `window`). Le découpage doit préserver **les deux**.
+- Le vrai obstacle n'est pas les fonctions mais l'**état de module** : ~25 variables `_*`
+  (`js/app.js:29-41`, `:117-133`, `:1038-1049`, `:1904`, `:2569`), dont **une seule** dispose
+  d'une trappe de reset (`__resetSyncEngineForTests`, `js/app.js:519-534`). C'est ce qui rend
+  les tests fragiles aujourd'hui (une génération laissée en vol bloque tous les tests suivants
+  d'un fichier, `js/app.js:910`) — l'étape 5 ci-dessous est donc la plus rentable.
 
 Étapes héritées de la fiche d'origine — à re-vérifier sur l'état réel du code, plusieurs
 points ont pu être résolus par les LOTS 005-012 :
@@ -118,6 +133,56 @@ Balayage systématique, `grep` à l'appui, avec correction ou fiche backlog par 
   `.emoji-edit-btn`, `.sync-indicator.*`, `mh-*`/`rd-*`) — l'ancien plan (`CURRENT_GOAL.md`
   d'avant campagne) les croyait morts, les LOTS 007-012 les ont rebranchés.
 
+### G. Suppression des « articles libres » — CHANGEMENT DE COMPORTEMENT ASSUMÉ
+
+⚠️ **Deuxième exception au pare-feu A/B de ce lot**, au même titre que le volet C.
+**Décidé par Joel le 2026-07-30** (« et si on effaçait ces articles libres, et qu'on n'en
+parlait plus »), après avoir constaté que la fonction ne lui sert pas. **À livrer dans un
+commit SÉPARÉ**, comme le volet C.
+
+**Ce que c'est :** `state.customCartItems` — des articles ajoutés à la liste de courses sans
+passer par l'inventaire. Dans l'oracle, ils étaient créés depuis la recherche
+(`foodapp-v5-Joel.html:6107-6115`, `addCustomCartItemFromSearch`). **L'oracle lui-même les
+marquait « Deprecated »** (`foodapp-v5-Joel.html:4237` et `:4295`).
+
+**État actuel (découverte du LOT 013, vérifié sur pièce) :** conservés, synchronisés,
+sauvegardés, effacés par les resets et **copiés** — mais **jamais affichés** (`renderShopping`,
+`js/app.js:818-824`, ne passe que `state.ingredients.filter(i => i.inCart)`) et **impossibles
+à créer** (aucun portage de `addCustomCartItemFromSearch`). C'est donc un vestige à demi
+branché, pas une fonctionnalité.
+
+**Pourquoi ici et pas au LOT 013 :** supprimer un champ tissé dans la synchro, la sauvegarde,
+les resets et la copie **est un déplacement de code**. La leçon qui gouverne la campagne est
+qu'on ne déplace pas de code sans filet — le faire pendant le lot qui *construit* le filet
+inverse l'ordre que toute la campagne existe pour imposer.
+
+**Inventaire complet des sites à traiter (8 en production, 9 fichiers de tests) :**
+
+| Site | Rôle |
+|---|---|
+| `src/state.js:36` | valeur par défaut |
+| `src/state.js:179` | garde `if (!state.customCartItems) … = []` |
+| `src/constants.js:34` | entrée dans `BACKUP_STATE_KEYS` (périmètre du fichier de sauvegarde) |
+| `src/services/firebase.js:19` | entrée dans `SYNC_ARRAY_KEYS` |
+| `src/actions.js:99` | `resetCart()` |
+| `src/actions.js:131` | reset global |
+| `js/app.js:1629-1640` | rubrique `[ ARTICLES LIBRES ]` de la copie (LOT 015) + comptage du toast |
+| `src/actions.js:80`, `:86` + `src/ui/shopping.js:19`, `:32` | **paramètre `type` mort** de `toggleShoppingCheck` / `removeFromCart` : `removeFromCart` l'ignore totalement et ne cherche que dans `state.ingredients` (vérifié — aucun bug actif, mais le paramètre ne sert plus à rien) |
+
+**Tests impactés** (57 occurrences sur 9 fichiers) : l'essentiel est du décor (la remise à
+zéro de `state` cite la clé), **sauf `tests/export-clipboard.test.js` (24 occurrences)** qui
+contient les tests dédiés du LOT 015 : rubrique `[ ARTICLES LIBRES ]` placée en fin, article
+sans nom exploitable ignoré, gardes de type (`{0:{}}`, string, 42, null), toasts chiffrés
+incluant les articles libres. Ces tests sont à **supprimer**, pas à contourner.
+
+**Effets à annoncer à Joel avant livraison :** sa liste de courses copiée cessera d'inclure
+son « porc haché » (seul endroit où il était encore visible) ; les fichiers de sauvegarde
+créés après ce lot ne porteront plus le champ ; le document cloud gardera une copie périmée
+du champ, simplement plus lue.
+
+**Discipline** : 3 recherches convergentes par site (appel direct, accès dynamique, config
+annexe) avant tout retrait, conformément à `CLAUDE.md` §5.
+
 ### F. Verrous anti-récidive
 
 - **Verrou imports ESM** (arbitrage parqué depuis le LOT 002) : test qui échoue si un import
@@ -128,15 +193,22 @@ Balayage systématique, `grep` à l'appui, avec correction ou fiche backlog par 
 
 ## Ordre d'exécution et livraison
 
-Étapes livrées séquentiellement (B → C → A → D → E → F recommandé — B d'abord car il
-simplifie A), **un commit par étape aboutie**, validation unifiée verte à chaque commit.
+Étapes livrées séquentiellement (B → C → **G** → A → D → E → F recommandé — B d'abord car il
+simplifie A ; **G tôt** car il retire du code que A/D/E devraient sinon déplacer pour rien),
+**un commit par étape aboutie**, validation unifiée verte à chaque commit.
 Pas de « grand soir » : si une étape déraille, on la revert seule.
+**C et G sont les deux seuls volets à changement de comportement : commits séparés, isolés
+des volets de refonte pure.**
 
 ## Critères d'acceptation
 
 - [ ] `js/app.js` < 700 lignes ; plus aucune variable `_*` de module dans `app.js`
 - [ ] Plus aucun `state = moduleState` compensatoire
 - [ ] `validate.js` en place sur les 3 portes (cloud, localStorage, IA)
+- [ ] **Volet G soldé** : plus aucune occurrence de `customCartItems` dans `js/` ni `src/`
+      (`grep` de contrôle documenté dans le commit) ; paramètre `type` mort retiré de
+      `toggleShoppingCheck`/`removeFromCart` ; tests du LOT 015 dédiés aux articles libres
+      supprimés, pas neutralisés
 - [ ] Zéro duplication SSOT connue restante (liste D soldée ou en fiches backlog)
 - [ ] Les 2 verrous anti-récidive en place et rouges quand on les provoque
 - [ ] Validation unifiée verte, build OK, **check-list de la fiche régressions re-parcourue

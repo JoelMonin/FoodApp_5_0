@@ -19,6 +19,17 @@ changé pourrait appliquer le statut de la conserve au haricot sec.
   dépasse l'oracle, donc changement de comportement à assumer explicitement (pare-feu A/B).
 - Ajouter un test avec deux ingrédients homonymes de catégories différentes.
 
+## ⛔ §2 et §3 — TRANCHÉS LE 2026-07-30 : les articles libres seront SUPPRIMÉS
+
+**Décision de Joel** (découverte du LOT 013) : les articles libres ne sont ni voulus ni
+utiles ; ils disparaissent au lieu d'être rebranchés. → **volet G du LOT 014**, où l'inventaire
+complet (8 sites de production, 9 fichiers de tests) est déjà rédigé.
+
+Les §2 et §3 ci-dessous sont **conservés pour la trace** (règle « rien ne se supprime ») mais
+**ne sont plus des chantiers ouverts** : ils décrivent l'état d'avant la décision, et leur
+résolution est désormais « retrait », pas « rebranchement ». Le §4 premier point (divergence
+entre appareils) tombe mécaniquement avec eux.
+
 ## 2. `removeFromCart` ne reproduit pas l'oracle complet (articles libres)
 
 L'oracle (monolithe l.4821-4832) distinguait `type === 'db'` (ingrédient : `inCart = false`
@@ -63,6 +74,49 @@ un lot déjà plus lourd que prévu.
   un envoi qui échoue ; il faut garantir qu'à la reconnexion c'est bien l'état **restauré**
   qui part, et non l'ancien contenu cloud qui revient l'écraser. Le moteur du LOT 007 a une
   reprise sur échec, mais ce scénario précis n'est couvert par **aucun test**.
+
+## 5. Zones mortes relevées par la découverte du LOT 013 (2026-07-30)
+
+Trois constats vérifiés sur pièce pendant la phase découverte. **Aucun n'est un défaut visible
+par Joel** — ce sont des candidats au nettoyage du LOT 014, consignés ici pour ne pas être
+retrouvés une quatrième fois.
+
+- **La modale « ajout groupé » n'est ouverte par personne.** `#modal-shopping-bulk`
+  (`index.html:23-39`, 2 ids et 3 `onclick`) n'a aucun appelant : recherche exhaustive dans
+  `js/`, `src/` et `tests/` — les seules références sont `js/app.js:72` (liste générique des
+  overlays), `:2265`, `:2272`, `:2740`. Pire, son gestionnaire `confirmBulkAdd`
+  (`js/app.js:2267`) lit `cb.dataset.id`, un `data-id` que **personne n'écrit** : même ouverte
+  à la main, elle ne fonctionnerait pas. → LOT 014 §E/§D, avec 3 recherches convergentes.
+- **`sanitize()` n'est appelée nulle part.** `src/utils/dom.js:41` n'a d'appelant que
+  `tests/dom.test.js:35`. Renforcer ses tests reviendrait à tester du code mort — c'est
+  pourquoi le LOT 013 ne le fait pas. → LOT 014.
+- **Le 3ᵉ pied de page du détail de recette est inatteignable.** `src/ui/recipe.js:173-176`
+  couvre une source ≠ `ai`/`fav` (« 💾 Sauver » / « 🛒 + Liste »), or `openRecipeDetail`
+  (`js/app.js:1086-1097`) ne produit que ces deux sources et `renderRecipeModal`
+  (`js/app.js:1077-1083`) en est le seul appelant. C'est ce qui rend caduque la ligne
+  « 1 test par source (ai/fav/paste) » de la fiche LOT 013 d'origine. → LOT 014.
+
+## 6. Neuf temporisations du code ne sont couvertes par aucun test (constat LOT 013)
+
+La découverte a relevé **20 temporisations** dans le code applicatif là où la fiche LOT 013
+n'en citait que 3. Onze sont couvertes. Les neuf autres — 10 ms (apparition du toast,
+`src/utils/dom.js:61`), 100 ms ×2 (`js/app.js:941-945`, `:2781`), 300 ms
+(`src/utils/dom.js:64`), 800 ms (suggestion IA d'ajout, `js/app.js:2135`→`:2187`), 1800 ms
+(`src/actions.js:172`), 3000 ms (durée d'un toast, `src/utils/dom.js:62`), 10 000 ms (retry
+de synchro, `js/app.js:113`), 60 000 ms (pull périodique, `js/app.js:114`) — n'ont aucun
+verrou. Le LOT 013 en traite une partie (les 800 ms sont dans son périmètre via
+`handleAddInput`) ; le reste reste ouvert.
+
+## 7. Le câblage du démarrage est structurellement hors de portée des tests
+
+`DOMContentLoaded` **ne se déclenche jamais** sous Vitest (`document.readyState === 'complete'`
+avant l'import du module — vérifié empiriquement en découverte du LOT 013). Conséquence : le
+contenu du handler `js/app.js:60-93` — l'ordre dans lequel le démarrage appelle
+`loadStateFromModule`, `renderCurrentView`, `restoreAIConfig`, `initKeyboardShortcuts`,
+`initSyncEngine`, les 6 `initSwipeToClose`… — n'est prouvable que par lecture ou preuve
+navigateur. Les fonctions elles-mêmes sont testables une à une (elles sont exportées) ; c'est
+**le câblage** qui ne l'est pas. À traiter par un verrou de parité au LOT 014 §F, ou à assumer
+comme angle mort documenté.
 
 ## Traçabilité
 

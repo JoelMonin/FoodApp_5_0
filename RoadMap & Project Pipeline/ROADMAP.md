@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) — ⚠️ premier geste : poser des `id` sur les cartes de Réglages (point de passage du LOT 015) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
+| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BEN%20COURS%5D.md) | Filet de tests UI (promu du backlog) — phase découverte faite le 2026-07-30, fiche réécrite, ancres de test + non-restauration des articles libres arbitrées | EN COURS | `feat/lot13-filet-tests-ui` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
@@ -100,6 +100,12 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-30 — ouverture du LOT 013** : phase découverte (4 agents) a montré que la fiche
+  était périmée (33 tests annoncés vs 448 réels, plusieurs items déjà faits par le LOT 015,
+  la §D reposait sur une prémisse fausse). Fiche réécrite. Deux arbitrages de Joel : ancres
+  de test autorisées dans `index.html` (audit relevé à Standard) ; les « articles libres »
+  (`customCartItems`), trouvés fantômes en cours de découverte, ne sont pas rebranchés mais
+  **supprimés** au LOT 014 (nouveau volet G de sa fiche).
 - **2026-07-29 — refonte « campagne Restauration & Refonte »** : le balayage des régressions
   (4 agents + auditeurs) a montré ~30 comportements perdus par la migration. Création des
   LOTS 008-014, spec 007 passée en v3 (double audit NO-GO intégré), statut `[PLANIFIE]`
