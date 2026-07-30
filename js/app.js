@@ -33,6 +33,12 @@ let _addSuggestTimer = null;
 // Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
 // d'appliquer sa reponse (cf. handleAddInput).
 let _aiSuggestGenId = 0;
+// LOT 011 (trouve par l'audit du sous-lot 11A) : deux generations de recettes concurrentes
+// (bouton normal + 🎲, ou deux clics rapides sur 🎲) pouvaient se marcher dessus — chacune
+// restaure "sa" creativite sauvegardee dans un finally, et la derniere a finir l'emporte
+// meme si elle a lu une valeur deja corrompue par l'autre. Un seul point d'entree
+// (generateSuggestions) refuse desormais tout lancement pendant qu'un autre est en cours.
+let _generationInFlight = false;
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
 
@@ -763,11 +769,13 @@ function resetFilters() {
 }
 
 async function generateSuggestions() {
+  if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
   const apiKey = state.aiConfig.apiKey;
   if (!apiKey) { toast('Clé API Gemini requise', 'error'); openModal('modal-api-config'); return; }
   const stockItems = state.ingredients.filter(i => i.inStock);
   if (stockItems.length === 0) { toast('Inventaire vide', 'error'); return; }
 
+  _generationInFlight = true;
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
   btn.classList.add('loading');
@@ -784,6 +792,7 @@ async function generateSuggestions() {
   } catch (e) {
     toast('Erreur IA : ' + e.message, 'error');
   } finally {
+    _generationInFlight = false;
     btn.disabled = false;
     btn.classList.remove('loading');
   }
@@ -1933,30 +1942,42 @@ function removeExtraIngredient(id) {
 }
 
 function generateRandomWithStock() {
+    // Meme garde que generateSuggestions (LOT 011, audit sous-lot 11A) : evite de muter
+    // state.aiConfig pour rien si une generation tourne deja, et rend le refus immediat.
+    if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
     const stock = state.ingredients.filter(i => i.inStock);
     if (stock.length === 0) { toast('Stock vide', 'error'); return; }
 
-    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097), MAIS apiKey et
-    // models sont preserves : l'oracle les stockait ailleurs, les reinitialiser ici
-    // viderait la cle API de Joel a chaque tirage. `cuisines` (pluriel, SSOT du LOT 010)
-    // est bien cible — l'oracle videait un champ fantome `cuisine` qui ne servait a rien.
-    const savedCreativity = state.aiConfig.creativity;
+    // Desactivation visuelle du bouton 🎲 le temps de la generation, symetrique a ce que
+    // generateSuggestions fait deja pour #generate-btn (trouve par l'audit : seul le
+    // bouton normal etait desactive, pas celui-ci — un double-clic sur 🎲 restait possible).
+    const magicBtn = document.getElementById('magic-btn');
+    if (magicBtn) magicBtn.disabled = true;
+
+    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097) pour CETTE
+    // generation, MAIS apiKey et models sont preserves : l'oracle les stockait ailleurs,
+    // les reinitialiser ici viderait la cle API de Joel a chaque tirage. `cuisines`
+    // (pluriel, SSOT du LOT 010) est bien cible — l'oracle videait un champ fantome
+    // `cuisine` qui ne servait a rien.
+    // Arbitrage Joel (2026-07-30, post-audit sous-lot 11A) : contrairement a l'oracle
+    // (qui laissait les filtres reinitialises en permanence), TOUT est emprunte pour
+    // une seule generation puis restaure integralement ensuite — pas seulement la
+    // creativite. D'ou la sauvegarde de l'objet entier, pas juste d'un champ.
+    const savedAiConfig = state.aiConfig;
     state.aiConfig = {
         ...defaultAiConfig(),
-        apiKey: state.aiConfig.apiKey,
-        models: state.aiConfig.models,
-        ppl: state.aiConfig.ppl || '2',
+        apiKey: savedAiConfig.apiKey,
+        models: savedAiConfig.models,
+        ppl: savedAiConfig.ppl || '2',
         creativity: Math.floor(Math.random() * 21) + 80 // 80-100
     };
     restoreAIConfig();
 
     return generateSuggestions().finally(() => {
-        // Le boost de creativite est ponctuel (acquis LOT 008) : seule la valeur
-        // sauvegardee du curseur est restauree apres coup. Les autres filtres, eux,
-        // restent reinitialises — comme dans l'oracle.
-        state.aiConfig.creativity = savedCreativity;
+        state.aiConfig = savedAiConfig;
         restoreAIConfig();
         saveState(false);
+        if (magicBtn) magicBtn.disabled = false;
     });
 }
 

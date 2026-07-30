@@ -149,10 +149,13 @@ describe('Gemini Service', () => {
       expect(body.generationConfig.thinkingBudget).toBeUndefined();
     });
 
-    it('n\'envoie plus topK/topP/temperature comme leviers de créativité (dépréciés et ignorés par Gemini 3.x)', async () => {
+    it('n\'envoie plus topK/topP/temperature comme leviers de créativité (dépréciés et ignorés par ' +
+       'Gemini 3.x — trouvé lors de l\'audit du sous-lot 11A : ce test ne vérifiait que topK/topP, ' +
+       'pas temperature, alors que son titre le prétendait)', async () => {
       await generateRecipes('MOCK_KEY', [], { ...defaultAiConfig(), creativity: 95 }, [], []);
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.generationConfig.temperature).toBeUndefined();
       expect(body.generationConfig.topK).toBeUndefined();
       expect(body.generationConfig.topP).toBeUndefined();
     });
@@ -208,6 +211,50 @@ describe('Gemini Service', () => {
 
       expect(fetch).toHaveBeenCalledTimes(1);
       expect(onThinkingFallback).not.toHaveBeenCalled();
+    });
+
+    it('si le second essai (sans thinkingLevel) échoue aussi, l\'erreur remonte proprement ' +
+       'et aucun toast de repli réussi n\'est déclenché (comportement déjà correct, figé par ' +
+       'l\'audit du sous-lot 11A)', async () => {
+      fetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: { message: 'Unknown name "thinkingConfig"' } })
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ error: { message: 'Internal error' } })
+        });
+      const onThinkingFallback = vi.fn();
+
+      await expect(
+        generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], [], { onThinkingFallback })
+      ).rejects.toThrow('Internal error');
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(onThinkingFallback).not.toHaveBeenCalled();
+    });
+
+    it('reconnaît aussi le rejet sous forme snake_case/kebab-case/espacée (durcissement, ' +
+       'audit du sous-lot 11A)', async () => {
+      fetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: { message: 'Unknown field: thinking_level' } })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: '[]' }] } }] })
+        });
+      const onThinkingFallback = vi.fn();
+
+      const recipes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], [], { onThinkingFallback });
+
+      expect(recipes).toEqual([]);
+      expect(onThinkingFallback).toHaveBeenCalledTimes(1);
     });
   });
 

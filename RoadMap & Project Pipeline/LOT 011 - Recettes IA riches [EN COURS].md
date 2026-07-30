@@ -547,6 +547,43 @@ l'utilisateur ne les retouche pas manuellement). Le §12-A2 n'exigeait explicite
 créativité soit ponctuelle ; extension logique et minimale au même mécanisme de restauration
 `finally`, cohérente avec l'esprit de la règle, pas une nouvelle question posée à Joel.
 
+## 14. AUDIT DU SOUS-LOT 11A — 2026-07-30 (Codex Terra, medium)
+
+**Verdict initial : NO-GO — 2 points bloquants, tous deux confirmés après vérification.**
+
+| Point | Vérification | Correction appliquée |
+|---|---|---|
+| `temperature` toujours envoyée (défaut 0.1 inconditionnel dans `callAI`), alors que le §10-A avait déjà tranché ce point pour `topK`/`topP` sans y penser pour `temperature` — même catégorie de paramètre, même documentation Google déjà lue pendant l'audit de spec | ✅ **CONFIRMÉ**, avec une nuance : Google confirme le paramètre « ignoré » aujourd'hui par nos 2 modèles (pas d'erreur immédiate), une future version pourrait le rejeter — sévérité réelle plus proche d'un oubli de cohérence que d'une casse immédiate, mais correction identique dans les deux cas | `temperature` rendue optionnelle dans `callAI`, exactement comme `topK`/`topP` — n'est envoyée que si un appelant la fournit explicitement (2 appels hors LOT 011 continuent de le faire, comportement inchangé pour eux) |
+| Deux tirages 🎲 rapprochés (ou 🎲 + bouton normal) peuvent s'exécuter en parallèle : chacun mémorise « sa » créativité avant de générer, le second peut mémoriser la valeur aléatoire du premier au lieu de la vraie valeur sauvegardée de Joel, et la réécrire à la fin | ✅ **CONFIRMÉ** par relecture précise (le bouton 🎲 n'avait pas d'id et n'était jamais désactivé, contrairement au bouton normal) | Garde-fou `_generationInFlight` partagé, vérifié en tête de `generateSuggestions` ET `generateRandomWithStock` — toute génération concurrente est refusée net (toast) plutôt que de s'exécuter et corrompre l'état. Bouton 🎲 doté d'un id et désactivé pendant la génération, symétrique au bouton normal |
+
+**Durcissements intégrés :** détecteur de repli élargi (`thinking_config`/`thinking-config`/
+espaces, pas seulement `thinkingConfig` camelCase) ; test figeant le cas déjà correct où le
+second essai échoue aussi (aucun toast trompeur) ; test du détecteur élargi.
+
+**Point réfuté après vérification :** aucun — les deux points bloquants et les 3 « OK »
+(repli sur échec du second essai, fusion du prompt, nouvelle signature du collage,
+expiration Jina, SSOT modèles) ont tous été confirmés exacts par relecture du code réel.
+
+**Correction du filet de tests lui-même :** le test cензé prouver l'absence de `temperature`
+ne vérifiait en réalité que `topK`/`topP` — corrigé pour vérifier les 3.
+
+**Revalidation :** 255/255 Vitest (+4 tests de régression ciblés), 13/13 Pytest, build OK.
+
+### 14.1 Arbitrage remonté par l'audit — TRANCHÉ par Joel le 2026-07-30
+
+**Question :** le tirage 🎲 effaçait durablement régime, équipement, cuisine, repas, temps,
+difficulté et exclusions (seule la créativité revenait après coup, cf. §12-A2). L'audit a
+demandé une confirmation explicite plutôt qu'une extension silencieuse de l'exécutant.
+
+**Décision de Joel : NON — tout doit revenir après.** Contrairement à l'oracle (qui laisse
+les filtres réinitialisés en permanence), le mode 🎲 emprunte l'intégralité de la config IA
+pour UNE SEULE génération puis la restaure EXACTEMENT comme avant — pas seulement la
+créativité. Comportement final, plus strict que l'oracle ET que le §12-A2 initial :
+`generateRandomWithStock` sauvegarde désormais la référence complète de `state.aiConfig`
+avant remplacement et la restaure telle quelle dans le `finally`, plutôt que de ne
+restaurer qu'un seul champ. Tests mis à jour en conséquence
+(`tests/ai-random-mode.test.js`).
+
 ## 11. ARBITRAGES REMONTÉS À JOEL PAR L'AUDIT — TRANCHÉS le 2026-07-30
 
 | # | Question | **Décision de Joel** |

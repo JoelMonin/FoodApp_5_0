@@ -29,7 +29,6 @@ const RECIPE_SAFETY_SETTINGS = [
 export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options = {}) {
   if (!apiKey) throw new Error("Clé API manquante.");
 
-  const temp = options.temperature !== undefined ? options.temperature : 0.1;
   const tokens = options.maxTokens || 4096;
   const isJSON = options.isJSON !== undefined ? options.isJSON : true;
 
@@ -39,11 +38,17 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: temp,
         maxOutputTokens: tokens
       }
     };
 
+    // temperature/topK/topP : dépréciés et ignorés par Gemini 3.x (gemini-3.6-flash,
+    // gemini-3.5-flash-lite — les deux seuls modèles utilisés par ce projet), Google
+    // recommande explicitement de ne plus les envoyer plutôt que d'imposer un défaut
+    // inerte (trouvé lors de l'audit du sous-lot 11A, LOT 011). Envoyés SEULEMENT si le
+    // caller les fournit explicitement, pour ne pas changer le comportement des appels
+    // hors LOT 011 qui les passent encore (analyse nutrition, suggestion de catégorie).
+    if (options.temperature !== undefined) body.generationConfig.temperature = options.temperature;
     if (options.topK) body.generationConfig.topK = options.topK;
     if (options.topP) body.generationConfig.topP = options.topP;
     if (options.thinkingLevel && includeThinking) {
@@ -82,7 +87,10 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
   try {
     data = await attempt(true);
   } catch (err) {
-    const rejetteLeParametre = err.status === 400 && /thinkingConfig|thinkingLevel/i.test(err.message || '');
+    // Motif large : accepte camelCase, snake_case, kebab-case et espaces — un message
+    // d'erreur Google réel pourrait citer le champ sous n'importe laquelle de ces formes
+    // (durcissement trouvé lors de l'audit du sous-lot 11A).
+    const rejetteLeParametre = err.status === 400 && /thinking[\s_-]?(?:config|level)/i.test(err.message || '');
     if (options.thinkingLevel && rejetteLeParametre) {
       data = await attempt(false);
       options.onThinkingFallback?.();
