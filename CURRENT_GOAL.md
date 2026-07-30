@@ -13,7 +13,9 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 le lot 10 »). Branche `feat/lot10-regles-metier`, ouverte **depuis `feat/lot9-boutons-morts`**
 (et non depuis `main`) : le LOT 009 n'est pas encore publié et les deux lots visent la même
 **version 5.6** — les chaîner évite un conflit de fusion et permet de publier la 5.6 d'un bloc.
-Niveau d'audit : **Standard**, avec relecture ciblée du chantier 1 (il touche le prompt IA).
+Niveau d'audit : **DUR** — relevé de Standard le 2026-07-30 sur constat de l'audit de spec
+(le lot modifie `src/state.js` et `src/ui/recipe.js`, zones sensibles de `DOCTRINE_PRODUIT.md`
+§3, ce qui impose une boucle d'audit par étape).
 
 | Chantier | Casse | Statut |
 |---|---|---|
@@ -27,6 +29,17 @@ Niveau d'audit : **Standard**, avec relecture ciblée du chantier 1 (il touche l
 **Phase découverte faite le 2026-07-30** (étape bloquante, avant toute ligne de code) :
 24 ressources réutilisables recensées, 6 groupes de manques, et **10 citations de lignes
 périmées corrigées dans la fiche**. Détail : fiche LOT 010 §7.
+
+**Audit de spec Codex fait le 2026-07-30, AVANT tout code** (à la demande de Joel) :
+**NO-GO levé** — 5 points bloquants + le niveau d'audit sous-évalué, tous recontrôlés contre
+le code réel puis intégrés en règles exactes dans la fiche. Détail : fiche LOT 010 §8.
+
+**Deux arbitrages tranchés par Joel le 2026-07-30 :**
+1. **SSOT strict** : `cuisines` est l'unique champ définitif ; l'ancien `cuisine` y est versé
+   puis supprimé partout (local, cloud, IA).
+2. **Fractions** : dépassement volontaire de l'oracle — prise en charge réelle des fractions
+   ASCII (`1/2`) et Unicode (`½`) dans le recalcul des quantités, sans dérive. Motif renforcé
+   par la contre-vérification : l'oracle **corrompt** `1/2` en `2/4`.
 
 ## Lot précédent — en attente de publication
 

@@ -5,7 +5,10 @@
 > (le LOT 009 n'est pas encore fusionné — publication reportée par Joel — et les deux lots
 > visent la **même version 5.6** : les chaîner évite un conflit de fusion et permet de
 > publier la 5.6 d'un bloc quand Joel donnera son feu vert)
-> **Niveau d'audit : Standard** (+ relecture ciblée sur le chantier 1, qui touche le prompt IA)
+> **Niveau d'audit : DUR** — relevé de `Standard` à `Dur` le 2026-07-30 sur constat de l'audit
+> de spec (Codex) : le lot modifie `src/state.js` et `src/ui/recipe.js`, deux **zones sensibles**
+> explicitement listées par `DOCTRINE_PRODUIT.md` §3, ce qui rend le niveau Dur obligatoire
+> (`CLAUDE.md` §5). Concrètement : boucle d'audit **par étape** (et non un seul audit final).
 > **Effort estimé :** ~1 journée
 
 **Lecture obligatoire :** `CLAUDE.md`, `DOCTRINE_PRODUIT.md`, `PROJECT_MAP.md`,
@@ -52,6 +55,28 @@ nulle part ailleurs (aucune occurrence en CSS, JS ou tests).
 - test qui fige la règle : une config avec `cuisines:['italienne']` → le prompt généré
   contient « italienne » (étendre `tests/gemini.test.js`).
 
+**RÈGLE EXACTE (audit de spec Codex + arbitrage de Joel du 2026-07-30 — SSOT strict) :**
+
+> `cuisines` est l'**unique champ canonique et définitif**. Lors de l'assainissement, si un
+> ancien `cuisine` existe, transférer sa valeur vers `cuisines` **puis supprimer `cuisine`**.
+> Tous les chemins — local, cloud, IA — n'utilisent ensuite que `cuisines`.
+>
+> - **Idempotence** : après un premier assainissement, `cuisine` n'existe plus ; tout passage
+>   suivant, y compris pendant `resetAllData` (`src/actions.js:94-120`, qui recrée une config
+>   canonique avant d'assainir), ne change plus le résultat.
+> - **Préséance** : `applyExternalState` remplace la config locale par l'externe et ne conserve
+>   localement que la clé API (`src/state.js:222-230`) — **la valeur cloud gagne** après
+>   migration, sauf saisie locale survenue pendant la requête (protection LOT 007,
+>   `js/app.js:347-388`).
+> - **Pas d'envoi correctif** : un simple téléchargement ne déclenche aucun renvoi vers le
+>   cloud. Mais tout document envoyé ensuite est canonique : `buildSyncDocument`
+>   (`src/services/firebase.js:54-62`) recopie tous les réglages sauf clé et modèles — un
+>   `cuisine` non supprimé repartirait au cloud, d'où l'obligation de le supprimer.
+> - **Collision des deux champs** (`cuisine` et `cuisines` présents et différents) :
+>   **arbitrage de Joel — SSOT strict**, la valeur de l'ancien `cuisine` est versée dans
+>   `cuisines` (elle représente le dernier choix réellement effectué par l'utilisateur, puisque
+>   c'est le champ que l'interface cassée écrivait et relisait), puis `cuisine` disparaît.
+
 ### 2. Plafond « max 6 ingrédients imposés » (casse C9)
 
 **Aujourd'hui** (lignes revérifiées) **:** `togglePin` (`src/actions.js:23-29`) n'a plus aucun
@@ -63,12 +88,25 @@ pas choisir objectivement entre « 6 épinglés », « 6+6 » et « 6 au total �
 prime, conformément à l'arbitrage global de Joel. Le monolithe plafonnait à **6 épinglés**
 (l.4733-4742) ET, séparément, à **6 extras** (`addExtraIngredient` — plafond encore en
 place aujourd'hui, `js/app.js:1739-1741`). Donc :
-- restaurer le plafond de **6 épinglés** dans `togglePin` + toast d'explication, identiques
-  à l'origine (lire l.4733-4742 pour le libellé exact) ;
+- restaurer le plafond de **6 épinglés** dans `togglePin` + toast d'explication ;
 - conserver le plafond de 6 extras existant, inchangé ;
-- **corriger le libellé menteur de l'UI** (`index.html:379`, « Max 6 ingrédients imposés au
-  total ») → « Max 6 épinglés + 6 hors stock » (ou équivalent exact) ;
+- **corriger le libellé menteur de l'UI** (`index.html:379`) ;
 - une constante par plafond (SSOT), partagée entre le code et le libellé si possible.
+
+**RÈGLE EXACTE (audit de spec Codex — oracle relu et confirmé mot à mot, l.4733-4742) :**
+
+> - **Ne jamais tronquer ni normaliser les épinglés existants.** Une base contenant déjà 7
+>   épinglés (ou plus) les garde tous : le plafond ne rétro-agit pas.
+> - Le refus porte **uniquement sur un passage non-épinglé → épinglé** quand le compteur vaut
+>   déjà 6 ou plus. Le **désépinglage reste toujours autorisé**, même au-delà du plafond
+>   (c'est la seule façon pour l'utilisateur de redescendre).
+> - Libellés **exacts** de l'oracle, à reprendre tels quels :
+>   - refus : `Maximum 6 ingrédients épinglés` (toast de type erreur) ;
+>   - succès épinglage : `📌 {nom} épinglé pour l'IA` ;
+>   - succès désépinglage : `{nom} désépinglé`.
+> - Libellé UI exact : **« Max 6 épinglés + 6 hors stock »**.
+> - Test obligatoire : une base préexistante à 7 épinglés — aucun n'est perdu, le 8ᵉ est
+>   refusé, et un désépinglage fonctionne.
 
 ### 3. Zone « Ingrédients imposés » complète + sous-titre vivant (casse C10)
 
@@ -94,6 +132,23 @@ l.4943-4953) :**
 - rafraîchi aux mêmes moments que l'origine : rendu de la vue IA, épinglage/désépinglage,
   ajout/retrait d'extra.
 
+**RÈGLE EXACTE (audit de spec Codex — oracle relu, l.4733-4741, 4868-4870, 4912-4952) :**
+
+> - ⚠️ **Dépassement volontaire de l'oracle, assumé et tracé :** l'oracle ne rafraîchit
+>   que la zone (`renderImposedZone`) après un épinglage, **pas le sous-titre** — c'est un
+>   oubli de l'original. La fiche demande à raison mieux, mais ne doit pas le présenter comme
+>   « identique à l'origine ». Comportement retenu : au rendu de la vue IA, après
+>   épinglage/désépinglage **et** après ajout/retrait d'un extra → rafraîchir **la zone ET le
+>   sous-titre**.
+> - **Segments masqués à zéro** (règle de l'oracle, l.4949-4951) : le stock est toujours
+>   affiché ; le segment « épinglé(s) » n'apparaît **que si** son compteur est > 0 ; idem pour
+>   « hors stock ». Pluriel sur « ingrédient » et « épinglé », **pas** sur « hors stock ».
+> - **Toujours recalculer depuis l'état vivant**, jamais depuis une copie mémorisée :
+>   supprimer un ingrédient épinglé (`src/actions.js:42-47`) le retire donc automatiquement de
+>   la zone, du compteur et du prochain prompt (`src/services/gemini.js:70-87` recalcule les
+>   épinglés depuis `state.ingredients`). Aucun code de nettoyage supplémentaire n'est requis —
+>   mais un test doit le prouver.
+
 ### 4. Tri alphabétique de l'inventaire (casse C11)
 
 **Aujourd'hui** (lignes revérifiées) **:** `getFilteredIngredients` (`js/app.js:665-685`) rend
@@ -108,6 +163,14 @@ les deux chemins sont disjoints, `getFilteredIngredients` n'est utilisée que pa
 (`js/app.js:651`). Le tri est donc sans risque pour l'export, à condition de ne pas trier
 `state.ingredients` lui-même.
 
+**RISQUE ÉCARTÉ (audit de spec Codex) :** je craignais que les cartes d'inventaire soient
+identifiées par leur **position** dans la liste — auquel cas trier aurait fait agir un clic sur
+le mauvais ingrédient (bug silencieux grave). Vérifié : aucun clic n'utilise la position.
+`getFilteredIngredients` renvoie une copie, `renderPantry` transmet les objets, et chaque carte
+appelle les actions avec `ing.id` (`js/app.js:646-684`, `src/ui/pantry.js:13-35`) — exactement
+comme l'oracle (l.4619-4657). Un test « après tri, cliquer la première carte agit bien sur SON
+identifiant » reste un verrou utile à poser.
+
 ### 5. Quantités recalculées selon le nombre de personnes (casse C12)
 
 **Aujourd'hui** (lignes revérifiées) **:** `changePplScale` (`js/app.js:968-975`) change le
@@ -116,9 +179,14 @@ chiffre affiché, rien d'autre (« Quantitative scaling logic could be added her
 **Attendu (oracle : monolithe `scaleQty` l.5474-5484, `changePplScale` l.5467-5472, état
 `_currentScale`/`_originalPpl` l.5357-5359) :** les boutons −/+ recalculent chaque quantité
 affichée (300 g → 450 g pour 2→3 personnes) et re-rendent la liste d'ingrédients du modal.
-Porter la fonction d'analyse des quantités du monolithe (elle gère nombres, fractions et
-unités collées). La valeur d'origine reste la référence : revenir au nombre initial redonne
-les quantités initiales EXACTES (pas d'erreurs d'arrondi cumulées).
+Porter la fonction d'analyse des quantités du monolithe. La valeur d'origine reste la
+référence : revenir au nombre initial redonne les quantités initiales EXACTES (pas d'erreurs
+d'arrondi cumulées).
+
+⚠️ **Correction de la fiche (audit de spec Codex, oracle relu l.5474-5484) :** la phrase
+« elle gère nombres, **fractions** et unités collées » était **fausse**. L'oracle ne gère que
+les entiers et décimaux (point ou virgule), avec unité collée, arrondis à 1 décimale. Voir
+l'arbitrage de Joel ci-dessous.
 
 **Précisions issues de la phase découverte :**
 - forme des données confirmée : chaque ingrédient est `{n, q, e, c, s}` où `q` est une
@@ -130,6 +198,40 @@ les quantités initiales EXACTES (pas d'erreurs d'arrondi cumulées).
 - l'échelle doit être **réinitialisée à chaque ouverture** de modal, MAIS `analyzeNutrition`
   (`js/app.js:895`) re-rend le modal en cours d'usage : il ne doit PAS réinitialiser une
   échelle déjà choisie par l'utilisateur.
+
+**RÈGLE EXACTE — FRONTIÈRES (audit de spec Codex, oracle relu et vérifié) :**
+
+> **L'échelle est strictement une PRÉSENTATION du modal.** Elle ne modifie ni la recette, ni
+> les favoris, ni les suggestions, ni les données envoyées à la liste de courses.
+> - **Liste de courses** : elle ignore totalement les quantités — vérifié dans le modulaire,
+>   `openEnhancedCartPicker` (`js/app.js:1012-1029`) ne lit que nom, catégorie, emoji et
+>   statut, jamais `q`. Aucune fuite possible de l'échelle vers le panier.
+> - **Analyse nutritionnelle** : continue d'utiliser la recette et le nombre de personnes
+>   **d'origine** (oracle l.5386-5398). Une analyse relance l'affichage **sans perdre**
+>   l'échelle en cours (oracle l.5418-5421).
+> - **Cycle de vie** : fermer puis rouvrir le modal **revient à l'échelle 1** (oracle
+>   l.5378-5382). Valeur initiale : `parseInt(r.people || r.ppl) || 2` — on conserve le repli
+>   `|| r.ppl` déjà accepté par le modulaire (`src/ui/recipe.js:83-87`).
+> - **Bornes : 1 à 20 personnes**, hors de quoi le clic est sans effet (oracle l.5467-5472).
+> - **Anti-dérive** : l'échelle est recalculée depuis la valeur d'origine
+>   (`_currentScale = nouveauNombre / _originalPpl`), jamais accumulée ; et à l'échelle 1 la
+>   chaîne d'origine est renvoyée **telle quelle, sans reformatage**. Ces deux propriétés
+>   doivent survivre à l'extension ci-dessous.
+
+**ARBITRAGE DE JOEL (2026-07-30) — dépassement volontaire de l'oracle, assumé :**
+
+> **Prendre réellement en charge les fractions**, ASCII (`1/2`, `3/4`) et Unicode (`½`, `¼`,
+> `¾`…), lors du recalcul, **sans dérive lors des changements successifs**.
+>
+> **Ce n'est pas qu'un confort — c'est une correction.** Vérification faite sur l'oracle :
+> sa recherche de nombres (`/(\d+([.,]\d+)?)/g`) traite `1/2 citron` comme **deux nombres
+> séparés** : à l'échelle 2 elle produit **`2/4 citron`** — une quantité corrompue, pas
+> seulement mal arrondie. Les fractions Unicode (`½`), elles, sont silencieusement ignorées.
+> Restaurer l'oracle à l'identique reviendrait donc à réintroduire un bug connu.
+>
+> Format de sortie : cohérent avec l'oracle — décimal, virgule française, **1 décimale
+> maximum** (`½ citron` × 3 → `1,5 citron`). À l'échelle 1, la chaîne d'origine reste
+> **inchangée** (`½` reste `½`), ce qui garantit l'aller-retour exact.
 
 ### 6. Menu « Moteur Tâches Complexes » — TRANCHÉ par Joel (2026-07-29)
 
@@ -160,6 +262,21 @@ seule** : quel(s) modèle(s) l'app utilise et pour quoi faire. Concrètement :
   n'est écrasé qu'au **rechargement** suivant (`sanitizeGlobalState` ne repasse qu'à
   `loadState`). Un test qui resterait dans la même session conclurait à tort que le menu
   fonctionne — il faut simuler le cycle complet sauvegarde → rechargement.
+
+**RÈGLE EXACTE (audit de spec Codex) :**
+
+> - **Texte exact du bloc informatif :** « Recettes, nutrition et transformation de texte :
+>   {modèle affecté à ces usages} · Catégories et emojis : {modèle affecté à ces usages} ».
+>   Les **noms de modèles** sont lus depuis l'affectation canonique (`defaultAiModels()`
+>   `src/state.js:9-16` + `AI_ROLES` `src/constants.js:5-10`) et **jamais écrits dans le
+>   HTML** ; seuls les libellés métier sont fixes.
+> - **Périmètre de suppression strict** : retirer **exclusivement** le `<select>` et ses deux
+>   lectures conditionnelles (`js/app.js:1322-1328` à l'ouverture, `js/app.js:1849-1863` à la
+>   sauvegarde). Vérifié : ces lectures sont conditionnelles, leur retrait ne casse pas
+>   mécaniquement l'enregistrement de la clé API — mais tailler trop large dans `saveApiKey`
+>   rendrait l'IA **inutilisable**.
+> - **Test de non-régression obligatoire** : saisir puis enregistrer une clé API continue de
+>   fonctionner après suppression du menu.
 
 ---
 
@@ -204,19 +321,90 @@ généré, à ne pas changer.
 
 ## Plan de test
 
-- [ ] Unitaires : prompt contient la cuisine choisie ; migration `cuisine`→`cuisines` ;
-      plafond épinglés (à la limite, sous la limite, message) ; tri français (accents :
-      « Épinard » avant « Fraise ») ; `scaleQty` (entiers, décimaux, fractions, unités
-      collées, aller-retour sans dérive)
-- [ ] Manuels (Joel) : puce Italienne → les recettes générées sont italiennes ; épingler un
-      7e ingrédient → refus expliqué ; un épinglé apparaît et se retire dans la vue IA ;
-      sous-titre vivant ; inventaire trié ; −/+ personnes recalcule les quantités
+Enrichi le 2026-07-30 par l'audit de spec : chaque règle exacte ci-dessus doit avoir son test.
+
+**Chantier 1 — cuisine**
+- [ ] prompt généré contient « italienne » quand `cuisines:['italienne']`
+- [ ] migration `cuisine`→`cuisines` : valeur transférée **et** `cuisine` supprimé
+- [ ] migration **idempotente** : 2ᵉ passage sans effet ; passage pendant `resetAllData` sans effet
+- [ ] collision des deux champs → `cuisine` gagne puis disparaît (arbitrage Joel)
+- [ ] document sortant (`buildSyncDocument`) ne contient **jamais** `cuisine`
+- [ ] une valeur sauvegardée rallume bien la puce après rechargement (renommage de l'`id`)
+
+**Chantier 2 — plafond**
+- [ ] base préexistante à **7 épinglés** : aucun perdu, 8ᵉ refusé, désépinglage possible
+- [ ] libellés de toast exacts (refus, épinglage, désépinglage)
+
+**Chantier 3 — zone imposée**
+- [ ] segments masqués à zéro ; pluriels exacts
+- [ ] sous-titre rafraîchi après épinglage (dépassement volontaire de l'oracle)
+- [ ] supprimer un ingrédient épinglé le retire de la zone, du compteur et du prompt
+
+**Chantier 4 — tri**
+- [ ] tri français (accents : « Épinard » avant « Fraise »)
+- [ ] après tri, agir sur la 1ʳᵉ carte agit bien sur SON identifiant (verrou anti-régression)
+- [ ] l'export presse-papier garde son ordre d'origine
+
+**Chantier 5 — quantités**
+- [ ] `scaleQty` : entiers, décimaux point/virgule, unités collées
+- [ ] **fractions ASCII (`1/2`) et Unicode (`½`)** — arbitrage Joel ; vérifier explicitement
+      que `1/2` ne devient jamais `2/4` (bug de l'oracle)
+- [ ] aller-retour sans dérive ; à l'échelle 1 la chaîne est **inchangée**
+- [ ] bornes 1–20 : au-delà, le clic est sans effet
+- [ ] l'échelle ne fuit **pas** vers la liste de courses ni vers l'analyse nutritionnelle
+- [ ] une analyse nutritionnelle **conserve** l'échelle ; fermer/rouvrir la **remet à 1**
+
+**Chantier 6 — menu modèles**
+- [ ] enregistrer une clé API fonctionne toujours après suppression du menu
+- [ ] le bloc informatif affiche les modèles lus depuis la source unique (aucun nom en dur)
+
+**Manuels (Joel)**
+- [ ] puce Italienne → les recettes générées sont italiennes ; épingler un 7e ingrédient →
+      refus expliqué ; un épinglé apparaît et se retire dans la vue IA ; sous-titre vivant ;
+      inventaire trié ; −/+ personnes recalcule les quantités
 
 ## Critères d'acceptation
 
 - [ ] Validation unifiée verte + build OK ; arbitrage n°6 tranché et appliqué
-- [ ] Audit Standard sur le diff final
+- [ ] **Audit DUR** (relevé de Standard le 2026-07-30) : boucle par étape sur les trois zones
+      sensibles du lot — migration/plafonds, rendu de la zone imposée, calcul des quantités
 - [ ] Cocher C5, C9, C10, C11, C12 dans la fiche régressions
+
+---
+
+## 8. AUDIT DE SPEC — CODEX (2026-07-30, AVANT la première ligne de code)
+
+Audit demandé par Joel (« ça vaut le coup de faire auditer les specs avant de se lancer ? »),
+conforme au niveau Standard alors en vigueur (« audit spec court + un audit du diff final »).
+Audit **statique** (verrou lecture seule de Codex maintenu).
+
+**Verdict : NO-GO sur la spec** — 5 points bloquants, 2 arbitrages remontés à Joel.
+
+| # | Constat de Codex | Vérifié par moi ? | Traitement |
+|---|---|---|---|
+| 1 | Collision `cuisine`/`cuisines` non tranchée ; un `cuisine` non supprimé repartirait au cloud (`firebase.js:54-62`) | ✅ exact | Règle exacte intégrée au chantier 1 + arbitrage Joel |
+| 2 | Aucune règle pour une base ayant **déjà** > 6 épinglés ; libellés de toast non cités | ✅ exact (oracle l.4733-4742 relu mot à mot) | Règle exacte intégrée au chantier 2 |
+| 3 | L'oracle ne rafraîchit PAS le sous-titre après épinglage ; segments masqués à zéro non spécifiés | ✅ exact (l.4943-4952) | Dépassement de l'oracle désormais **assumé et tracé** |
+| 4 | Risque « tri = clic sur le mauvais ingrédient » **inexistant** (tout passe par l'identifiant) | ✅ exact | Risque écarté, verrou de test conservé |
+| 5 | La fiche prétendait que l'oracle gère les **fractions** — c'est faux ; bornes 1–20 et frontières panier/nutrition non spécifiées | ✅ exact (l.5474-5484) | Frontières intégrées + arbitrage Joel |
+| 6 | Texte du bloc informatif non fixé ; risque de casser l'enregistrement de la clé API | ✅ exact (lectures conditionnelles `js/app.js:1322-1328`, `1849-1863`) | Texte et périmètre exacts intégrés |
+| 7 | **Niveau d'audit sous-évalué** : le lot touche `src/state.js` et `src/ui/recipe.js`, zones sensibles de `DOCTRINE_PRODUIT.md` §3 → niveau **Dur** obligatoire (`CLAUDE.md` §5) | ✅ exact | Fiche, critères d'acceptation et `CURRENT_GOAL.md` relevés en **Dur** |
+
+**Les 7 constats ont été recontrôlés un par un contre le code réel et l'oracle avant
+intégration — aucun n'a été pris pour argent comptant, aucun ne s'est révélé faux.**
+
+**Découverte supplémentaire de ma contre-vérification (absente de l'audit) :** la fonction
+de mise à l'échelle de l'oracle ne se contente pas d'ignorer les fractions, elle les
+**corrompt** — `1/2 citron` à l'échelle 2 devient `2/4 citron`. Cela transforme l'arbitrage
+« fractions » de Joel en correction de bug, et non en simple confort.
+
+**Arbitrages de Joel (2026-07-30) :**
+1. **SSOT strict** — `cuisines` est l'unique champ définitif ; l'ancien `cuisine` est versé
+   dedans puis supprimé ; tous les chemins (local, cloud, IA) n'utilisent plus que `cuisines`.
+2. **Fractions** — dépassement volontaire de l'oracle : prise en charge réelle des fractions
+   ASCII et Unicode, sans dérive lors des changements successifs.
+
+---
 
 ## Traçabilité
 
