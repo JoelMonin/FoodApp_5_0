@@ -172,6 +172,15 @@ n'existaient pas dans le monolithe) :**
 - **Filet de sécurité obligatoire** : si l'API répond 400 en citant `thinkingConfig` ou
   `thinkingLevel`, `callAI` rejoue **une seule fois** la requête sans ce champ. Sans ce
   repli, un changement d'API côté Google casserait 100 % des générations.
+- **Ce repli ne doit JAMAIS être silencieux (demande explicite de Joel, 2026-07-30).**
+  Quand il se déclenche, les recettes sont quand même générées — mais SANS le niveau
+  d'effort demandé, donc potentiellement moins abouties. Joel doit en être informé par un
+  toast visible au moment même, pas seulement dans une console ou un journal. Le repli reste
+  silencieux uniquement pour `callAI` elle-même (fonction de service, sans dépendance UI) :
+  elle expose le fait qu'elle a dû se replier (callback ou indicateur de retour), et c'est
+  l'appelant côté `js/app.js` (`generateSuggestions`) qui déclenche le toast. Un test doit
+  couvrir ce chemin : 400 sur le premier essai → deuxième essai réussi → toast affiché ET
+  recettes quand même retournées.
 
 **⚠️ CONFLIT ORACLE ↔ TESTS — LE PIÈGE PRINCIPAL DE CE CHANTIER (§10-B).**
 La consigne « restaurer le prompt à l'identique de l'oracle » est **impossible telle quelle** :
