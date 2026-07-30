@@ -1,9 +1,9 @@
-import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig, awaitSyncQuiescence } from './state.js';
+import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig, awaitSyncQuiescence, replaceShoppingChecked, resetScreenState } from './state.js';
 import { generateId, normalizeString, areSimilar } from './utils/helpers.js';
 import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
-import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS } from './constants.js';
+import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS } from './constants.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -180,13 +180,30 @@ export function saveApiKey(key) {
   saveState();
 }
 
+/**
+ * Télécharge une sauvegarde (LOT 015, chantier 10a).
+ *
+ * PÉRIMÈTRE EXPLICITE (`BACKUP_STATE_KEYS`) : l'export sérialisait `state` en entier,
+ * emportant la vue, la recherche, les filtres et les suggestions IA. Restaurer un tel
+ * fichier rouvrait l'app filtrée ou vide et changeait d'écran tout seul.
+ *
+ * Les coches de courses sont ajoutées EXPLICITEMENT : elles vivent hors de `state`.
+ * ⚠️ Écart assumé à l'oracle — le monolithe ne les sauvegardait pas non plus (elles
+ * étaient un Set séparé chez lui aussi, jamais relu à l'import). C'est une décision
+ * produit de Joel, pas une restauration.
+ */
 export function exportJSON() {
+  const stateToExport = {};
+  BACKUP_STATE_KEYS.forEach(key => {
+    if (state[key] !== undefined) stateToExport[key] = JSON.parse(JSON.stringify(state[key]));
+  });
   // Même principe que syncPush (src/services/firebase.js) : la clé API ne quitte
   // jamais l'appareil (LOT 008, chantier 2 — casse C3a).
-  const stateToExport = JSON.parse(JSON.stringify(state));
   if (stateToExport.aiConfig) {
     stateToExport.aiConfig.apiKey = '';
   }
+  stateToExport.shoppingChecked = Array.from(shoppingChecked);
+  stateToExport.exportedAt = new Date().toISOString(); // l'oracle l'avait (l.6490), l'app l'avait perdu
   const data = JSON.stringify(stateToExport, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -198,19 +215,57 @@ export function exportJSON() {
   toast('💾 Export téléchargé');
 }
 
+/**
+ * Restaure une sauvegarde — REMPLACEMENT TOTAL (LOT 015, chantiers 5 et 10).
+ *
+ * Quatre durcissements, tous issus de l'audit de la fiche puis de l'audit de spec :
+ *  1. GARDE D'ENTRÉE (10d) : `if (data.ingredients)` acceptait `[]` **et une chaîne**.
+ *     Avec `"ingredients": "abc"`, `sanitizeGlobalState` faisait `Object.values()` →
+ *     `['a','b','c']` → filtré à vide → **reconstruction des 297 par défaut** → envoi au
+ *     cloud. On exige donc un tableau NON VIDE.
+ *  2. BARRIÈRE DE SYNCHRO (P6) : `importJSON` ne se sérialisait pas avec le moteur,
+ *     contrairement à `resetAllData`. Un envoi parti AVANT le clic pouvait aboutir APRÈS
+ *     la restauration et y réécraser l'ancien état — l'incident déjà corrigé au LOT 008
+ *     sur le chemin du reset. D'où le `reader.onload` asynchrone.
+ *  3. COCHES (10b/10c) : extraites AVANT et posées par `replaceShoppingChecked`, jamais
+ *     par le `spread` de `setState` (qui en ferait un doublon dans `state`). Elles sont
+ *     posées AVANT `applyExternalState` pour que l'état et les coches partent dans le
+ *     MÊME document cloud — motif copié du chemin de pull (`js/app.js:407-409`). Elles
+ *     sont FILTRÉES : seuls les ids réellement « à acheter » du fichier entrent, sinon on
+ *     réintroduirait des ids fantômes invisibles à l'écran mais poussés au cloud (LOT 008,
+ *     chantier 7).
+ *  4. ÉCRAN NEUTRALISÉ (10a) : recherche, filtres et vue, sur le modèle de `loadState`.
+ */
 export function importJSON(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.ingredients) {
-        // Restauration totale : passe par le point d'entrée unique des données
-        // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
-        applyExternalState(data);
-        toast('Import réussi !');
-      } else {
+
+      if (!Array.isArray(data?.ingredients) || data.ingredients.length === 0) {
         toast('Format non reconnu', 'error');
+        return;
       }
+
+      await awaitSyncQuiescence();
+
+      const cartIds = new Set(data.ingredients.filter(i => i && i.inCart).map(i => i.id));
+      const checkedFromFile = Array.isArray(data.shoppingChecked) ? data.shoppingChecked : [];
+      replaceShoppingChecked(checkedFromFile.filter(id => cartIds.has(id)));
+
+      resetScreenState({ resetView: true });
+
+      // Périmètre EXPLICITE : un ancien fichier contient aussi la vue, la recherche et les
+      // filtres — ils sont simplement ignorés, jamais réappliqués.
+      const patch = {};
+      BACKUP_STATE_KEYS.forEach(key => {
+        if (data[key] !== undefined) patch[key] = data[key];
+      });
+
+      // Restauration totale : passe par le point d'entrée unique des données
+      // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
+      applyExternalState(patch);
+      toast('Import réussi !');
     } catch (err) {
       toast('Erreur lors de l\'import : ' + err.message, 'error');
     }
@@ -248,6 +303,12 @@ export function importStockOnly(file) {
           target.inCart = !!jsonIng.inCart;
           target.pinned = !!jsonIng.pinned;
           target.frozen = !!jsonIng.frozen;
+          // LOT 015, §G — ÉCART DE PÉRIMÈTRE autorisé par Joel le 2026-07-30.
+          // Ce chemin repassait un article à « plus à acheter » SANS purger le Set des
+          // coches : l'id y restait, invisible à l'écran (`src/ui/shopping.js:42`) mais
+          // poussé au cloud (`src/services/firebase.js:61`). C'est la porte que le
+          // chantier 10c ferme sur la restauration totale, restée ouverte juste à côté.
+          if (!target.inCart) shoppingChecked.delete(target.id);
           updatedCount++;
         } else {
           const newId = jsonIng.id && jsonIng.id.startsWith('custom_')

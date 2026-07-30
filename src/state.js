@@ -108,10 +108,28 @@ export function loadState() {
   sanitizeGlobalState();
 
   // Reset search and filters for safety
+  resetScreenState();
+}
+
+/**
+ * Remet à zéro les champs d'ÉCRAN (LOT 015, chantier 10a).
+ *
+ * SSOT de la neutralisation « for safety » : elle existait uniquement dans `loadState`,
+ * si bien qu'une restauration de fichier — qui passe par `applyExternalState` — ne la
+ * faisait jamais. Une sauvegarde prise pendant qu'un filtre ou une recherche étaient
+ * actifs rouvrait donc l'inventaire filtré, voire vide.
+ *
+ * @param {{resetView?: boolean}} [options] - `resetView: true` remet aussi la vue à
+ *   l'inventaire. Volontairement FAUX au démarrage (on rouvre l'app là où on l'a quittée)
+ *   et VRAI à la restauration : l'oracle faisait `switchView('pantry')` après un import
+ *   (`foodapp-v5-Joel.html` l.6509), et une vue venue d'un fichier n'a aucun sens ici.
+ */
+export function resetScreenState({ resetView = false } = {}) {
   state.search = "";
   state.filter = "all";
   state.showInStockOnly = false;
   state.showInCartOnly = false;
+  if (resetView) state.currentView = 'pantry';
 }
 
 /**
@@ -143,6 +161,14 @@ export function saveState(updateUI = true, scheduleSync = true) {
  */
 export function sanitizeGlobalState() {
   if (!state) return;
+
+  // LOT 015 (audit Gemini Q9) — FILET DE RATTRAPAGE SSOT.
+  // Les coches de courses vivent dans le Set `shoppingChecked`, JAMAIS dans `state`.
+  // Mais `setState` fusionne (`{ ...state, ...data }`) : une version qui restaurerait un
+  // fichier neuf SANS extraire le champ absorberait la clé et la figerait ensuite
+  // indéfiniment (persistée, puis ré-exportée). On élague donc ici, quel que soit le
+  // chemin d'entrée — un aller-retour par une ancienne version se répare de lui-même.
+  if ('shoppingChecked' in state) delete state.shoppingChecked;
 
   ['ingredients', 'extraIngredients', 'favorites'].forEach(key => {
     if (state[key] && !Array.isArray(state[key])) {

@@ -2539,9 +2539,16 @@ function printRecipe() {
     window.print();
 }
 
+// LOT 015, chantier 5 : le champ fichier doit etre REARME apres chaque tentative, sinon
+// resselectionner LE MEME fichier ne declenche plus rien (l'evenement `change` n'est pas
+// emis si la valeur ne change pas). `restoreJSON` ne le faisait pas, contrairement a son
+// voisin. Le rearmement est pose HORS du `if (file)` pour couvrir aussi l'annulation, et
+// il est sur immediatement : la lecture est deja lancee sur l'objet `File`. C'est ce que
+// faisait l'oracle (`foodapp-v5-Joel.html` l.6514 et l.6561).
 function restoreJSON(event) {
     const file = event.target.files[0];
     if (file) Actions.importJSON(file);
+    event.target.value = '';
 }
 
 function importStockOnly(event) {

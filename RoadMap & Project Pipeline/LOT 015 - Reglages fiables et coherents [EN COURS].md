@@ -800,6 +800,32 @@ Le cœur du risque, donc en dernier. Ordre interne :
 **Preuve :** `tests/backup-restore.test.js` (neuf), avec faux `FileReader`, faux Firebase
 et `__resetSyncEngineForTests`.
 
+✅ **FAIT le 2026-07-30 — 28 tests. Validation unifiée verte : 430/430 Vitest, 13/13
+verrous, build de production OK.**
+
+Décisions et points de mise en œuvre, tous traçés :
+- **SSOT du périmètre du fichier** : `BACKUP_STATE_KEYS` (`src/constants.js`) sert **à la
+  fois** à l'export et à la restauration — une seule liste, pas deux qui dérivent. Les
+  coches et `exportedAt` sont ajoutés explicitement à côté, hors de la liste d'état.
+- **SSOT de la neutralisation d'écran** : `resetScreenState({ resetView })`
+  (`src/state.js`), désormais partagé par `loadState` (sans la vue, on rouvre l'app là où
+  on l'a quittée) et par la restauration (avec la vue, comme l'oracle l.6509). La règle
+  n'existait que dans `loadState`, ce qui expliquait le défaut.
+- **Ordre d'écriture** : coches filtrées → neutralisation d'écran → `applyExternalState`.
+  L'état et les coches sont donc en place **avant** que l'envoi cloud soit planifié : un
+  test le vérifie en inspectant ce que voit le planificateur au moment où il est appelé.
+- **`reader.onload` est devenu asynchrone** pour pouvoir attendre `awaitSyncQuiescence()`.
+- **Les anciens fichiers ne sont pas rejetés** : leurs champs d'écran sont simplement
+  ignorés (ils ne sont pas dans la liste blanche), et l'absence du champ des coches vide le
+  Set au lieu de laisser survivre les anciennes.
+
+⚠️ **Discipline de preuve appliquée au test le plus douteux.** Les deux tests du
+réarmement du champ fichier étaient d'abord **tautologiques** : jsdom interdit d'affecter
+une valeur non vide à un `input[type=file]`, donc lire `champ.value === ''` passait au vert
+**sans le correctif**. Ils ont été réécrits avec un accesseur témoin qui part d'une valeur
+non vide, puis **vérifiés en retirant temporairement le correctif** : attendu écrit
+d'avance (« les 2 tests doivent échouer »), résultat conforme (2 échecs), correctif remis.
+
 ---
 
 ## Audit de spec — Gemini 3.6 Flash, 2026-07-30 : **NO-GO, 4 points** → tous intégrés
@@ -863,32 +889,32 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
       référence morte)
 - [x] Tests des toasts chiffrés et des messages d'état vide (chantiers 1-3 et 8)
 - [x] Tests avec stock vide, courses vides, et articles libres (`customCartItems`)
-- [ ] Test aller-retour sauvegarde → restauration **avec coches** (les anciennes coches ne
+- [x] Test aller-retour sauvegarde → restauration **avec coches** (les anciennes coches ne
       survivent jamais)
-- [ ] Test d'une ancienne sauvegarde sans le champ des coches (compatibilité)
-- [ ] Test de deux sélections successives du même fichier (champ réarmé)
-- [ ] Preuve que la **clé API ne sort jamais** (presse-papiers ET fichier)
+- [x] Test d'une ancienne sauvegarde sans le champ des coches (compatibilité)
+- [x] Test de deux sélections successives du même fichier (champ réarmé)
+- [x] Preuve que la **clé API ne sort jamais** (presse-papiers ET fichier)
 - [x] Garde-fou « rien à copier » : chaque format, source vide → aucune écriture dans le
       presse-papiers + message d'erreur (chantier 9)
 - [x] Repli de copie : `navigator.clipboard` en échec → le texte est quand même copié
       (chantier 9) — **et** son échec silencieux (`execCommand` renvoyant `false`) traité
       comme un échec, ce que l'oracle ne faisait pas
 - [x] Articles libres sans catégorie → rubrique dédiée, jamais `undefined` (chantier 3)
-- [ ] **Synchro :** restauration d'un fichier → l'état ET les coches partent dans le
+- [x] **Synchro :** restauration d'un fichier → l'état ET les coches partent dans le
       MÊME document cloud (chantier 5) ; aucune fenêtre avec les anciennes coches
-- [ ] Restauration d'un fichier **partiel** : comportement conforme au texte affiché
+- [x] Restauration d'un fichier **partiel** : comportement conforme au texte affiché
       (les clés absentes sont conservées — chantier 5)
-- [ ] **Sauvegarde faite avec un filtre/une recherche actifs → restaurée, l'inventaire
+- [x] **Sauvegarde faite avec un filtre/une recherche actifs → restaurée, l'inventaire
       s'affiche en entier** (aucun filtre, aucune recherche, vue par défaut — chantier 10a)
-- [ ] Le fichier exporté ne contient **que** la liste blanche (aucun champ d'écran, aucune
+- [x] Le fichier exporté ne contient **que** la liste blanche (aucun champ d'écran, aucune
       suggestion IA) + `exportedAt` (chantier 10a)
-- [ ] Après restauration, `state` ne contient **aucune clé fantôme** `shoppingChecked` —
+- [x] Après restauration, `state` ne contient **aucune clé fantôme** `shoppingChecked` —
       les coches vivent dans le Set seul (chantier 10b)
-- [ ] Coches restaurées **filtrées** : un id absent de l'inventaire ou non « à acheter »
+- [x] Coches restaurées **filtrées** : un id absent de l'inventaire ou non « à acheter »
       n'entre jamais dans le Set (chantier 10c)
-- [ ] Fichier avec `ingredients: []` → **refusé**, pas de reconstruction des 297 par
+- [x] Fichier avec `ingredients: []` → **refusé**, pas de reconstruction des 297 par
       défaut, aucun envoi cloud (chantier 10d)
-- [ ] **Ajouté par la découverte (P5)** : fichier avec `ingredients: "abc"` (une chaîne) →
+- [x] **Ajouté par la découverte (P5)** : fichier avec `ingredients: "abc"` (une chaîne) →
       **refusé** lui aussi, pas de reconstruction des 297, aucun envoi cloud
 - [x] **Ajouté par la découverte (P1)** : `exportClipboard` appelé avec un type inconnu →
       **rien n'est écrit** dans le presse-papiers, message d'erreur, aucun toast de succès
@@ -897,7 +923,7 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
 - [x] **Ajouté par la découverte (P3)** : la rubrique des articles libres sort bien **en
       dernier**, y compris quand l'inventaire contient une catégorie accentuée
       (`Épices sèches`) — le seul choix du nom ne le garantit pas
-- [ ] **Ajouté par la découverte (P6)** : la restauration **attend la fin d'un envoi en
+- [x] **Ajouté par la découverte (P6)** : la restauration **attend la fin d'un envoi en
       vol** avant d'écrire (barrière `awaitSyncQuiescence`), sinon l'ancien état peut
       revenir écraser le cloud après coup
 - [x] **Ajouté par la découverte** : le second bouton de copie (`📋 Copier` de la barre
@@ -908,7 +934,7 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
       `navigator.clipboard.writeText` **n'est jamais appelé du tout**. C'est le test qui
       distingue le vrai garde-fou du faux : un `if (!text)` naïf laisserait passer un texte
       « en-tête + (Vide) » et le test resterait vert à tort
-- [ ] **Ajouté par l'audit Gemini (Q9)** : un état contenant une clé orpheline
+- [x] **Ajouté par l'audit Gemini (Q9)** : un état contenant une clé orpheline
       `state.shoppingChecked` (comme après un aller-retour par la 5.7) ressort **élagué**
       de `sanitizeGlobalState` ; le Set reste la seule représentation *(sous-lot C)*
 - [x] **Ajouté par l'audit Gemini (Q12)** : un article libre sans `name` exploitable est
@@ -918,12 +944,12 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
 
 ## Critères d'acceptation
 
-- [ ] Suppression sèche du bouton « Données techniques (JSON) » appliquée (arbitrage
+- [x] Suppression sèche du bouton « Données techniques (JSON) » appliquée (arbitrage
       Joel du 2026-07-30) et retouches UX du chantier 8 en place
-- [ ] Validation unifiée verte + build OK
+- [x] Validation unifiée verte + build OK — **430/430 Vitest, 13/13 verrous, build OK**
 - [ ] **Audit DUR** selon le dispositif tranché en tête de fiche (Gemini sur le plan puis
       sur le diff final + agents adversariaux locaux par étape) — ~~/ultra-audit~~ remplacé
-- [ ] Le chemin « Importer uniquement le stock » ne laisse plus de coche fantôme (§G,
+- [x] Le chemin « Importer uniquement le stock » ne laisse plus de coche fantôme (§G,
       écart au périmètre initial autorisé par Joel le 2026-07-30)
 - [ ] Chaque carte de Réglages vérifiée en navigateur par Joel
 

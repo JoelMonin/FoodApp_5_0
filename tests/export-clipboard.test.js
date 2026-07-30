@@ -378,6 +378,23 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────
+    // Critère d'acceptation permanent : la clé API ne sort jamais de l'appareil.
+    // Le fichier de sauvegarde est couvert par tests/backup-restore.test.js ; ici on
+    // ferme l'autre sortie possible, le presse-papiers.
+    // ─────────────────────────────────────────────────────────────────
+    describe('la clé API ne part JAMAIS dans le presse-papiers', () => {
+        it.each(['simple', 'categorized', 'cart'])('format « %s »', async (format) => {
+            state.aiConfig = { ...(state.aiConfig || {}), apiKey: 'AIzaSyKEY-SECRETE-DE-JOEL' };
+            state.ingredients = [ing({ inStock: true, inCart: true })];
+
+            await window.exportClipboard(format);
+
+            expect(copied()).toBeTruthy();
+            expect(copied()).not.toContain('AIzaSy');
+        });
+    });
+
+    // ─────────────────────────────────────────────────────────────────
     // Le SECOND point d'entrée, trouvé à la phase découverte : il n'était
     // couvert que sur son LIBELLÉ (tests/topbar-context.test.js), jamais sur son effet —
     // on pouvait donc casser la copie sans qu'aucun test de la barre ne bronche.
