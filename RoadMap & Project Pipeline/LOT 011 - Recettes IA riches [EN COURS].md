@@ -490,13 +490,45 @@ branche, avec un audit à la fin de chacun.
 - **11B — rendu** : chantiers 1, 2, 5, 7 (DOM, CSS dormant, favoris) — c'est là que les
   4 acquis des LOTS 009/010 doivent être rejoués impitoyablement.
 
-## 11. ARBITRAGES REMONTÉS À JOEL PAR L'AUDIT
+## 11. ARBITRAGES REMONTÉS À JOEL PAR L'AUDIT — TRANCHÉS le 2026-07-30
 
-| # | Question | État |
+| # | Question | **Décision de Joel** |
 |---|---|---|
-| **A1** | « Sauvegarder tel quel » : l'oracle enregistrait un favori en texte brut SANS passer par l'IA (l.6048-6054). Le LOT 006 a grisé ce bouton tant que le texte n'est pas transformé, ce qui rend ce chemin **impossible** — et donc l'affichage `r.content` du chantier 2 serait du code mort. Restaurer le comportement d'origine revient à défaire un choix du LOT 006. | ⏳ en attente |
-| **A2** | Le curseur « Créativité » n'agit plus (§10-C). Que fait-on : exprimer la créativité dans le texte du prompt, ou l'assumer comme décoratif ? | ⏳ en attente |
-| **A3** | Confirmer explicitement l'écart D3 (une recette peut afficher « en stock » parce que l'IA l'affirme, même si l'inventaire dit épuisé). La fiche l'annonce, mais ce n'était pas un arbitrage formellement posé à Joel. | ⏳ en attente |
+| **A1** | « Sauvegarder tel quel » : l'oracle enregistrait un favori en texte brut SANS passer par l'IA (l.6048-6054). Le LOT 006 a grisé ce bouton tant que le texte n'est pas transformé, ce qui rend ce chemin **impossible** — et donc l'affichage `r.content` du chantier 2 serait du code mort. | ✅ **RESTAURER L'ORIGINAL.** Le bouton redevient actif dès qu'il y a un titre ET du contenu. Le choix du LOT 006 est explicitement défait ici. Voir §12-A1. |
+| **A2** | Le curseur « Créativité » n'agit plus (§10-C) : le réglage qu'il pilotait est ignoré par les modèles Gemini 3.x. | ✅ **LA FAIRE PASSER PAR LA CONSIGNE.** La créativité est traduite en mots dans le prompt. Écart assumé avec l'oracle — l'original ne fonctionne plus. Voir §12-A2. |
+| **A3** | Écart D3 : une recette peut afficher « en stock » parce que l'IA l'affirme, même si l'inventaire dit épuisé. | ✅ **ON CROIT L'IA.** Le comportement du LOT 006 est confirmé et devient un choix explicite de Joel, plus une simple conséquence technique. Le sélecteur de liste de courses n'est pas touché. |
+
+## 12. RÈGLES D'EXÉCUTION ISSUES DES ARBITRAGES A1 ET A2
+
+### A1 — « Sauvegarder tel quel » rendu à nouveau possible
+
+- `setPasteSaveButtonsEnabled` (`js/app.js:1366`) ne conditionne plus l'activation à la seule
+  présence d'une recette transformée. Règle de l'oracle (l.6039) : refus **uniquement** si le
+  titre est vide, ou si le contenu ET la recette transformée sont tous deux absents ;
+  message `Titre et contenu requis`.
+- Deux formes de favori à l'enregistrement (oracle l.6041-6054), **posées sur la forme plate
+  canonique retenue au §7** :
+  - texte transformé par l'IA → la recette structurée, plus `date` ;
+  - texte brut → `{ id, title, content, date }`.
+- **Acquis LOT 006 à NE PAS perdre en défaisant ce point** : `_lastTransformedRecipe` doit
+  toujours être remis à zéro à l'ouverture du modal, sans quoi « Sauvegarder tel quel »
+  réenregistrerait silencieusement la recette de la session précédente. C'est le vrai bug que
+  le LOT 006 corrigeait ; seul le grisage des boutons est défait, pas la remise à zéro.
+- Le chantier 2 (rendu `r.content`) devient utile : il existe enfin un chemin qui crée ce type
+  de favori. Un test doit couvrir la boucle complète : coller du texte → sauvegarder tel quel
+  → rouvrir → le texte s'affiche.
+
+### A2 — La créativité passe par la consigne
+
+- Le curseur reste la SSOT (`state.aiConfig.creativity`, 0-100, restauré au LOT 008) : sa
+  valeur ne change pas de nature, seule son utilisation change.
+- `generateRecipes` traduit la valeur en une consigne textuelle par paliers, injectée dans le
+  prompt. **Aucun nombre brut envoyé à l'IA** — une phrase.
+- `temperature` n'est plus envoyé aux modèles Gemini 3.x (ignoré, cf. §10-A).
+- Le mode 🎲 (chantier 4) tire toujours une valeur entre 80 et 100 : elle produit désormais un
+  effet réel via la consigne, et le boost reste ponctuel (la valeur sauvegardée est intacte).
+- Tests : trois valeurs de curseur donnent trois consignes différentes dans le prompt ; la
+  valeur sauvegardée n'est jamais écrasée par le mode 🎲.
 
 ---
 
