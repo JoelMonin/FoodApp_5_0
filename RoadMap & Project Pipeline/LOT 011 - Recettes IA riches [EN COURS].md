@@ -498,6 +498,43 @@ branche, avec un audit à la fin de chacun.
   sans risque d'altérer l'affichage). **✅ CODÉ le 2026-07-30**, voir §13.
 - **11B — rendu** : chantiers 1, 2, 5, 7 (DOM, CSS dormant, favoris) — c'est là que les
   4 acquis des LOTS 009/010 doivent être rejoués impitoyablement.
+  **Chantiers 1 et 7 codés le 2026-07-30**, voir §15. Chantiers 2 et 5 restent à faire.
+
+## 15. SOUS-LOT 11B — CHANTIERS 1 ET 7 (2026-07-30)
+
+Codés ensemble : l'audit du sous-lot 11A avait révélé que les cartes IA et les favoris ne
+peuvent PAS partager le même composant sans risque de plantage (handlers différents selon
+l'écran) — traiter les deux en même temps évite de laisser `renderRecipeCard` dans un état
+intermédiaire incohérent pour les favoris.
+
+**Chantier 1 — cartes IA :** `renderRecipeCard` reçoit désormais `(r, index, handlers, tags)`.
+Numéro, méta complète, pitch, tags colorés (max 6, réutilise `matchIngredientToStock` étendue
+— D3), boutons « Voir »/« ⭐ Favoris »/« 🛍 hors stock ». Les deux derniers ne sont rendus QUE
+si leur handler est fourni — sécurité ajoutée en écrivant le composant partagé, avant même
+de commencer les favoris.
+
+**Bug trouvé en écrivant les tests, corrigé avant tout commit :** la règle de couleur des
+tags (`isExact ? green : (inStock ? orange : red)`, copiée de l'oracle) donnait du VERT à
+un ingrédient épuisé dont le nom correspond exactement — parce que `isExact` (LOT 006) se
+calcule indépendamment du stock. Priorité inversée dans `buildIngredientTags` UNIQUEMENT
+(`!inStock ? red : (isExact ? green : orange)`) : `matchIngredientToStock` elle-même n'est
+pas touchée, le sélecteur de liste de courses qui en dépend déjà n'est pas concerné
+(pare-feu A/B).
+
+**Chantier 7 — favoris :** nouveau composant dédié `renderFavoriteCard` (`.fav-card`,
+distinct de `.recipe-card`) — vignette, date (arbitrage Joel §9 Q3), extrait, tags
+(plafond 8, vérifié distinct des 6 des cartes), boutons Voir/Supprimer. État vide enrichi
+avec CTA vers le collage. `date` ajoutée à `saveSuggestionToFavDirect`/`saveRecipeOnly`.
+
+**Arbitrage A1 restauré :** `savePastedRecipe`/`savePastedRecipeAndList` (nouvelles
+fonctions) remplacent le câblage cassé (`saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe)`
+— passait `null` sans transformation IA, le bouton grisé jusque-là rendait ce chemin de
+toute façon inatteignable). Portent le double chemin de l'oracle (recette structurée si
+transformée, `{title, content, date}` sinon) via un builder commun `buildPastedFavorite`.
+
+**Tests ajoutés :** `tests/ai-cards-rich.test.js` (12), `tests/favorites-rich.test.js` (17,
+dont le chemin complet transformation IA → sauvegarde via `transformRecipeAI`, exportée
+pour l'occasion). **Validation :** 282/282 Vitest, 13/13 Pytest, build OK.
 
 ## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
 

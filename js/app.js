@@ -23,7 +23,7 @@ import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../sr
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
 import { renderShoppingList } from '../src/ui/shopping.js';
-import { renderRecipeCard, renderRecipeDetail } from '../src/ui/recipe.js';
+import { renderRecipeCard, renderRecipeDetail, renderFavoriteCard } from '../src/ui/recipe.js';
 import * as Actions from '../src/actions.js';
 
 let state = moduleState;
@@ -545,7 +545,17 @@ export {
     openModal,
     // LOT 011 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
     generateRandomWithStock,
-    fetchRecipeFromUrl
+    fetchRecipeFromUrl,
+    renderAIResults,
+    renderFavorites,
+    saveSuggestionToFavDirect,
+    saveRecipeOnly,
+    saveRecipeAndList,
+    deleteFav,
+    savePastedRecipe,
+    savePastedRecipeAndList,
+    buildIngredientTags,
+    transformRecipeAI
 };
 
 function renderCurrentView() {
@@ -808,7 +818,15 @@ function renderAI() {
 function renderAIResults(recipes) {
     const grid = document.getElementById('ai-results-list');
     if (!grid) return;
-    grid.replaceChildren(...recipes.map((r, i) => renderRecipeCard(r, i, { openRecipeDetail })));
+    grid.replaceChildren(...recipes.map((r, i) => {
+        const tags = buildIngredientTags(r.ingredients, 'card');
+        const handlers = {
+            openRecipeDetail,
+            saveToFavorites: () => saveSuggestionToFavDirect(r),
+            addMissingToCart: () => openEnhancedCartPicker(r)
+        };
+        return renderRecipeCard(r, i, handlers, tags);
+    }));
     document.getElementById('ai-placeholder')?.classList.add('hidden');
     document.getElementById('ai-results-list')?.classList.remove('hidden');
 }
@@ -1063,21 +1081,61 @@ function matchIngredientToStock(ingredient) {
     const inventoryMatch = state.ingredients.find(i => areSimilar(name, i.name));
     const isExact = !!inventoryMatch
         && normalizeString(inventoryMatch.name) === normalizeString(name);
+    // LOT 011 (décision D3) : ajouts PURS pour les tags colorés des cartes/détail —
+    // `isPinned` (préfixe 📌) et `allMatchesInStock` (info-bulle « Correspond à… »).
+    // La sémantique de inStock/matchedName/isExact n'est pas touchée : figée par le
+    // sélecteur de liste de courses et ses tests (pare-feu A/B).
+    const isPinned = state.ingredients.some(i => i.pinned && areSimilar(name, i.name));
+    const allMatchesInStock = state.ingredients.filter(i => i.inStock && areSimilar(name, i.name));
 
     // L'IA annonce l'ingrédient comme déjà possédé : on la croit, mais on affiche
     // quand même à quoi il correspond dans l'inventaire si on le retrouve.
     if (aiStatus === 'stock' || aiStatus === 'pinned') {
-        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact };
+        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
     }
     if (aiStatus === 'missing') {
-        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact };
+        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
     }
 
     return {
         inStock: !!inventoryMatch?.inStock,
         matchedName: inventoryMatch?.name || null,
-        isExact
+        isExact,
+        isPinned,
+        allMatchesInStock
     };
+}
+
+/**
+ * Construit les tags colorés d'ingrédients (LOT 011, chantiers 1/2/7). Réutilise
+ * `matchIngredientToStock` (SSOT, LOT 006 étendue au LOT 011) plutôt que de dupliquer
+ * une logique de correspondance. Deux styles d'info-bulle, vérifiés distincts dans
+ * l'oracle (fiche LOT 011 §10-G) : les cartes précisent le statut, le détail non plus
+ * concis.
+ * @param {Array} ingredients
+ * @param {'card'|'detail'} tooltipStyle
+ */
+function buildIngredientTags(ingredients, tooltipStyle) {
+    return (ingredients || []).map(ing => {
+        const name = ing.n || ing.name || '';
+        const status = matchIngredientToStock(ing);
+        // Ordre significatif, trouvé en testant : `isExact` (LOT 006) se calcule
+        // INDÉPENDAMMENT du stock (le nom le plus proche, même sur un ingrédient épuisé) —
+        // sans `inStock` en premier filtre, un nom exact mais épuisé ressortait vert.
+        const cls = !status.inStock ? 'red' : (status.isExact ? 'green' : 'orange');
+        const matches = (status.allMatchesInStock || []).map(m => m.name).join(', ');
+
+        let tooltip = name;
+        if (tooltipStyle === 'card') {
+            if (status.isExact) tooltip += ` (En stock : ${status.matchedName})`;
+            else if (status.inStock) tooltip += ` (Estimation basée sur : ${matches})`;
+            else tooltip += ' (Manquant)';
+        } else if (status.inStock) {
+            tooltip += ` (Stock : ${matches})`;
+        }
+
+        return { name, cls, tooltip, isPinned: status.isPinned };
+    });
 }
 
 function openEnhancedCartPicker(recipe) {
@@ -1177,20 +1235,37 @@ function confirmRecipeToCart() {
     toast('Course ajoutée !');
 }
 
+/**
+ * Favoris riches (LOT 011, chantier 7). Composant DÉDIÉ (`renderFavoriteCard`), distinct
+ * de `renderRecipeCard` (trouvé par l'audit du sous-lot 11A : les deux écrans réutilisaient
+ * la même carte sans lui passer les mêmes handlers — un bouton ajouté à l'un aurait planté
+ * au clic dans l'autre). État vide enrichi avec CTA vers le collage, oracle l.5871.
+ */
 function renderFavorites() {
     const el = document.getElementById('fav-list');
     if (!el) return;
     if (!state.favorites || state.favorites.length === 0) {
-        el.replaceChildren(h('div', { class: 'fav-empty' }, 'Aucun favori'));
+        el.replaceChildren(h('div', { class: 'fav-empty' }, [
+            h('div', { class: 'fav-empty-icon' }, '📖'),
+            h('div', { class: 'fav-empty-title' }, 'Aucune recette favorite'),
+            h('div', { style: { fontSize: '13px', color: 'var(--txt-soft)' } },
+                'Sauvegardez une recette via les Recettes IA ou en collant un texte.'),
+            h('button', {
+                class: 'tb-btn primary',
+                style: { margin: '16px auto 0', display: 'flex' },
+                onclick: () => openModal('modal-paste-recipe')
+            }, '📋 Coller une recette')
+        ]));
         return;
     }
-    // We pass fav.recipe because renderRecipeCard expects a recipe object
-    // and we use fav.id (the favorite entry ID) for identification
     el.replaceChildren(...state.favorites.map(fav => {
-        const r = fav.recipe || fav; // Fallback if data is flat
-        return renderRecipeCard(r, fav.id, { 
-            openRecipeDetail: (id) => openRecipeDetail(id, 'fav') 
-        });
+        const r = fav.recipe || fav; // Repli si les données sont plates (forme canonique).
+        const tags = buildIngredientTags(r.ingredients, 'card');
+        const handlers = {
+            openFav: () => openRecipeDetail(fav.id, 'fav'),
+            deleteFavorite: () => deleteFav(fav.id)
+        };
+        return renderFavoriteCard(fav, handlers, tags);
     }));
 }
 
@@ -1203,14 +1278,14 @@ function deleteFav(id) {
 
 function saveSuggestionToFavDirect(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
     saveState();
     toast('Ajouté aux favoris !');
 }
 
 function saveRecipeOnly(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
     saveState();
     toast('Recette sauvegardée !');
     closeModal('modal-paste-recipe');
@@ -1220,6 +1295,55 @@ function saveRecipeAndList(r) {
     if (!r) return;
     saveRecipeOnly(r);
     openEnhancedCartPicker(r);
+}
+
+/**
+ * Construit le favori à partir de la fenêtre « Coller une recette » — recette structurée
+ * si transformée par l'IA, texte brut sinon. Restaure un chemin cassé par le LOT 006
+ * (arbitrage Joel A1, fiche LOT 011 §12) : `_lastTransformedRecipe` n'existant qu'après
+ * passage par l'IA, le bouton grisé jusque-là rendait le texte brut seul INATTEIGNABLE —
+ * une recette collée sans transformation ne pouvait plus jamais être sauvegardée. Porte
+ * le double chemin de l'oracle (`saveRecipeOnly`/`saveRecipeAndList` l.6036-6058).
+ * @returns {Object|null} null si titre/contenu manquants (toast déjà émis).
+ */
+function buildPastedFavorite() {
+    const title = document.getElementById('paste-title')?.value.trim() || '';
+    const content = document.getElementById('paste-content')?.value.trim() || '';
+    if (!title || (!content && !_lastTransformedRecipe)) {
+        toast('Titre et contenu requis', 'error');
+        return null;
+    }
+    const date = new Date().toLocaleDateString('fr-FR');
+    return _lastTransformedRecipe
+        ? { ..._lastTransformedRecipe, id: generateId('fav'), date }
+        : { id: generateId('fav'), title, content, date };
+}
+
+function savePastedRecipe() {
+    const fav = buildPastedFavorite();
+    if (!fav) return;
+    state.favorites.push(fav);
+    saveState();
+    updateBadges();
+    closeModal('modal-paste-recipe');
+    toast(`⭐ ${fav.name || fav.title} sauvegardé en favori`);
+}
+
+function savePastedRecipeAndList() {
+    const fav = buildPastedFavorite();
+    if (!fav) return;
+    state.favorites.push(fav);
+    saveState();
+    updateBadges();
+    closeModal('modal-paste-recipe');
+    if (fav.ingredients) {
+        openEnhancedCartPicker(fav);
+    } else {
+        // Pas d'ingrédients structurés (texte brut) : rien à proposer pour la liste de
+        // courses. Cas déjà inatteignable dans l'oracle lui-même (le bouton « + Liste »
+        // n'est révélé qu'après une transformation IA réussie, chantier 5).
+        toast(`⭐ ${fav.title} sauvegardé en favori`);
+    }
 }
 
 /**
@@ -2231,8 +2355,8 @@ expose({
     confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
     fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
-    saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe),
-    saveRecipeAndList: () => saveRecipeAndList(_lastTransformedRecipe),
+    saveRecipeOnly: savePastedRecipe,
+    saveRecipeAndList: savePastedRecipeAndList,
     toggleRecipeFullscreen, changePplScale,
     // Clic « Cloud Sync » : cycle complet immediat via le moteur (LOT 007, §4.4) —
     // envoi d'abord si des modifications attendent, recuperation, puis envoi

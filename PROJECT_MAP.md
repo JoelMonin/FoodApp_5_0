@@ -53,6 +53,8 @@
 - `tests/ai-models-info.test.js` : Menu « Moteur Tâches Complexes » supprimé (LOT 010 — remplacé par une information en lecture seule dérivée de la SSOT, aucun nom de modèle en dur, sauvegarde de la clé API non régressée).
 - `tests/ai-random-mode.test.js` : Mode 🎲 aléatoire (LOT 011 — filtres réinitialisés dont `cuisines`, `ppl`/clé API/modèles jamais touchés, créativité 80-100 ponctuelle traduite en consigne texte, restaurée après coup).
 - `tests/ai-url-fetch.test.js` : Récupération d'URL de recette (LOT 011 — Jina Reader sans repli sur allorigins, validations d'URL, délai d'expiration 10 s, extraction de titre, réponse vide traitée comme un échec).
+- `tests/ai-cards-rich.test.js` : Cartes de résultats IA complètes (LOT 011 — numéro, méta, pitch, tags colorés (max 6, priorité stock avant nom exact), boutons ⭐/🛍 rendus seulement si leur handler est fourni).
+- `tests/favorites-rich.test.js` : Favoris riches (LOT 011 — carte dédiée distincte des cartes IA, date stockée et affichée, état vide avec CTA, « Sauvegarder tel quel » restauré pour un texte collé sans transformation IA).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).
