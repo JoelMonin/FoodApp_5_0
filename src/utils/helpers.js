@@ -88,6 +88,65 @@ export function autoEmoji(name, db = [], fallback = '🛒') {
   return match?.emoji || fallback;
 }
 
+// Fractions Unicode reconnues par `scaleQty` (LOT 010, casse C12, arbitrage Joel).
+const UNICODE_FRACTIONS = {
+  '½': 1 / 2, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 1 / 4, '¾': 3 / 4,
+  '⅕': 1 / 5, '⅖': 2 / 5, '⅗': 3 / 5, '⅘': 4 / 5,
+  '⅙': 1 / 6, '⅚': 5 / 6, '⅐': 1 / 7, '⅛': 1 / 8, '⅜': 3 / 8, '⅝': 5 / 8, '⅞': 7 / 8,
+  '⅑': 1 / 9, '⅒': 1 / 10
+};
+const UNICODE_FRACTION_CHARS = Object.keys(UNICODE_FRACTIONS).join('');
+
+// Ordre de l'alternation SIGNIFICATIF : la fraction ASCII doit être tentée avant le
+// nombre simple, sans quoi « 1/2 » matcherait d'abord « 1 » puis, séparément, « 2 »
+// (le bug de l'oracle : « 1/2 citron » x2 devenait « 2/4 citron », le 1 et le 2 étant
+// mis à l'échelle indépendamment). Unités collées gérées comme l'oracle : le motif
+// est cherché n'importe où dans la chaîne, espace ou non avant l'unité.
+const QTY_PATTERN = new RegExp(
+  `(\\d+\\s*\\/\\s*\\d+)|(\\d+(?:[.,]\\d+)?)|([${UNICODE_FRACTION_CHARS}])`,
+  'g'
+);
+
+/**
+ * Met à l'échelle chaque nombre d'une quantité de recette (LOT 010, casse C12).
+ *
+ * Porte le principe de l'oracle (`foodapp-v5-Joel.html` l.5474-5484 : nombres
+ * entiers/décimaux, unités collées, arrondi à 1 décimale) et corrige un bug de
+ * l'oracle plutôt que de le reproduire : celui-ci traitait une fraction ASCII comme
+ * deux nombres distincts, corrompant `1/2` en `2/4` dès le premier changement
+ * d'échelle. Arbitrage explicite de Joel (2026-07-30) — dépassement volontaire
+ * assumé : les fractions ASCII (`1/2`) ET Unicode (`½`) sont reconnues comme UNE
+ * seule valeur.
+ *
+ * Toujours appelée depuis la chaîne D'ORIGINE (jamais depuis un résultat déjà mis à
+ * l'échelle) par l'appelant : c'est ce qui garantit l'absence de dérive cumulée d'un
+ * changement à l'autre, pas cette fonction elle-même.
+ *
+ * @param {string} qtyStr - Quantité telle qu'écrite dans la recette (ex. "300 g", "1/2 citron").
+ * @param {number} scale - Facteur multiplicatif (1 = inchangé, retourné TEL QUEL sans reformatage).
+ * @returns {string}
+ */
+export function scaleQty(qtyStr, scale) {
+  if (!qtyStr || scale === 1) return qtyStr || '';
+
+  return qtyStr.replace(QTY_PATTERN, (match, asciiFraction, decimal, unicodeFraction) => {
+    let val;
+    if (asciiFraction) {
+      const [num, den] = asciiFraction.split('/').map(s => parseFloat(s.trim()));
+      if (!den) return match;
+      val = num / den;
+    } else if (unicodeFraction) {
+      val = UNICODE_FRACTIONS[unicodeFraction];
+    } else {
+      val = parseFloat(decimal.replace(',', '.'));
+    }
+    if (isNaN(val)) return match;
+
+    const scaled = val * scale;
+    return (Math.round(scaled * 10) / 10).toString().replace('.', ',');
+  });
+}
+
 /**
  * Retarde l'exécution de `fn` tant que de nouveaux appels arrivent.
  * Utilisé pour ne pas re-filtrer tout l'inventaire à chaque touche frappée.

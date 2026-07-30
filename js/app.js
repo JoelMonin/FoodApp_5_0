@@ -527,7 +527,11 @@ export {
     updateAIContextSub,
     refreshImposedZone,
     removeExtraIngredient,
-    getFilteredIngredients
+    getFilteredIngredients,
+    openRecipeDetail,
+    analyzeNutrition,
+    changePplScale,
+    renderRecipeModal
 };
 
 function renderCurrentView() {
@@ -850,6 +854,49 @@ function saveAiConfigFromUI() {
 let _currentPickerData = [];
 let _currentPickerRecipeName = '';
 
+// LOT 010 (casse C12) — état du modal recette ouvert, module-level comme dans l'oracle
+// (`_originalPpl`/`_currentScale`, `foodapp-v5-Joel.html` l.5357-5359). `_originalPpl`
+// est LA référence : `_currentScale` en est toujours dérivé, jamais accumulé, ce qui
+// évite toute dérive d'arrondi d'un changement à l'autre.
+let _currentRecipeDetail = null;
+let _currentRecipeSource = 'ai';
+let _currentRecipeFavId = null;
+let _originalPpl = 2;
+let _currentScale = 1;
+
+function buildRecipeHandlers(r, source, favId) {
+    return {
+        closeModal,
+        toggleRecipeFullscreen,
+        changePplScale,
+        saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
+        addSuggestionToCart: () => openEnhancedCartPicker(r),
+        saveRecipeOnly: () => saveRecipeOnly(r),
+        saveRecipeAndList: () => saveRecipeAndList(r),
+        deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
+        analyzeNutrition: () => analyzeNutrition(r, source, favId),
+        printRecipe: () => printRecipe()
+    };
+}
+
+/**
+ * Re-rend le modal recette avec l'échelle courante (LOT 010, casse C12).
+ * Point d'entrée UNIQUE du rendu du modal : `openRecipeDetail` (nouvelle ouverture,
+ * échelle réinitialisée), `changePplScale` (échelle changée) et `analyzeNutrition`
+ * (échelle PRÉSERVÉE — l'analyse ne doit jamais remettre à 1 un choix déjà fait) s'y
+ * appellent tous, jamais un `replaceChildren` direct.
+ */
+function renderRecipeModal() {
+    const modal = document.getElementById('modal-recipe-detail');
+    if (!modal || !_currentRecipeDetail) return;
+    modal.replaceChildren(renderRecipeDetail(
+        _currentRecipeDetail,
+        _currentRecipeSource,
+        buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
+        _currentScale
+    ));
+}
+
 function openRecipeDetail(idx, source = 'ai') {
     let r = null;
     let favId = null;
@@ -862,22 +909,16 @@ function openRecipeDetail(idx, source = 'ai') {
             favId = fav.id;
         }
     }
-    
+
     if (!r) return;
 
-    const modal = document.getElementById('modal-recipe-detail');
-    modal.replaceChildren(renderRecipeDetail(r, source, {
-        closeModal,
-        toggleRecipeFullscreen,
-        changePplScale,
-        saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
-        addSuggestionToCart: () => openEnhancedCartPicker(r),
-        saveRecipeOnly: () => saveRecipeOnly(r),
-        saveRecipeAndList: () => saveRecipeAndList(r),
-        deleteFav: () => deleteFav(favId),
-        analyzeNutrition: () => analyzeNutrition(r, source, favId),
-        printRecipe: () => printRecipe()
-    }));
+    _currentRecipeDetail = r;
+    _currentRecipeSource = source;
+    _currentRecipeFavId = favId;
+    _originalPpl = parseInt(r.people || r.ppl) || 2;
+    _currentScale = 1;
+
+    renderRecipeModal();
     openModal('modal-recipe-detail');
 }
 
@@ -903,24 +944,12 @@ async function analyzeNutrition(r, source, favId) {
         
         const nutrition = JSON.parse(match[0]);
         r.nutrition = nutrition;
-        
+
         saveState();
-        // Refresh modal
-        const modal = document.getElementById('modal-recipe-detail');
-        if (modal) {
-            modal.replaceChildren(renderRecipeDetail(r, source, {
-                closeModal,
-                toggleRecipeFullscreen,
-                changePplScale,
-                saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
-                addSuggestionToCart: () => openEnhancedCartPicker(r),
-                saveRecipeOnly: () => saveRecipeOnly(r),
-                saveRecipeAndList: () => saveRecipeAndList(r),
-                deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
-                analyzeNutrition: () => analyzeNutrition(r, source, favId),
-                printRecipe: () => printRecipe()
-            }));
-        }
+        // LOT 010 (casse C12) : re-rend via le point d'entrée unique, qui PRÉSERVE
+        // l'échelle courante — une analyse ne doit jamais remettre le nombre de
+        // personnes à sa valeur d'origine si l'utilisateur l'avait déjà changé.
+        renderRecipeModal();
         toast('Analyse nutritionnelle terminée !');
     } catch (e) {
         console.error(e);
@@ -981,13 +1010,18 @@ function initRecipeFullscreenListeners() {
         .forEach(evt => document.addEventListener(evt, syncRecipeFullscreenClass));
 }
 
+/**
+ * Recalcule les quantités affichées selon le nombre de personnes (LOT 010, casse
+ * C12). Porté depuis l'oracle (`foodapp-v5-Joel.html` l.5467-5472) : la nouvelle
+ * échelle se calcule TOUJOURS depuis `_originalPpl`, jamais en cumulant sur la
+ * précédente — c'est ce qui garantit l'absence de dérive d'arrondi. Bornes 1-20 :
+ * au-delà, le clic est sans effet.
+ */
 function changePplScale(delta) {
-    const pplEl = document.getElementById('rd-ppl-count');
-    if (!pplEl) return;
-    let val = parseInt(pplEl.textContent);
-    val = Math.max(1, val + delta);
-    pplEl.textContent = val;
-    // Note: Quantitative scaling logic could be added here if needed
+    const newPpl = (_originalPpl * _currentScale) + delta;
+    if (newPpl < 1 || newPpl > 20) return;
+    _currentScale = newPpl / _originalPpl;
+    renderRecipeModal();
 }
 
 /**
