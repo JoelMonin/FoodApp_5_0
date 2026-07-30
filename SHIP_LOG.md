@@ -1,11 +1,40 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.6.0
+- **Version actuelle** : 5.7.0
 - **Dernière mise à jour** : 30/07/2026
-- **Statut** : Version 5.6 publiée (LOTS 009 + 010) — campagne « Restauration & Refonte » en cours, prochain chantier LOT 011
+- **Statut** : Version 5.7 publiée (LOTS 011 + 012) — check-list de campagne « Restauration
+  & Refonte » entièrement close (§1-§4), prochain chantier LOT 015
 
 ## Historique des modifications
+- [x] [VERSION 5.7 - OnLine] 30/07/2026 : Publication des lots 011 + 012
+    - Lot 011 — Recettes IA riches : cartes de résultats complètes (méta, pitch, tags
+      d'ingrédients colorés selon le stock, boutons directs), détail de recette riche
+      (Nutri-Score, étapes cochables, pastilles d'état), prompts et appels IA re-blindés
+      (RÈGLE D'OR, sécurité, JSON durci), mode 🎲 « recette aléatoire » complet (filtres
+      réinitialisés, créativité boostée), confort de génération (textes d'attente animés,
+      scroll auto mobile), récupération d'URL propre (Jina Reader), favoris riches (carte
+      dédiée, date affichée, « Sauvegarder tel quel » restauré)
+    - Lot 012 — Confort d'usage retrouvé : sélecteur d'articles éditable par ligne (nom +
+      émoji via 🎲 `cycleEmoji`), gestes clavier (Entrée sur les champs d'ajout rapide,
+      scroll horizontal des filtres sur mobile, anti-autofill), barre supérieure
+      contextuelle restaurée (bouton d'action et icône mobile par vue, sans jamais
+      recréer le voyant de synchro du LOT 007), retour auto à l'inventaire après un
+      ajout, styles neufs pour l'autocomplétion du formulaire d'ajout
+    - Deux défauts hors-plan trouvés et corrigés en cours de route : `areSimilar`
+      confondait des ingrédients sans rapport par fragment de texte (« Eau »≈« Agneau »),
+      corrigé en portant l'algorithme mot-à-mot de l'oracle (constat de Joel en test
+      réel) ; la case à cocher du sélecteur s'affichait toujours visuellement cochée
+      (défaut du LOT 006, jamais testé, trouvé par les tests de non-régression du LOT 012)
+    - Audits : LOT 011 — audit de spec en duel (Gemini + Codex Terra, NO-GO puis GO),
+      sous-lot moteur et sous-lot rendu chacun audité et corrigé (4 défauts réels au
+      total, dont une vraie condition de course). LOT 012 — audit de spec ET audit du
+      diff final tous deux par Codex Terra (GO à chaque fois), avec des corrections
+      réelles à chaque passage
+    - Check-list de campagne (`Backlog/BACKLOG - Regressions de la migration.md`)
+      entièrement cochée ou explicitement reportée (§5, garde-fou permanent) — fin de la
+      campagne de restauration ouverte le 2026-07-29
+    - Métriques : 357/357 Vitest + 13/13 Pytest verts, build OK
 - [x] [VERSION 5.6 - OnLine] 30/07/2026 : Publication des lots 009 + 010
     - Lot 009 — Boutons morts rebranchés : icône d'ingrédient (grille locale immédiate),
       plein écran recette (vraie API navigateur + repli CSS), bouton imprimer + swipe-to-close

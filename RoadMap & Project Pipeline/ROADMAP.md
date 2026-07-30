@@ -60,8 +60,6 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BA%20PUBLIER%5D.md) | Recettes IA riches (7 chantiers codés, 2 sous-lots audités, vérifié en navigateur) | **A PUBLIER** — attend le LOT 012 | `feat/lot11-recettes-ia-riches` |
-| [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BA%20PUBLIER%5D.md) | Confort d'usage retrouvé (4 zones codées et testées, 2 audits GO, check-list de campagne close) | **A PUBLIER** — attend la vérification manuelle de Joel | `feat/lot12-confort-usage` |
 | [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BPLANIFIE%5D.md) | Réglages fiables et cohérents (arbitrages tranchés le 2026-07-30) — s'exécute AVANT le 013 | PLANIFIÉ | `feat/lot15-reglages-fiables` |
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
@@ -70,6 +68,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BCLOTURE%5D.md) | **Confort d'usage retrouvé** — sélecteur éditable (nom + emoji via 🎲), clavier et gestes, barre supérieure contextuelle, styles neufs | **5.7** |
+| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BCLOTURE%5D.md) | **Recettes IA riches** — cartes complètes, détail riche, prompts blindés, mode 🎲, favoris riches, récupération d'URL propre | **5.7** |
 | [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BCLOTURE%5D.md) | **Règles métier retrouvées** — cuisine transmise à l'IA, plafond épinglés, zone imposée complète, tri alphabétique, quantités recalculées, menu modèles remplacé | **5.6** |
 | [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BCLOTURE%5D.md) | **Boutons morts rebranchés** — icône d'ingrédient, plein écran, imprimer, panneau système | **5.6** |
 | [007](LOT%20007%20-%20Synchro%20collaborative%20%5BCLOTURE%5D.md) | **Synchro collaborative** — moteur bidirectionnel complet (la restauration phare) | **5.5** |

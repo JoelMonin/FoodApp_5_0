@@ -10,8 +10,8 @@
 > | §2 (info-last-sync, info-network, online/offline, voyant) + synchro auto (A11) | **LOT 007** ✅ **publié en 5.5** (2026-07-30) |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** ✅ **publié en 5.6** (2026-07-30) |
 > | C5, C9, C10, C11, C12 | **LOT 010** ✅ **publié en 5.6** (2026-07-30) |
-> | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** ✅ **fait, à publier avec le LOT 012** (2026-07-30) |
-> | §3 restant (picker 🎲, clavier, styles neufs…) + **topbar contextuelle (§4)** | **LOT 012** ✅ **fait, à publier avec le LOT 011** (2026-07-30) |
+> | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** ✅ **publié en 5.7** (2026-07-30) |
+> | §3 restant (picker 🎲, clavier, styles neufs…) + **topbar contextuelle (§4)** | **LOT 012** ✅ **publié en 5.7** (2026-07-30) |
 > | §5 (faux morts) : NE PAS restaurer — garde-fou permanent | tous |
 > | Duplication `.generate-btn` (§ fin) | **LOT 014** |
 >
