@@ -45,6 +45,7 @@
 - `tests/swipe-close.test.js` : Glissement pour fermer un modal (LOT 009 — survit au rendu dynamique, geste isolé du précédent).
 - `tests/gemini.test.js` : Mocks et tests du service IA Gemini.
 - `tests/cuisine-ssot.test.js` : Champ canonique unique `cuisines` (LOT 010 — migration douce, étanchéité cloud, transmission réelle à l'IA, alignement interface ↔ champ).
+- `tests/pin-cap.test.js` : Plafonds des ingrédients imposés (LOT 010 — 6 épinglés et 6 hors stock séparés, données existantes jamais tronquées, libellé généré depuis la SSOT).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).

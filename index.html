@@ -375,8 +375,12 @@
                         <button class="ez-add" onclick="addExtraIngredient()">+</button>
                       </div>
 
-                      <div style="font-size:10px;color:var(--txt-soft);margin-top:4px;font-weight:500">
-                        Max 6 ingrédients imposés au total
+                      <!-- LOT 010 (casse C9) : libellé rempli au démarrage depuis la SSOT des
+                           plafonds (`src/constants.js`). L'ancien texte « Max 6 ingrédients
+                           imposés au total » était faux : les deux familles sont plafonnées
+                           séparément. Ne pas y réécrire de chiffre en dur. -->
+                      <div id="imposed-cap-hint"
+                        style="font-size:10px;color:var(--txt-soft);margin-top:4px;font-weight:500">
                       </div>
                     </div>
 

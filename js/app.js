@@ -17,7 +17,7 @@ import {
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -520,7 +520,9 @@ export {
     initSwipeToClose,
     // LOT 010 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
     toggleAiChip,
-    restoreAIConfig
+    restoreAIConfig,
+    renderImposedCapHint,
+    addExtraIngredient
 };
 
 function renderCurrentView() {
@@ -538,7 +540,7 @@ function renderCurrentView() {
 
     if (view === 'pantry') renderPantry();
     else if (view === 'shopping') renderShopping();
-    else if (view === 'ai') { renderAI(); renderExtraChips(); }
+    else if (view === 'ai') { renderAI(); renderExtraChips(); renderImposedCapHint(); }
     else if (view === 'fav' || view === 'favorites') renderFavorites();
     else if (view === 'add') renderAdd();
     else if (view === 'export' || view === 'settings') updateSystemInfo();
@@ -1739,8 +1741,10 @@ function addExtraIngredient() {
     const val = input?.value?.trim();
     if (!val) return;
     
-    if (state.extraIngredients.length >= 6) {
-        toast('Maximum 6 ingrédients hors stock', 'error'); return;
+    // Plafond des « hors stock », séparé de celui des épinglés (LOT 010 : le 6 en dur
+    // est remonté dans la SSOT des plafonds, le message reste celui de l'oracle l.4917).
+    if (state.extraIngredients.length >= MAX_EXTRA_INGREDIENTS) {
+        toast(`Maximum ${MAX_EXTRA_INGREDIENTS} ingrédients hors stock`, 'error'); return;
     }
 
     // Check similarity in Inventory
@@ -1758,6 +1762,16 @@ function addExtraIngredient() {
     state.extraIngredients.push({ name: val, emoji: '✨', id: generateId('extra') });
     input.value = '';
     saveState();
+}
+
+/**
+ * Remplit le libellé des plafonds depuis la SSOT (LOT 010, casse C9).
+ * L'interface annonçait « Max 6 ingrédients imposés au total » alors que les deux
+ * familles sont plafonnées SÉPARÉMENT — un mensonge visible par l'utilisateur.
+ */
+function renderImposedCapHint() {
+    const el = document.getElementById('imposed-cap-hint');
+    if (el) el.textContent = `Max ${MAX_PINNED_INGREDIENTS} épinglés + ${MAX_EXTRA_INGREDIENTS} hors stock`;
 }
 
 function renderExtraChips() {
