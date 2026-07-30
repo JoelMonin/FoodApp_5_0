@@ -522,7 +522,11 @@ export {
     toggleAiChip,
     restoreAIConfig,
     renderImposedCapHint,
-    addExtraIngredient
+    addExtraIngredient,
+    renderExtraChips,
+    updateAIContextSub,
+    refreshImposedZone,
+    removeExtraIngredient
 };
 
 function renderCurrentView() {
@@ -540,7 +544,7 @@ function renderCurrentView() {
 
     if (view === 'pantry') renderPantry();
     else if (view === 'shopping') renderShopping();
-    else if (view === 'ai') { renderAI(); renderExtraChips(); renderImposedCapHint(); }
+    else if (view === 'ai') { renderAI(); refreshImposedZone(); renderImposedCapHint(); }
     else if (view === 'fav' || view === 'favorites') renderFavorites();
     else if (view === 'add') renderAdd();
     else if (view === 'export' || view === 'settings') updateSystemInfo();
@@ -1762,6 +1766,7 @@ function addExtraIngredient() {
     state.extraIngredients.push({ name: val, emoji: '✨', id: generateId('extra') });
     input.value = '';
     saveState();
+    refreshImposedZone();
 }
 
 /**
@@ -1774,20 +1779,83 @@ function renderImposedCapHint() {
     if (el) el.textContent = `Max ${MAX_PINNED_INGREDIENTS} épinglés + ${MAX_EXTRA_INGREDIENTS} hors stock`;
 }
 
+/**
+ * Zone « Ingrédients imposés » de l'écran IA (LOT 010, casse C10).
+ *
+ * Remplace l'ancien `renderExtraChips` qui n'affichait QUE les extras, sans emoji,
+ * et ne se rafraîchissait qu'au rendu de la vue IA — un épinglé était envoyé à l'IA
+ * (`gemini.js`) mais invisible et non retirable ici.
+ *
+ * Porté depuis l'oracle (`renderImposedZone`, `foodapp-v5-Joel.html` l.4875-4910),
+ * en DOM-safe via `h()` plutôt que le `innerHTML` littéral de l'original — même
+ * choix de sécurité que pour le panneau système du LOT 009.
+ */
 function renderExtraChips() {
     const container = document.getElementById('imposed-chips');
     if (!container) return;
-    const chips = state.extraIngredients.map(it => h('div', { class: 'chip active' }, [
-        it.name,
-        h('span', { style: { marginLeft: '6px', cursor: 'pointer' }, onclick: () => removeExtraIngredient(it.id) }, '✕')
-    ]));
-    container.replaceChildren(...chips);
-    if (chips.length === 0) container.replaceChildren(h('span', { class: 'pz-empty' }, 'Aucun ingrédient imposé'));
+
+    const pinned = state.ingredients.filter(i => i.pinned);
+    const extras = state.extraIngredients || [];
+
+    if (pinned.length === 0 && extras.length === 0) {
+        container.replaceChildren(h('span', { class: 'pz-empty' }, 'Aucun ingrédient imposé'));
+        return;
+    }
+
+    const blocs = [];
+
+    if (pinned.length > 0) {
+        blocs.push(h('div', { class: 'pz-label' }, "📍 Dans l'inventaire"));
+        blocs.push(h('div', { class: 'pz-chips' }, pinned.map(ing => h('div', { class: 'pz-chip' }, [
+            h('span', {}, ing.emoji),
+            ` ${ing.name} `,
+            h('span', { class: 'pz-chip-del', onclick: () => togglePin(ing.id) }, '✕')
+        ]))));
+    }
+
+    if (extras.length > 0) {
+        blocs.push(h('div', { class: 'ez-label', style: { marginTop: '12px' } }, '🛒 Hors inventaire'));
+        blocs.push(h('div', { class: 'pz-chips' }, extras.map(ei => h('div', { class: 'ez-chip' }, [
+            h('span', {}, ei.emoji),
+            ` ${ei.name} `,
+            h('span', { class: 'ez-chip-del', onclick: () => removeExtraIngredient(ei.id) }, '✕')
+        ]))));
+    }
+
+    container.replaceChildren(...blocs);
+}
+
+/**
+ * Sous-titre vivant de l'écran IA (LOT 010, casse C10).
+ * Porté depuis l'oracle (`updateAIContextSub`, `foodapp-v5-Joel.html` l.4943-4953) :
+ * segments « épinglé(s) » et « hors stock » masqués quand leur compteur vaut 0.
+ */
+function updateAIContextSub() {
+    const el = document.getElementById('ai-context-sub');
+    if (!el) return;
+    const stock = state.ingredients.filter(i => i.inStock).length;
+    const pinned = state.ingredients.filter(i => i.pinned).length;
+    const extra = (state.extraIngredients || []).length;
+    let s = stock + ' ingrédient' + (stock > 1 ? 's' : '') + ' en stock';
+    if (pinned > 0) s += ` · ${pinned} épinglé${pinned > 1 ? 's' : ''}`;
+    if (extra > 0) s += ` · ${extra} hors stock`;
+    el.textContent = s;
+}
+
+/**
+ * Rafraîchit la zone imposée ET le sous-titre en un seul appel (LOT 010, casse C10) :
+ * dépassement volontaire de l'oracle, assumé et tracé dans la fiche du lot — l'oracle
+ * ne rafraîchissait le sous-titre qu'à certains endroits, oubliant l'épinglage.
+ */
+function refreshImposedZone() {
+    renderExtraChips();
+    updateAIContextSub();
 }
 
 function removeExtraIngredient(id) {
     state.extraIngredients = state.extraIngredients.filter(it => it.id !== id);
     saveState();
+    refreshImposedZone();
 }
 
 function generateRandomWithStock() {
