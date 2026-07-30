@@ -402,18 +402,21 @@
                     <div class="two-col-settings">
                       <div>
                         <span class="ai-field-label">Types de cuisine</span>
-                        <div class="chips-row" id="ai-cuisine-chips">
-                          <div class="chip" data-val="française" onclick="toggleAiChip('cuisine',this)">🇫🇷 Française
+                        <!-- LOT 010 (casse C5) : l'id doit rester aligné sur le nom du champ
+                             `aiConfig.cuisines` — `restoreAIConfig` en déduit le champ à relire
+                             pour rallumer les puces au démarrage. -->
+                        <div class="chips-row" id="ai-cuisines-chips">
+                          <div class="chip" data-val="française" onclick="toggleAiChip('cuisines',this)">🇫🇷 Française
                           </div>
-                          <div class="chip" data-val="italienne" onclick="toggleAiChip('cuisine',this)">🇮🇹 Italienne
+                          <div class="chip" data-val="italienne" onclick="toggleAiChip('cuisines',this)">🇮🇹 Italienne
                           </div>
-                          <div class="chip" data-val="espagnole" onclick="toggleAiChip('cuisine',this)">🇪🇸 Espagnole
+                          <div class="chip" data-val="espagnole" onclick="toggleAiChip('cuisines',this)">🇪🇸 Espagnole
                           </div>
-                          <div class="chip" data-val="libanaise" onclick="toggleAiChip('cuisine',this)">🇱🇧 Libanaise
+                          <div class="chip" data-val="libanaise" onclick="toggleAiChip('cuisines',this)">🇱🇧 Libanaise
                           </div>
-                          <div class="chip" data-val="asiatique" onclick="toggleAiChip('cuisine',this)">🌏 Asiatique
+                          <div class="chip" data-val="asiatique" onclick="toggleAiChip('cuisines',this)">🌏 Asiatique
                           </div>
-                          <div class="chip" data-val="américaine" onclick="toggleAiChip('cuisine',this)">🇺🇸 Américaine
+                          <div class="chip" data-val="américaine" onclick="toggleAiChip('cuisines',this)">🇺🇸 Américaine
                           </div>
                         </div>
                       </div>

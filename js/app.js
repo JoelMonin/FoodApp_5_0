@@ -517,7 +517,10 @@ export {
     buildEmojiEditSuggestions,
     applyEditedEmoji,
     updateSystemInfo,
-    initSwipeToClose
+    initSwipeToClose,
+    // LOT 010 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    toggleAiChip,
+    restoreAIConfig
 };
 
 function renderCurrentView() {
