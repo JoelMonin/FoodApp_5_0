@@ -55,15 +55,50 @@ export function levenshtein(a, b) {
 
 /**
  * Vérifie si deux noms d'ingrédients sont similaires.
+ *
+ * Régression trouvée par Joël en testant le LOT 011 (2026-07-30) : la comparaison de
+ * CHAÎNES BRUTES (`n1.includes(n2)`) faisait matcher « Eau » avec « Agneau » (« eau » est
+ * un fragment caché dans « agn-EAU ») et « Oeuf » avec « Bœuf » (« oeuf » caché dans
+ * « b-OEUF ») — deux ingrédients sans aucun rapport. Porté depuis l'oracle
+ * (`foodapp-v5-Joel.html` l.6383-6414), qui compare des MOTS ENTIERS, jamais des
+ * fragments de texte : « eau » et « agneau » sont deux mots différents, jamais confondus.
+ * `normalizeString` n'est PAS touchée par ce correctif — seule cette fonction change.
+ *
+ * Ordre des règles, fidèle à l'oracle :
+ * 1. Identique après normalisation.
+ * 2. Tous les mots de l'un se retrouvent dans l'autre (ex. « Ail » ⊂ « Ail en poudre » —
+ *    volontaire, l'oracle le fait déjà : un ingrédient plus précis compte pour le même).
+ * 3. Même mot principal (premier mot) ET au moins tous les mots sauf un en commun (ex.
+ *    « Tomates cerises » / « Tomates » mais PAS « Persil frais » / « Thon frais »).
+ * 4. Repli flou (fautes de frappe/pluriels), UNIQUEMENT si les deux chaînes dépassent
+ *    3 caractères — c'est cette borne, combinée à la comparaison mot-à-mot ci-dessus,
+ *    qui empêche « eau » (3 caractères) de déclencher la moindre comparaison floue.
  */
 export function areSimilar(recipeIng, inventoryIng) {
-  const n1 = normalizeString(recipeIng);
-  const n2 = normalizeString(inventoryIng);
-  if (n1 === n2) return true;
-  if (n1.includes(n2) || n2.includes(n1)) return true;
-  const dist = levenshtein(n1, n2);
-  const threshold = Math.min(n1.length, n2.length) > 5 ? 2 : 1;
-  return dist <= threshold;
+  const r = normalizeString(recipeIng);
+  const i = normalizeString(inventoryIng);
+  if (!r || !i) return false;
+  if (r === i) return true;
+
+  const rWords = r.split(' ');
+  const iWords = i.split(' ');
+
+  const isRecipeInInventory = rWords.every(word => iWords.includes(word));
+  const isInventoryInRecipe = iWords.every(word => rWords.includes(word));
+  if (isRecipeInInventory || isInventoryInRecipe) return true;
+
+  const commonWords = rWords.filter(w => iWords.includes(w));
+  if (commonWords.length > 0 && commonWords[0] === rWords[0] && rWords[0] === iWords[0]) {
+    if (commonWords.length >= Math.min(rWords.length, iWords.length) - 1) return true;
+  }
+
+  if (r.length > 3 && i.length > 3) {
+    const dist = levenshtein(r, i);
+    if (dist <= 1) return true;
+    if (dist <= 2 && (r.includes(i) || i.includes(r))) return true;
+  }
+
+  return false;
 }
 
 /**

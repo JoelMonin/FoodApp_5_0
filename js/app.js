@@ -6,7 +6,8 @@ import {
   applyExternalState,
   registerSyncScheduler,
   registerSyncBarrier,
-  replaceShoppingChecked
+  replaceShoppingChecked,
+  defaultAiConfig
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
 import {
@@ -22,7 +23,7 @@ import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../sr
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
 import { renderShoppingList } from '../src/ui/shopping.js';
-import { renderRecipeCard, renderRecipeDetail } from '../src/ui/recipe.js';
+import { renderRecipeCard, renderRecipeDetail, renderFavoriteCard } from '../src/ui/recipe.js';
 import * as Actions from '../src/actions.js';
 
 let state = moduleState;
@@ -32,6 +33,21 @@ let _addSuggestTimer = null;
 // Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
 // d'appliquer sa reponse (cf. handleAddInput).
 let _aiSuggestGenId = 0;
+// LOT 011 (trouve par l'audit du sous-lot 11A) : deux generations de recettes concurrentes
+// (bouton normal + 🎲, ou deux clics rapides sur 🎲) pouvaient se marcher dessus — chacune
+// restaure "sa" creativite sauvegardee dans un finally, et la derniere a finir l'emporte
+// meme si elle a lu une valeur deja corrompue par l'autre. Un seul point d'entree
+// (generateSuggestions) refuse desormais tout lancement pendant qu'un autre est en cours.
+let _generationInFlight = false;
+
+// Filet de sécurité emoji ingrédient (LOT 010, casse C12, durci après audit Codex Terra) :
+// un prompt IA sans indication de format a pu, par le passé, faire dériver du texte (une
+// unité comme "g") dans le champ emoji. Ancré sur la chaîne ENTIÈRE (`.test()` cherche
+// n'importe où par défaut — une valeur mixte comme "g🐟" passait sinon). `\p{Emoji}️`
+// (sélecteur de variante 16) couvre en plus les emojis à présentation texte par défaut,
+// explicitement forcés en emoji. SSOT (LOT 011) : partagé par le sélecteur de courses et
+// le détail de recette — un correctif de sécurité ne doit vivre qu'à un seul endroit.
+const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
 
@@ -64,11 +80,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+  initFieldEnterShortcuts();
+  initChipsRowTouchScroll();
+
   // Synchro cloud : moteur bidirectionnel (LOT 007). Le pull de demarrage part en
   // arriere-plan — l'ecran ne depend jamais du reseau (acquis LOT 005). Les
   // garde-fous d'empreinte (donnees locales + formulaire IA) qui vivaient ici sont
   // GENERALISES a tous les pulls, dans performSyncPull.
   initSyncEngine();
+
+  initSearchAutofillGuard();
 });
 
 window.addEventListener('stateUpdated', () => {
@@ -535,7 +556,32 @@ export {
     openEnhancedCartPicker,
     renderAiModelsInfo,
     saveApiKey,
-    openModal
+    openModal,
+    // LOT 011 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    generateRandomWithStock,
+    fetchRecipeFromUrl,
+    renderAIResults,
+    renderFavorites,
+    saveSuggestionToFavDirect,
+    saveRecipeOnly,
+    saveRecipeAndList,
+    deleteFav,
+    savePastedRecipe,
+    savePastedRecipeAndList,
+    buildIngredientTags,
+    transformRecipeAI,
+    generateSuggestions,
+    // LOT 012 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    cycleEmoji,
+    confirmRecipeToCart,
+    initFieldEnterShortcuts,
+    initChipsRowTouchScroll,
+    initSearchAutofillGuard,
+    clearSearch,
+    renderTopbar,
+    updateBadges,
+    addIngredient,
+    addIngredientFromDb
 };
 
 function renderCurrentView() {
@@ -585,20 +631,47 @@ function countStockAndCart() {
     return { stock, cart };
 }
 
+// Sous-titre "N recette(s)" — partagé par les deux clés 'fav'/'favorites' (alias de la
+// meme vue, cf. `viewMap` de `renderCurrentView`), pour ne pas dupliquer le calcul.
+const _favCountSub = () => {
+    const n = state.favorites.length;
+    return n + ' recette' + (n > 1 ? 's' : '');
+};
+
+/**
+ * LOT 012, zone C (oracle `updateTopbar`, l.4520-4579) — barre superieure contextuelle,
+ * icones mobiles et sous-titres, restaures au mot pres (table verifiee par l'audit de
+ * spec Codex). `.mh-icons` n'est JAMAIS remplace en bloc (contrairement a l'oracle) :
+ * `#sync-indicator-mobile` (LOT 007) porte son etat thinking/success/error dans sa
+ * classe et son texte, un `innerHTML=` le reinitialiserait silencieusement a chaque
+ * changement de vue — l'oracle pouvait se le permettre, son propre voyant est statique.
+ */
 function renderTopbar(view) {
     const titles = {
-        pantry: 'Inventaire', 
-        shopping: 'Mes Courses', 
-        ai: 'Recettes IA', 
-        fav: 'Favoris', 
-        favorites: 'Favoris',
-        add: 'Ajouter un ingrédient', 
+        pantry: 'Inventaire',
+        shopping: 'Liste de courses',
+        ai: 'Recettes IA',
+        favorites: 'Recettes favorites',
+        fav: 'Recettes favorites',
         export: 'Réglages',
-        settings: 'Réglages'
+        settings: 'Réglages',
+        add: 'Ajouter un ingrédient'
     };
+    // Note de portage : l'oracle a un bug d'espace pour n=1 côté "ai" ('ingrédient' +
+    // 'en stock' → « ingrédienten stock », collé) — typo, pas une intention, corrigée
+    // silencieusement (espace ajouté) comme le code mort de la zone A ne l'a pas été.
     const subs = {
-        pantry: () => countStockAndCart().stock + ' articles en stock',
-        shopping: () => countStockAndCart().cart + ' articles à acheter'
+        pantry: () => countStockAndCart().stock + ' en stock',
+        shopping: () => {
+            const n = countStockAndCart().cart;
+            return n + ' article' + (n > 1 ? 's' : '');
+        },
+        ai: () => {
+            const n = countStockAndCart().stock;
+            return 'basé sur ' + n + ' ingrédient' + (n > 1 ? 's en stock' : ' en stock');
+        },
+        favorites: _favCountSub,
+        fav: _favCountSub
     };
 
     // Desktop topbar
@@ -611,9 +684,68 @@ function renderTopbar(view) {
         }
     }
 
-    // Render action buttons for pantry view (handled by renderPantry itself)
+    // Sous-titre mobile — meme table que le desktop.
+    const mhSub = document.getElementById('mh-subtitle');
+    if (mhSub) mhSub.textContent = (subs[view] ? subs[view]() : null) || titles[view] || view;
+
+    // Barre de recherche desktop masquee hors inventaire (oracle l.4542-4547).
+    const tbSearch = document.getElementById('tb-search-wrap');
+    if (tbSearch) {
+        tbSearch.style.display = (view === 'pantry') ? 'flex' : 'none';
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = state.search;
+    }
+
+    // Bouton d'action contextuel desktop (oracle l.4549-4563) — classes CSS deja posees
+    // (`.tb-btn-add`, `.tb-btn`, `.tb-btn.terra`, `.tb-icon-btn`, `.tb-btn.primary`),
+    // aucune a creer. Remplacement complet a chaque rendu : sans etat a proteger ici,
+    // contrairement a l'icone mobile ci-dessous.
     const actionEl = document.getElementById('top-action-btn');
-    if (actionEl) actionEl.replaceChildren();
+    if (actionEl) {
+        if (view === 'pantry') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-btn-add', title: 'Ajouter un ingrédient', onclick: () => switchView('add')
+            }, '＋'));
+        } else if (view === 'shopping') {
+            actionEl.replaceChildren(
+                h('button', { class: 'tb-btn', onclick: () => exportClipboard('cart') }, '📋 Copier'),
+                h('button', { class: 'tb-btn terra', onclick: () => resetCart() }, '🗑️ Vider')
+            );
+        } else if (view === 'ai') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-icon-btn', title: 'Config API', onclick: () => openModal('modal-api-config')
+            }, '⚙️'));
+        } else if (view === 'favorites' || view === 'fav') {
+            actionEl.replaceChildren(h('button', {
+                class: 'tb-btn primary', onclick: () => openModal('modal-paste-recipe')
+            }, '📋 Coller une recette'));
+        } else {
+            actionEl.replaceChildren();
+        }
+    }
+
+    // Icone mobile contextuelle (oracle l.4565-4578) — mise a jour CHIRURGICALE d'un
+    // noeud STABLE (jamais recree), `.onclick =` et non `addEventListener` : sans ca,
+    // chaque changement de vue empilerait un nouveau gestionnaire sur le meme noeud.
+    const mhIcon = document.getElementById('mh-context-icon');
+    if (mhIcon) {
+        if (view === 'pantry') {
+            mhIcon.textContent = '+';
+            mhIcon.style.cssText = 'background:var(--green);color:white;font-weight:bold';
+            mhIcon.onclick = () => switchView('add');
+        } else if (view === 'ai') {
+            mhIcon.textContent = '⚙️';
+            mhIcon.style.cssText = '';
+            mhIcon.onclick = () => openModal('modal-api-config');
+        } else if (view === 'favorites' || view === 'fav') {
+            mhIcon.textContent = '📋';
+            mhIcon.style.cssText = '';
+            mhIcon.onclick = () => openModal('modal-paste-recipe');
+        } else {
+            mhIcon.style.cssText = 'display:none';
+            mhIcon.onclick = null;
+        }
+    }
 }
 
 function renderPantryFilters() {
@@ -758,24 +890,52 @@ function resetFilters() {
     renderPantry();
 }
 
+// Textes d'attente animés pendant la génération (LOT 011, chantier 5 ; oracle
+// l.5052-5058, littéraux exacts).
+const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
+
 async function generateSuggestions() {
+  if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
   const apiKey = state.aiConfig.apiKey;
   if (!apiKey) { toast('Clé API Gemini requise', 'error'); openModal('modal-api-config'); return; }
   const stockItems = state.ingredients.filter(i => i.inStock);
   if (stockItems.length === 0) { toast('Inventaire vide', 'error'); return; }
 
+  _generationInFlight = true;
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
   btn.classList.add('loading');
 
+  // Rotation toutes les 2,5 s dans l'attribut lu par le CSS (`content: attr(data-loading-text)`,
+  // déjà câblé). `clearInterval` garanti dans le `finally`, quel que soit le chemin de sortie.
+  let loadingTextIdx = 0;
+  btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[0]);
+  const loadingInterval = setInterval(() => {
+    loadingTextIdx = (loadingTextIdx + 1) % AI_LOADING_TEXTS.length;
+    btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[loadingTextIdx]);
+  }, 2500);
+
   try {
-    const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients);
+    const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients, {
+      // LOT 011 : si l'API rejette le niveau d'effort demande et que le repli reussit quand
+      // meme, Joel doit le savoir au moment meme (demande explicite) — jamais silencieux.
+      onThinkingFallback: () => toast('Recettes générées sans le mode réflexion approfondie (temporairement indisponible).')
+    });
     state.aiSuggestions = recipes;
     // renderAIResults(recipes); // No need, saveState() will trigger auto-render
     saveState();
+
+    // Scroll auto vers les résultats sur mobile (LOT 011, chantier 5 ; oracle l.5068-5072).
+    setTimeout(() => {
+      if (window.innerWidth < 768) {
+        document.getElementById('ai-results-col')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   } catch (e) {
     toast('Erreur IA : ' + e.message, 'error');
   } finally {
+    clearInterval(loadingInterval);
+    _generationInFlight = false;
     btn.disabled = false;
     btn.classList.remove('loading');
   }
@@ -791,7 +951,15 @@ function renderAI() {
 function renderAIResults(recipes) {
     const grid = document.getElementById('ai-results-list');
     if (!grid) return;
-    grid.replaceChildren(...recipes.map((r, i) => renderRecipeCard(r, i, { openRecipeDetail })));
+    grid.replaceChildren(...recipes.map((r, i) => {
+        const tags = buildIngredientTags(r.ingredients, 'card');
+        const handlers = {
+            openRecipeDetail,
+            saveToFavorites: () => saveSuggestionToFavDirect(r),
+            addMissingToCart: () => openEnhancedCartPicker(r)
+        };
+        return renderRecipeCard(r, i, handlers, tags);
+    }));
     document.getElementById('ai-placeholder')?.classList.add('hidden');
     document.getElementById('ai-results-list')?.classList.remove('hidden');
 }
@@ -893,11 +1061,13 @@ function buildRecipeHandlers(r, source, favId) {
 function renderRecipeModal() {
     const modal = document.getElementById('modal-recipe-detail');
     if (!modal || !_currentRecipeDetail) return;
+    const tags = buildIngredientTags(_currentRecipeDetail.ingredients, 'detail');
     modal.replaceChildren(renderRecipeDetail(
         _currentRecipeDetail,
         _currentRecipeSource,
         buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
-        _currentScale
+        _currentScale,
+        tags
     ));
 }
 
@@ -960,7 +1130,10 @@ async function analyzeNutrition(r, source, favId) {
         toast("Erreur analyse nutrition", 'error');
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '✨ Analyse Nutri';
+            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton
+            // (`src/ui/recipe.js`, NUTRI_BTN_LABEL) — sans ce rappel, un échec laissait
+            // un texte plus court que celui rendu la première fois.
+            btn.textContent = '🔍 Estimer la valeur nutritionnelle (IA)';
         }
     }
 }
@@ -1046,21 +1219,71 @@ function matchIngredientToStock(ingredient) {
     const inventoryMatch = state.ingredients.find(i => areSimilar(name, i.name));
     const isExact = !!inventoryMatch
         && normalizeString(inventoryMatch.name) === normalizeString(name);
+    // LOT 011 (décision D3) : ajouts PURS pour les tags colorés des cartes/détail —
+    // `isPinned` (préfixe 📌) et `allMatchesInStock` (info-bulle « Correspond à… »).
+    // La sémantique de inStock/matchedName/isExact n'est pas touchée : figée par le
+    // sélecteur de liste de courses et ses tests (pare-feu A/B).
+    const isPinned = state.ingredients.some(i => i.pinned && areSimilar(name, i.name));
+    const allMatchesInStock = state.ingredients.filter(i => i.inStock && areSimilar(name, i.name));
 
     // L'IA annonce l'ingrédient comme déjà possédé : on la croit, mais on affiche
     // quand même à quoi il correspond dans l'inventaire si on le retrouve.
     if (aiStatus === 'stock' || aiStatus === 'pinned') {
-        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact };
+        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
     }
     if (aiStatus === 'missing') {
-        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact };
+        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
     }
 
     return {
         inStock: !!inventoryMatch?.inStock,
         matchedName: inventoryMatch?.name || null,
-        isExact
+        isExact,
+        isPinned,
+        allMatchesInStock
     };
+}
+
+/**
+ * Construit les tags colorés d'ingrédients (LOT 011, chantiers 1/2/7). Réutilise
+ * `matchIngredientToStock` (SSOT, LOT 006 étendue au LOT 011) plutôt que de dupliquer
+ * une logique de correspondance. Deux styles d'info-bulle, vérifiés distincts dans
+ * l'oracle (fiche LOT 011 §10-G) : les cartes précisent le statut, le détail non plus
+ * concis.
+ * @param {Array} ingredients
+ * @param {'card'|'detail'} tooltipStyle
+ */
+function buildIngredientTags(ingredients, tooltipStyle) {
+    return (ingredients || []).map(ing => {
+        const name = ing.n || ing.name || '';
+        const category = ing.c || ing.category || 'Autres';
+        const status = matchIngredientToStock(ing);
+        // Ordre significatif, trouvé en testant : `isExact` (LOT 006) se calcule
+        // INDÉPENDAMMENT du stock (le nom le plus proche, même sur un ingrédient épuisé) —
+        // sans `inStock` en premier filtre, un nom exact mais épuisé ressortait vert.
+        const cls = !status.inStock ? 'red' : (status.isExact ? 'green' : 'orange');
+        const matches = (status.allMatchesInStock || []).map(m => m.name).join(', ');
+        // Même filet de sécurité que le sélecteur de courses (SSOT, `AI_EMOJI_ONLY`) :
+        // un ingrédient de recette peut porter le même défaut de format.
+        const aiEmoji = ing.e && AI_EMOJI_ONLY.test(ing.e.trim()) ? ing.e : null;
+
+        let tooltip = name;
+        if (tooltipStyle === 'card') {
+            if (status.isExact) tooltip += ` (En stock : ${status.matchedName})`;
+            else if (status.inStock) tooltip += ` (Estimation basée sur : ${matches})`;
+            else tooltip += ' (Manquant)';
+        } else if (status.inStock) {
+            tooltip += ` (Stock : ${matches})`;
+        }
+
+        return {
+            name,
+            cls,
+            tooltip,
+            isPinned: status.isPinned,
+            emoji: aiEmoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category))
+        };
+    });
 }
 
 function openEnhancedCartPicker(recipe) {
@@ -1070,16 +1293,9 @@ function openEnhancedCartPicker(recipe) {
         const name = i.n || i.name;
         const category = i.c || i.category || 'Autres';
         const status = matchIngredientToStock(i);
-        // Filet de sécurité (LOT 010, casse C12) : un prompt IA sans indication de
-        // format a pu, par le passé, faire dériver du texte (une unité comme "g") dans
-        // ce champ au lieu d'un emoji. Durci après audit Codex Terra du 2026-07-30 :
-        // `.test()` cherche n'importe où dans la chaîne, une valeur mixte ("g🐟") passait
-        // donc le filtre avec la lettre toujours collée devant l'emoji — la correspondance
-        // est désormais ancrée sur la chaîne ENTIÈRE. `\p{Emoji}️` (sélecteur de
-        // variante 16, écrit en échappement explicite pour rester lisible) couvre en
-        // plus les emojis à présentation texte par défaut, explicitement forcés en
-        // emoji, sans quoi ils étaient rejetés à tort.
-        const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+        // Filet de sécurité emoji : cf. la constante module-level `AI_EMOJI_ONLY`
+        // (LOT 010, casse C12 ; remontée au niveau module par le LOT 011, chantier 2,
+        // pour rester SSOT avec le détail de recette).
         const aiEmoji = i.e && AI_EMOJI_ONLY.test(i.e.trim()) ? i.e : null;
         return {
             name,
@@ -1103,25 +1319,44 @@ function openEnhancedCartPicker(recipe) {
             // signalee visuellement, car la deduction peut se tromper.
             const softMatch = !!it.matchedName && !it.isExact;
 
-            const labelChildren = [h('div', {}, [it.emoji + ' ', it.name])];
+            // Edition par ligne (LOT 012, zone A) : pas de <label> autour du contenu
+            // (contrairement à l'ancien rendu) — fidèle à la structure de l'oracle, et
+            // ça évite tout risque de double-déclenchement de la case au clic sur les
+            // champs édités désormais imbriqués. Seule la case à cocher coche/décoche.
+            const contentChildren = [
+                h('input', { class: 'picker-name-inp', id: `pick-name-${idx}` , value: it.name }),
+                h('div', { class: 'picker-cat-label' }, it.category)
+            ];
             if (it.matchedName) {
-                labelChildren.push(h('div', { class: 'picker-match-info' },
+                contentChildren.push(h('div', { class: 'picker-match-info' },
                     it.isMissing
                         ? `Correspond à « ${it.matchedName} », pas en stock`
                         : `Déjà en stock : « ${it.matchedName} »`));
             }
+            contentChildren.push(h('input', { type: 'hidden', id: `pick-cat-${idx}`, value: it.category }));
+
+            // `h()` pose les props via setAttribute : pour un booleen HTML comme "checked",
+            // la seule PRESENCE de l'attribut coche la case, meme passe `false` (defaut
+            // preexistant du LOT 006, trouve par les tests de non-regression de ce chantier
+            // — un seul point d'appel dans toute la base, corrige ici). Affectation directe
+            // de la propriete IDL pour un rendu initial fidele a `it.isMissing`.
+            const checkboxEl = h('input', {
+                id: `pick-${idx}`,
+                type: 'checkbox',
+                onchange: () => updatePickerRow(idx)
+            });
+            checkboxEl.checked = checked;
 
             return h('div', {
                 class: `picker-item ${checked ? 'checked' : ''} ${softMatch ? 'soft-match' : ''}`,
                 id: `pitem-${idx}`
             }, [
-                h('input', {
-                    type: 'checkbox',
-                    checked,
-                    id: `pick-${idx}`,
-                    onchange: () => updatePickerRow(idx)
-                }),
-                h('label', { for: `pick-${idx}`, style: { cursor: 'pointer', flex: 1, marginLeft: '8px' } }, labelChildren),
+                checkboxEl,
+                h('div', { class: 'picker-emoji-wrap' }, [
+                    h('input', { class: 'picker-emoji-inp', id: `pick-emoji-${idx}`, value: it.emoji, readonly: true }),
+                    h('button', { class: 'picker-magic-btn', title: "Changer l'émoji", onclick: () => cycleEmoji(idx) }, '🎲')
+                ]),
+                h('div', { class: 'picker-content' }, contentChildren),
                 it.isMissing ? null : h('span', { class: 'picker-badge' }, 'En stock')
             ].filter(Boolean));
         }));
@@ -1139,20 +1374,31 @@ function confirmRecipeToCart() {
     if (!list) return;
     const checks = list.querySelectorAll('input[type="checkbox"]');
     checks.forEach((chk, i) => {
-        if (chk.checked) {
-            const it = _currentPickerData[i];
-            const existing = state.ingredients.find(ing => areSimilar(ing.name, it.name));
-            if (existing) {
-                existing.inCart = true;
-                existing.shoppingSource = _currentPickerRecipeName;
-            } else {
-                const id = generateId('ing');
-                state.ingredients.push({ 
-                    ...it, id, 
-                    inStock: false, inCart: true, 
-                    shoppingSource: _currentPickerRecipeName 
-                });
-            }
+        if (!chk.checked) return;
+        const original = _currentPickerData[i];
+        const nameInp = document.getElementById(`pick-name-${i}`);
+        const emojiInp = document.getElementById(`pick-emoji-${i}`);
+        const catInp = document.getElementById(`pick-cat-${i}`);
+        // Lit les valeurs EDITEES (LOT 012, zone A) plutot que l'original. Distinction
+        // (audit Codex) entre "input absent" (repli defensif sur l'original, ne devrait
+        // pas arriver) et "nom vide par un input present" (Joel a efface le champ :
+        // refus propre de cette ligne, jamais de repli silencieux sur l'ancien nom).
+        if (nameInp && !nameInp.value.trim()) return;
+        const name = nameInp ? nameInp.value.trim() : original.name;
+        const emoji = (emojiInp ? emojiInp.value.trim() : '') || original.emoji;
+        const category = catInp ? catInp.value : original.category;
+
+        const existing = state.ingredients.find(ing => areSimilar(ing.name, name));
+        if (existing) {
+            existing.inCart = true;
+            existing.shoppingSource = _currentPickerRecipeName;
+        } else {
+            const id = generateId('ing');
+            state.ingredients.push({
+                name, category, emoji, id,
+                inStock: false, inCart: true,
+                shoppingSource: _currentPickerRecipeName
+            });
         }
     });
     saveState();
@@ -1160,20 +1406,37 @@ function confirmRecipeToCart() {
     toast('Course ajoutée !');
 }
 
+/**
+ * Favoris riches (LOT 011, chantier 7). Composant DÉDIÉ (`renderFavoriteCard`), distinct
+ * de `renderRecipeCard` (trouvé par l'audit du sous-lot 11A : les deux écrans réutilisaient
+ * la même carte sans lui passer les mêmes handlers — un bouton ajouté à l'un aurait planté
+ * au clic dans l'autre). État vide enrichi avec CTA vers le collage, oracle l.5871.
+ */
 function renderFavorites() {
     const el = document.getElementById('fav-list');
     if (!el) return;
     if (!state.favorites || state.favorites.length === 0) {
-        el.replaceChildren(h('div', { class: 'fav-empty' }, 'Aucun favori'));
+        el.replaceChildren(h('div', { class: 'fav-empty' }, [
+            h('div', { class: 'fav-empty-icon' }, '📖'),
+            h('div', { class: 'fav-empty-title' }, 'Aucune recette favorite'),
+            h('div', { style: { fontSize: '13px', color: 'var(--txt-soft)' } },
+                'Sauvegardez une recette via les Recettes IA ou en collant un texte.'),
+            h('button', {
+                class: 'tb-btn primary',
+                style: { margin: '16px auto 0', display: 'flex' },
+                onclick: () => openModal('modal-paste-recipe')
+            }, '📋 Coller une recette')
+        ]));
         return;
     }
-    // We pass fav.recipe because renderRecipeCard expects a recipe object
-    // and we use fav.id (the favorite entry ID) for identification
     el.replaceChildren(...state.favorites.map(fav => {
-        const r = fav.recipe || fav; // Fallback if data is flat
-        return renderRecipeCard(r, fav.id, { 
-            openRecipeDetail: (id) => openRecipeDetail(id, 'fav') 
-        });
+        const r = fav.recipe || fav; // Repli si les données sont plates (forme canonique).
+        const tags = buildIngredientTags(r.ingredients, 'card');
+        const handlers = {
+            openFav: () => openRecipeDetail(fav.id, 'fav'),
+            deleteFavorite: () => deleteFav(fav.id)
+        };
+        return renderFavoriteCard(fav, handlers, tags);
     }));
 }
 
@@ -1186,14 +1449,14 @@ function deleteFav(id) {
 
 function saveSuggestionToFavDirect(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
     saveState();
     toast('Ajouté aux favoris !');
 }
 
 function saveRecipeOnly(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
     saveState();
     toast('Recette sauvegardée !');
     closeModal('modal-paste-recipe');
@@ -1203,6 +1466,55 @@ function saveRecipeAndList(r) {
     if (!r) return;
     saveRecipeOnly(r);
     openEnhancedCartPicker(r);
+}
+
+/**
+ * Construit le favori à partir de la fenêtre « Coller une recette » — recette structurée
+ * si transformée par l'IA, texte brut sinon. Restaure un chemin cassé par le LOT 006
+ * (arbitrage Joel A1, fiche LOT 011 §12) : `_lastTransformedRecipe` n'existant qu'après
+ * passage par l'IA, le bouton grisé jusque-là rendait le texte brut seul INATTEIGNABLE —
+ * une recette collée sans transformation ne pouvait plus jamais être sauvegardée. Porte
+ * le double chemin de l'oracle (`saveRecipeOnly`/`saveRecipeAndList` l.6036-6058).
+ * @returns {Object|null} null si titre/contenu manquants (toast déjà émis).
+ */
+function buildPastedFavorite() {
+    const title = document.getElementById('paste-title')?.value.trim() || '';
+    const content = document.getElementById('paste-content')?.value.trim() || '';
+    if (!title || (!content && !_lastTransformedRecipe)) {
+        toast('Titre et contenu requis', 'error');
+        return null;
+    }
+    const date = new Date().toLocaleDateString('fr-FR');
+    return _lastTransformedRecipe
+        ? { ..._lastTransformedRecipe, id: generateId('fav'), date }
+        : { id: generateId('fav'), title, content, date };
+}
+
+function savePastedRecipe() {
+    const fav = buildPastedFavorite();
+    if (!fav) return;
+    state.favorites.push(fav);
+    saveState();
+    updateBadges();
+    closeModal('modal-paste-recipe');
+    toast(`⭐ ${fav.name || fav.title} sauvegardé en favori`);
+}
+
+function savePastedRecipeAndList() {
+    const fav = buildPastedFavorite();
+    if (!fav) return;
+    state.favorites.push(fav);
+    saveState();
+    updateBadges();
+    closeModal('modal-paste-recipe');
+    if (fav.ingredients) {
+        openEnhancedCartPicker(fav);
+    } else {
+        // Pas d'ingrédients structurés (texte brut) : rien à proposer pour la liste de
+        // courses. Cas déjà inatteignable dans l'oracle lui-même (le bouton « + Liste »
+        // n'est révélé qu'après une transformation IA réussie, chantier 5).
+        toast(`⭐ ${fav.title} sauvegardé en favori`);
+    }
 }
 
 /**
@@ -1334,6 +1646,11 @@ function updateBadges() {
     const { stock: stockCount, cart: cartCount } = countStockAndCart();
     const favCount = state.favorites?.length || 0;
 
+    // LOT 012, zone C (oracle l.6638-6639) : compteur de la barre laterale, fige depuis
+    // la migration.
+    const sbPrincipal = document.getElementById('sb-label-principal');
+    if (sbPrincipal) sbPrincipal.textContent = `Principal (${state.ingredients.length} ingrédients)`;
+
     // Sidebar
     const sbStock = document.getElementById('sb-badge-stock');
     const sbCart = document.getElementById('sb-badge-cart');
@@ -1360,17 +1677,25 @@ function updateBadges() {
 }
 
 /**
- * Active ou grise les boutons d'enregistrement de la fenêtre « Coller une recette ».
- * Ils n'ont de sens qu'une fois le texte transformé en recette structurée.
+ * Active/désactive les boutons d'enregistrement de la fenêtre « Coller une recette ».
+ *
+ * BUG RÉEL trouvé par l'audit du sous-lot 11B (Codex Terra + Gemini, convergents) :
+ * cette fonction désactivait AUSSI « Sauvegarder tel quel » tant qu'aucune transformation
+ * IA n'avait eu lieu — rendant l'arbitrage A1 (restaurer la sauvegarde d'un texte brut
+ * SANS IA) inatteignable depuis l'interface réelle, alors même que `buildPastedFavorite`
+ * fonctionnait parfaitement une fois appelée directement (ce que les tests faisaient,
+ * masquant le bug). Corrigé : « Sauvegarder tel quel » reste TOUJOURS actif — c'est
+ * `buildPastedFavorite` qui valide titre/contenu au moment du clic, pas l'état du bouton.
+ * Seul « + Liste » (qui suppose des ingrédients structurés) reste conditionné par
+ * `enabled` ; sa VISIBILITÉ, elle, est gérée séparément (révélée par `transformRecipeAI`,
+ * remise à `none` par `openModal`) — plus par cette fonction (durcissement de l'audit).
  */
 function setPasteSaveButtonsEnabled(enabled) {
-    ['paste-save-btn', 'paste-list-btn'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.disabled = !enabled;
-        // Le bouton « + Courses » etait masque en dur et jamais reaffiche.
-        btn.style.display = '';
-    });
+    const saveBtn = document.getElementById('paste-save-btn');
+    if (saveBtn) saveBtn.disabled = false;
+
+    const listBtn = document.getElementById('paste-list-btn');
+    if (listBtn) listBtn.disabled = !enabled;
 }
 
 function openModal(id) {
@@ -1382,6 +1707,28 @@ function openModal(id) {
         // recette d'avant, silencieusement.
         _lastTransformedRecipe = null;
         setPasteSaveButtonsEnabled(false);
+        // LOT 011, chantier 5 (oracle openPasteModal, l.5932-5942) : le LOT 006 ne
+        // purgeait que _lastTransformedRecipe — titre/contenu/URL survivaient d'une
+        // ouverture à l'autre, et le textarea restait verrouillé si la dernière session
+        // avait transformé une recette.
+        const titleInput = document.getElementById('paste-title');
+        const contentInput = document.getElementById('paste-content');
+        const urlInput = document.getElementById('paste-url');
+        if (titleInput) titleInput.value = '';
+        if (contentInput) {
+            contentInput.value = '';
+            contentInput.disabled = false;
+        }
+        if (urlInput) urlInput.value = '';
+        const aiBtn = document.getElementById('paste-ai-btn');
+        if (aiBtn) aiBtn.style.display = '';
+        const saveBtn = document.getElementById('paste-save-btn');
+        if (saveBtn) saveBtn.textContent = 'Sauvegarder tel quel';
+        // « + Liste » repart masqué (état par défaut du HTML) : sans cette ligne, une
+        // transformation IA de la session précédente le laissait visible — durcissement
+        // signalé par l'audit du sous-lot 11B.
+        const listBtn = document.getElementById('paste-list-btn');
+        if (listBtn) listBtn.style.display = 'none';
     }
 
     if (id === 'modal-api-config') {
@@ -1438,15 +1785,42 @@ const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', 
  * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
  * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
  * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
+ *
+ * `category` (LOT 012, zone A) : override optionnel de la source d'emoji de
+ * catégorie, pour les appelants qui n'éditent pas l'ingrédient en cours
+ * (`_currentEditingIngId`) — ex. `cycleEmoji` sur une ligne du sélecteur de
+ * recette. Omis, le comportement est strictement identique à avant (SSOT).
  */
-function buildEmojiEditSuggestions(seed) {
+function buildEmojiEditSuggestions(seed, category) {
     const s = (seed || '').toLowerCase();
     const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
     const fromMatches = matches.map(i => i.emoji);
-    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-    const categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    let categoryEmoji;
+    if (category) {
+        categoryEmoji = getCategoryEmoji(category);
+    } else {
+        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
+        categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    }
     const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
     return emojis.slice(0, 15);
+}
+
+/**
+ * Fait défiler l'émoji d'une ligne du sélecteur d'articles (LOT 012, zone A ;
+ * oracle `cycleEmoji`, cycle circulaire). Relit le NOM ÉDITÉ à chaque appel
+ * (pas `_currentPickerData[idx].name`) : une correction de nom faite avant de
+ * cliquer 🎲 influence les suggestions. Réutilise `buildEmojiEditSuggestions` —
+ * jamais de table d'emojis dupliquée (SSOT).
+ */
+function cycleEmoji(idx) {
+    const emojiInp = document.getElementById(`pick-emoji-${idx}`);
+    const nameInp = document.getElementById(`pick-name-${idx}`);
+    if (!emojiInp || !nameInp) return;
+    const category = _currentPickerData[idx]?.category;
+    const suggestions = buildEmojiEditSuggestions(nameInp.value, category);
+    const at = suggestions.indexOf(emojiInp.value);
+    emojiInp.value = suggestions[(at + 1) % suggestions.length];
 }
 
 function renderEmojiEditGrid(seed) {
@@ -1709,6 +2083,11 @@ function addIngredient() {
     _isManualCategory = false;
     renderAdd();
     toast(`"${name}" ajouté ✓`);
+    // LOT 012, zone C (oracle l.6458) : retour a l'inventaire apres un ajout reussi,
+    // pour ne pas laisser Joel sur un formulaire vide sans lien evident avec ce qu'il
+    // vient de faire. Le formulaire s'est deja reinitialise juste au-dessus (LOT 006) :
+    // un enchainement de plusieurs ajouts reste possible avant l'echeance des 500 ms.
+    setTimeout(() => switchView('pantry'), 500);
 }
 
 function addIngredientFromDb(dbItem) {
@@ -1731,8 +2110,13 @@ function addIngredientFromDb(dbItem) {
     document.getElementById('add-frozen').checked = false;
     _isManualCategory = false;
     renderAdd();
-    
+
     toast(`${dbItem.name} ajouté !`);
+    // LOT 012, zone C — trouvé par l'audit du diff final (Codex Terra) : ce chemin
+    // d'ajout (clic sur une suggestion d'autocomplétion, absent de l'oracle) ajoute
+    // vraiment un ingrédient au même titre que `addIngredient` — même retour auto pour
+    // que les deux parcours se comportent pareil du point de vue de Joel.
+    setTimeout(() => switchView('pantry'), 500);
 }
 
 function confirmBulkAdd() {
@@ -1829,7 +2213,10 @@ function addExtraIngredient() {
         if (!confirm(`ℹ️ "${val}" ressemble beaucoup à "${similarInExtra.name}" déjà présent dans la liste. Ajouter quand même ?`)) return;
     }
 
-    state.extraIngredients.push({ name: val, emoji: '✨', id: generateId('extra') });
+    // LOT 012, zone C (oracle l.4933) : emoji devine depuis la base plutot qu'une
+    // etoile fixe qui ne renseignait jamais Joel sur ce qu'il venait de taper.
+    const emoji = autoEmoji(val, DEFAULT_DB);
+    state.extraIngredients.push({ name: val, emoji, id: generateId('extra') });
     input.value = '';
     saveState();
     refreshImposedZone();
@@ -1925,45 +2312,108 @@ function removeExtraIngredient(id) {
 }
 
 function generateRandomWithStock() {
+    // Meme garde que generateSuggestions (LOT 011, audit sous-lot 11A) : evite de muter
+    // state.aiConfig pour rien si une generation tourne deja, et rend le refus immediat.
+    if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
     const stock = state.ingredients.filter(i => i.inStock);
     if (stock.length === 0) { toast('Stock vide', 'error'); return; }
-    generateSuggestions();
+
+    // Desactivation visuelle du bouton 🎲 le temps de la generation, symetrique a ce que
+    // generateSuggestions fait deja pour #generate-btn (trouve par l'audit : seul le
+    // bouton normal etait desactive, pas celui-ci — un double-clic sur 🎲 restait possible).
+    const magicBtn = document.getElementById('magic-btn');
+    if (magicBtn) magicBtn.disabled = true;
+
+    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097) pour CETTE
+    // generation, MAIS apiKey et models sont preserves : l'oracle les stockait ailleurs,
+    // les reinitialiser ici viderait la cle API de Joel a chaque tirage. `cuisines`
+    // (pluriel, SSOT du LOT 010) est bien cible — l'oracle videait un champ fantome
+    // `cuisine` qui ne servait a rien.
+    // Arbitrage Joel (2026-07-30, post-audit sous-lot 11A) : contrairement a l'oracle
+    // (qui laissait les filtres reinitialises en permanence), TOUT est emprunte pour
+    // une seule generation puis restaure integralement ensuite — pas seulement la
+    // creativite. D'ou la sauvegarde de l'objet entier, pas juste d'un champ.
+    const savedAiConfig = state.aiConfig;
+    state.aiConfig = {
+        ...defaultAiConfig(),
+        apiKey: savedAiConfig.apiKey,
+        models: savedAiConfig.models,
+        ppl: savedAiConfig.ppl || '2',
+        creativity: Math.floor(Math.random() * 21) + 80 // 80-100
+    };
+    restoreAIConfig();
+
+    return generateSuggestions().finally(() => {
+        state.aiConfig = savedAiConfig;
+        restoreAIConfig();
+        saveState(false);
+        if (magicBtn) magicBtn.disabled = false;
+    });
 }
 
 async function fetchRecipeFromUrl() {
-    const url = document.getElementById('paste-url')?.value;
-    if (!url) return;
+    const urlInput = document.getElementById('paste-url');
+    const url = (urlInput?.value || '').trim();
+    if (!url) { toast('Veuillez entrer une adresse URL', 'error'); return; }
+    if (!url.startsWith('http')) { toast('L\'adresse doit commencer par http:// ou https://', 'error'); return; }
+
     const btn = document.getElementById('paste-fetch-btn');
     btn.disabled = true;
-    btn.textContent = 'Chargement...';
+    btn.textContent = 'Lecture...';
+
+    // Delai d'expiration : sans lui, un service tiers bloque laisserait le bouton
+    // en "Lecture..." indefiniment (durcissement post-audit, LOT 011 §10-D).
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        const content = data.contents;
-        document.getElementById('paste-content').value = content;
+        // Jina Reader (l.5944-5974 de l'oracle) : contourne le CORS et extrait le texte
+        // principal. Arbitrage Joel (LOT 011 §9 Q2) : AUCUN repli sur un autre service —
+        // remplace l'ancien allorigins, ne le garde pas en secours.
+        const res = await fetch(`https://r.jina.ai/${url}`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Impossible de lire la page');
+        const text = await res.text();
+        if (!text || !text.trim()) throw new Error('Page vide');
+
+        document.getElementById('paste-content').value = text;
+        const mainTitle = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+        if (mainTitle) document.getElementById('paste-title').value = mainTitle;
+
         toast('Page lue ! Cliquez sur Transformer avec l\'IA.');
     } catch (e) {
-        toast('Erreur lecture URL. Essayez le copier-coller.', 'error');
+        toast('Erreur de lecture. Vérifiez l\'URL ou copiez le texte manuellement.', 'error');
     } finally {
+        clearTimeout(timeoutId);
         btn.disabled = false;
         btn.textContent = '🌍 Lire la page';
     }
 }
 
 async function transformRecipeAI() {
+    const title = document.getElementById('paste-title')?.value || '';
     const content = document.getElementById('paste-content')?.value;
     if (!content) return;
     if (!state.aiConfig.apiKey) { toast('Clé API requise', 'error'); openModal('modal-api-config'); return; }
-    
+
     const btn = document.getElementById('paste-ai-btn');
     btn.disabled = true;
     btn.textContent = 'Transformation...';
     try {
-        const recipe = await transformRecipeFromText(content, state.aiConfig.apiKey);
-        document.getElementById('paste-title').value = recipe.name;
-        // Re-render preview or just store it
+        const stockItems = state.ingredients.filter(i => i.inStock);
+        const model = state.aiConfig.models?.smartPaste || AI_ROLES.REASONING;
+        const recipe = await transformRecipeFromText(title, content, stockItems, state.aiConfig.apiKey, model, {
+            onThinkingFallback: () => toast('Recette transformée sans le mode réflexion approfondie (temporairement indisponible).')
+        });
         _lastTransformedRecipe = recipe;
+        document.getElementById('paste-title').value = recipe.name;
+        // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche
+        // un aperçu — après transformation, c'est la recette structurée qui sera
+        // sauvegardée, plus le texte brut, qui n'a donc plus de raison d'être modifiable.
+        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + (recipe.description || '');
+        document.getElementById('paste-content').disabled = true;
+        document.getElementById('paste-ai-btn').style.display = 'none';
+        document.getElementById('paste-save-btn').textContent = 'Sauvegarder en favoris';
+        document.getElementById('paste-list-btn').style.display = '';
         setPasteSaveButtonsEnabled(true);
         toast('Recette structurée !');
     } catch (e) {
@@ -1998,14 +2448,16 @@ const deleteIngredient = Actions.deleteIngredient;
 const toggleShoppingCheck = Actions.toggleShoppingCheck;
 const removeFromCart = Actions.removeFromCart;
 function saveApiKey() {
-    const key = document.getElementById('api-key-input')?.value?.trim();
-    if (!key) { toast('Clé API requise', 'error'); return; }
+    // LOT 012, zone C (oracle l.6589-6594) : aucune garde sur la cle vide — vider le
+    // champ puis Sauver doit pouvoir effacer une cle existante (l'ancien blocage
+    // rendait ce cas impossible, contrairement a l'oracle).
+    const key = document.getElementById('api-key-input')?.value?.trim() || '';
     state.aiConfig.apiKey = key;
 
     saveState();
     updateApiStatus();
     closeModal('modal-api-config');
-    toast('Clé API sauvegardée ✓');
+    toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
 }
 function selectEmoji(e) {
     const input = document.getElementById('add-emoji');
@@ -2144,6 +2596,42 @@ function initKeyboardShortcuts() {
     });
 }
 
+/**
+ * LOT 012, zone B (oracle l.6744/l.6746) : Entree sur un champ PRECIS, pas un raccourci
+ * global par modale — la modale "Coller une recette" a plusieurs actions possibles
+ * (recuperer l'URL, transformer par IA, sauvegarder), donc contrairement aux modales
+ * gerees par `initKeyboardShortcuts` il n'y a pas UNE seule action a associer a la
+ * touche. Ecouteurs dedies sur des champs statiques du HTML, fonction separee (et non
+ * repliee dans `initKeyboardShortcuts`) pour rester ré-appelable isolement en test sans
+ * ré-empiler un listener global sur `window` a chaque appel.
+ */
+function initFieldEnterShortcuts() {
+    document.getElementById('ez-input')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addExtraIngredient();
+    });
+    document.getElementById('paste-title')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('paste-content')?.focus();
+    });
+}
+
+/** LOT 012, zone B (oracle l.6790-6793) : sans ce stopPropagation, un balayage horizontal
+ * pour faire defiler les puces de filtre remonte au conteneur parent et fait defiler
+ * toute la page verticalement (mobile). `.chips-row` est statique dans le HTML — un seul
+ * passage suffit, comme dans l'oracle. */
+function initChipsRowTouchScroll() {
+    document.querySelectorAll('.chips-row').forEach(el => {
+        el.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+    });
+}
+
+/** LOT 012, zone B (oracle l.6773-6781, "FINAL OVERRIDE") : le remplissage automatique du
+ * navigateur peut pre-remplir les barres de recherche avant que ce delai ne s'ecoule ;
+ * `clearSearch()` (deja utilisee par la croix d'effacement) vide les deux champs et
+ * resynchronise `state.search` avec ce que Joel voit vraiment. */
+function initSearchAutofillGuard() {
+    setTimeout(() => clearSearch(), 100);
+}
+
 const resetCart = Actions.resetCart;
 const resetAllData = Actions.resetAllData;
 const exportJSON = Actions.exportJSON;
@@ -2158,8 +2646,8 @@ expose({
     confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
     fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
-    saveRecipeOnly: () => saveRecipeOnly(_lastTransformedRecipe),
-    saveRecipeAndList: () => saveRecipeAndList(_lastTransformedRecipe),
+    saveRecipeOnly: savePastedRecipe,
+    saveRecipeAndList: savePastedRecipeAndList,
     toggleRecipeFullscreen, changePplScale,
     // Clic « Cloud Sync » : cycle complet immediat via le moteur (LOT 007, §4.4) —
     // envoi d'abord si des modifications attendent, recuperation, puis envoi

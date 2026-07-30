@@ -24,6 +24,16 @@ function recette(ingredients) {
     return { id: 'r1', name: 'Test', people: 2, ingredients };
 }
 
+// LOT 012, zone A : le nom et l'émoji sont désormais des valeurs d'input éditables
+// (`pick-name-*`/`pick-emoji-*`), plus des nœuds texte bruts — `.textContent` ne les
+// contient plus. On relit les `.value` des inputs rendus à la place.
+function pickerEmojis() {
+    return [...document.querySelectorAll('#modal-recipe-cart-list .picker-emoji-inp')].map(i => i.value);
+}
+function pickerNames() {
+    return [...document.querySelectorAll('#modal-recipe-cart-list .picker-name-inp')].map(i => i.value);
+}
+
 describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
     beforeEach(() => {
         setupModalDom();
@@ -33,24 +43,22 @@ describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
     it('un vrai emoji renvoyé par l\'IA est conservé tel quel', () => {
         openEnhancedCartPicker(recette([{ n: 'Saumon', q: '200 g', e: '🐟', c: 'Poissons' }]));
 
-        expect(document.getElementById('modal-recipe-cart-list').textContent).toContain('🐟');
+        expect(pickerEmojis()).toContain('🐟');
     });
 
     it('une UNITÉ renvoyée par erreur dans le champ emoji ("g") n\'est JAMAIS affichée ' +
        'à l\'écran — c\'est exactement le défaut constaté par Joel', () => {
         openEnhancedCartPicker(recette([{ n: 'Saumon (fumé)', q: '200', e: 'g', c: 'Poissons' }]));
 
-        const texte = document.getElementById('modal-recipe-cart-list').textContent;
-        expect(texte).not.toMatch(/^g\s|>\s*g\s/); // pas de "g" orphelin en tête de ligne
-        expect(texte).toContain('Saumon (fumé)');
+        expect(pickerEmojis()).not.toContain('g');
+        expect(pickerNames()).toContain('Saumon (fumé)');
     });
 
     it('« pièce » dans le champ emoji retombe sur la déduction automatique, pas sur le texte brut', () => {
         openEnhancedCartPicker(recette([{ n: 'Oignon', q: '2', e: 'pièce', c: 'Légumes' }]));
 
-        const texte = document.getElementById('modal-recipe-cart-list').textContent;
-        expect(texte).not.toContain('pièce Oignon');
-        expect(texte).toContain('Oignon');
+        expect(pickerEmojis()).not.toContain('pièce');
+        expect(pickerNames()).toContain('Oignon');
     });
 
     it('« ml », « brins » et autres unités textuelles sont pareillement filtrées', () => {
@@ -59,9 +67,9 @@ describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
             { n: 'Thym', q: '4', e: 'brins', c: 'Herbes' }
         ]));
 
-        const texte = document.getElementById('modal-recipe-cart-list').textContent;
-        expect(texte).not.toContain('ml Crème');
-        expect(texte).not.toContain('brins Thym');
+        expect(pickerEmojis()).not.toContain('ml');
+        expect(pickerEmojis()).not.toContain('brins');
+        expect(pickerNames()).toEqual(['Crème', 'Thym']);
     });
 
     it('emoji absent : reprend la déduction automatique existante (comportement inchangé)', () => {
@@ -69,7 +77,8 @@ describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
         openEnhancedCartPicker(recette([{ n: 'Tomate', q: '3', c: 'Légumes' }]));
 
         // Pas de crash, un emoji quelconque est rendu (déduit par autoEmoji/catégorie).
-        expect(document.getElementById('modal-recipe-cart-list').textContent).toContain('Tomate');
+        expect(pickerNames()).toContain('Tomate');
+        expect(pickerEmojis()[0]).toBeTruthy();
     });
 
     // Durcissement post-audit Codex Terra (2026-07-30) : le premier filet vérifiait
@@ -79,15 +88,14 @@ describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
        'passer avec la lettre toujours collée devant l\'emoji', () => {
         openEnhancedCartPicker(recette([{ n: 'Saumon (fumé)', q: '200', e: 'g🐟', c: 'Poissons' }]));
 
-        const texte = document.getElementById('modal-recipe-cart-list').textContent;
-        expect(texte).not.toContain('g🐟');
-        expect(texte).toContain('Saumon (fumé)');
+        expect(pickerEmojis()).not.toContain('g🐟');
+        expect(pickerNames()).toContain('Saumon (fumé)');
     });
 
     it('un emoji à présentation texte par défaut, explicitement forcé en emoji (❤️), ' +
        'est accepté — le premier filet le rejetait à tort', () => {
         openEnhancedCartPicker(recette([{ n: 'Bonbon coeur', q: '1', e: '❤️', c: 'Autres' }]));
 
-        expect(document.getElementById('modal-recipe-cart-list').textContent).toContain('❤️');
+        expect(pickerEmojis()).toContain('❤️');
     });
 });

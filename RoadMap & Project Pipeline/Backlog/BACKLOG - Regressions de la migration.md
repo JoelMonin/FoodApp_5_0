@@ -10,8 +10,8 @@
 > | §2 (info-last-sync, info-network, online/offline, voyant) + synchro auto (A11) | **LOT 007** ✅ **publié en 5.5** (2026-07-30) |
 > | C1, C6, C7, C8 (3 champs restants) | **LOT 009** ✅ **publié en 5.6** (2026-07-30) |
 > | C5, C9, C10, C11, C12 | **LOT 010** ✅ **publié en 5.6** (2026-07-30) |
-> | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** |
-> | §3 restant (picker 🎲, clavier, styles neufs…) + **topbar contextuelle (§4)** | **LOT 012** |
+> | §4 SAUF la topbar (cartes/détail/prompts/favoris/URL) + confort de génération (§3) | **LOT 011** ✅ **publié en 5.7** (2026-07-30) |
+> | §3 restant (picker 🎲, clavier, styles neufs…) + **topbar contextuelle (§4)** | **LOT 012** ✅ **publié en 5.7** (2026-07-30) |
 > | §5 (faux morts) : NE PAS restaurer — garde-fou permanent | tous |
 > | Duplication `.generate-btn` (§ fin) | **LOT 014** |
 >
@@ -64,32 +64,36 @@ rebranché de travers.
 
 ## 3. CONFORT PERDU (restaurations légères, à grouper dans un lot « restauration »)
 
-- **Bouton 🎲 de changement d'emoji dans le sélecteur** (`cycleEmoji`, monolithe l.5809) +
-  édition par ligne du sélecteur (nom modifiable, emoji) — le lot 6 a restauré le style et
-  le pré-cochage, pas l'édition. CSS `.picker-magic-btn` dormant (`css/style.css:2467`).
+- ✅ **LOT 012** — **Bouton 🎲 de changement d'emoji dans le sélecteur** (`cycleEmoji`) +
+  édition par ligne du sélecteur (nom modifiable, emoji) restaurés (`css/style.css:2467`
+  n'était plus dormant).
 - ✅ **LOT 009** — **Grille d'emojis locale à l'ouverture** de « Modifier l'icône » (avec C1) +
   styles : le code émettait `emoji-btn`, renommé en `emoji-edit-btn` (`css/style.css:2093`).
-- **Entrée** ajoute l'ingrédient hors stock (`#ez-input`, monolithe l.6744) ; **Entrée** sur
-  le titre de « Coller une recette » → saut au champ texte (l.6746).
-- **Textes d'étape animés pendant la génération IA** (« Analyse du stock… », l.5052-5058).
-- **Scroll auto vers les résultats IA sur mobile** après génération (l.5068-5072).
-- **Retour auto à l'inventaire** 500 ms après un ajout (l.6458) — à arbitrer (choix produit ?).
+- ✅ **LOT 012** — **Entrée** ajoute l'ingrédient hors stock (`#ez-input`) ; **Entrée** sur
+  le titre de « Coller une recette » → saut au champ texte.
+- ✅ **LOT 011** (chantier 5) — **Textes d'étape animés pendant la génération IA**.
+- ✅ **LOT 011** (chantier 5) — **Scroll auto vers les résultats IA sur mobile** après génération.
+- ✅ **LOT 012** — **Retour auto à l'inventaire** 500 ms après un ajout — restauré pour
+  `addIngredient` ET `addIngredientFromDb` (audit du diff final, Codex Terra).
 - ✅ **LOT 008** — **Slider de créativité non restauré** au rechargement (revient à 50, puis
   écrase la vraie valeur à la première sauvegarde) — monolithe l.5033. `restoreAIConfig`
   repositionne désormais le slider.
-- **Mode 🎲 « recette aléatoire » dégradé** : ne réinitialise plus les filtres ni ne booste
-  la créativité (l.5083-5103) — simple alias de la génération normale.
-- **Champs de « Coller une recette » non vidés** à l'ouverture (le lot 6 ne purge que la
-  recette transformée, pas les champs titre/contenu/URL).
-- **Suppression de la clé API impossible** (le monolithe acceptait une clé vide).
-- **Scroll horizontal des filtres sur mobile** (`touchmove` stopPropagation, l.6790).
-- **Anti-autofill** du champ recherche au boot (l.6774-6781).
-- **Emoji deviné pour les ingrédients hors stock** (`autoEmoji` au lieu de « ✨ » fixe).
-- **Compteur « Principal (N) »** de la barre latérale plus mis à jour (`sb-label-principal`).
-- **Toasts de feedback** sur stock/panier/suppression disparus ; `resetCart` ne vide plus
-  coches et articles libres.
-- **Styles jamais créés** (nouveau code, pas des pertes) : `.add-results-list`/`.add-res-item`
-  (autocomplétion d'ajout, texte brut non stylé), `.tb-btn.small`.
+- ✅ **LOT 011** (chantier 4) — **Mode 🎲 « recette aléatoire » dégradé**.
+- ✅ **LOT 011** (chantier 7) — **Champs de « Coller une recette » non vidés** à l'ouverture.
+- ✅ **LOT 012** — **Suppression de la clé API impossible** (le monolithe acceptait une clé
+  vide).
+- ✅ **LOT 012** — **Scroll horizontal des filtres sur mobile** (`touchmove`
+  `stopPropagation`).
+- ✅ **LOT 012** — **Anti-autofill** du champ recherche au boot.
+- ✅ **LOT 012** — **Emoji deviné pour les ingrédients hors stock** (`autoEmoji` au lieu de
+  « ✨ » fixe).
+- ✅ **LOT 012** — **Compteur « Principal (N) »** de la barre latérale de nouveau mis à jour
+  (`sb-label-principal`).
+- ✅ **LOT 012** — **Toasts de feedback** restaurés sur panier/suppression (PAS sur le
+  stock : vérifié à l'audit de spec, l'oracle n'en a jamais eu là) ; `resetCart` vide déjà
+  coches et articles libres depuis le LOT 008 (vérifié toujours vrai).
+- ✅ **LOT 012** — **Styles jamais créés** (nouveau code, pas des pertes) :
+  `.add-results-list`/`.add-res-item` (autocomplétion d'ajout), `.tb-btn.small`.
 
 ## 4. DÉGRADATIONS DE FOND (gros morceaux, chacun = un vrai chantier à arbitrer)
 
@@ -98,10 +102,11 @@ rebranché de travers.
   boutons ⭐/🛍 directs, pastilles d'état dans le détail, étapes cochables, Nutri-Score visuel,
   affichage des favoris texte bruts (`r.content` plus géré → favori collé « tel quel » vide).
   Monolithe l.5283-5337.
-- **Barre supérieure contextuelle** (→ **LOT 012**, seule entrée du §4 hors LOT 011) : le
-  bouton d'action par vue (＋ / Copier / Vider / ⚙️ / Coller) est systématiquement vidé
-  (`js/app.js:214`) ; icônes mobiles figées ; sous-titre mobile figé sur la version.
-  Monolithe l.4520-4579.
+- ✅ **LOT 012** — **Barre supérieure contextuelle** : bouton d'action par vue (＋ / Copier /
+  Vider / ⚙️ / Coller), icônes mobiles et sous-titre mobile restaurés — sans jamais recréer
+  le voyant de synchro du LOT 007 (mise à jour chirurgicale, pas l'`innerHTML=` global de
+  l'oracle). Un ＋ flottant en trop (`#topbar-add-btn`, sans équivalent oracle) retiré au
+  passage.
 - **Prompts IA appauvris** : `safetySettings BLOCK_NONE`, `topK/topP`, « RÈGLE D'OR »
   (imposés prioritaires sur le régime), consigne guillemets — perdus (risque : recettes
   bloquées par filtre de sécurité, JSON cassé plus fréquent). Le collage de recette a perdu

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripAccents, normalizeString, generateId, autoEmoji, debounce } from '../src/utils/helpers';
+import { stripAccents, normalizeString, generateId, autoEmoji, debounce, areSimilar } from '../src/utils/helpers';
 import { getCategoryEmoji, CATEGORIES, CATEGORIES_WITH_EMOJI } from '../src/data';
 
 describe('Helpers Utility', () => {
@@ -68,6 +68,53 @@ describe('Helpers Utility', () => {
       expect(autoEmoji('', db)).toBe('🛒');
       expect(autoEmoji(null, db, '📦')).toBe('📦');
       expect(autoEmoji('Poulet (blanc)', [])).toBe('🛒');
+    });
+  });
+
+  // areSimilar n'avait JAMAIS eu de test, malgré un usage massif (détection de doublons,
+  // correspondance stock IA, import). Régression trouvée par Joël en testant le LOT 011
+  // (2026-07-30) : la comparaison en chaîne brute faisait matcher « Eau » avec « Agneau »
+  // et « Oeuf » avec « Bœuf » — de simples fragments de texte, pas des mots. Porté depuis
+  // l'oracle (foodapp-v5-Joel.html l.6383-6414), qui compare des MOTS ENTIERS.
+  describe('areSimilar', () => {
+    it('identiques après normalisation', () => {
+      expect(areSimilar('Tomate', 'tomate')).toBe(true);
+      expect(areSimilar('Lait (entier)', 'lait entier')).toBe(true);
+    });
+
+    it('LE BUG DE JOËL : un mot court n\'est plus confondu avec un fragment d\'un mot ' +
+       'plus long qui le contient par coïncidence', () => {
+      expect(areSimilar('Eau', 'Agneau (brochettes)')).toBe(false);
+      expect(areSimilar('Oeuf', 'Bœuf (steak)')).toBe(false);
+      expect(areSimilar('Ail', 'Détail')).toBe(false);
+    });
+
+    it('un ingrédient plus précis compte pour le même (volontaire, déjà le cas dans ' +
+       'l\'oracle) : « Ail » ⊂ « Ail en poudre »', () => {
+      expect(areSimilar('Ail (en poudre)', 'Ail')).toBe(true);
+      expect(areSimilar('Ail', 'Ail (en poudre)')).toBe(true);
+    });
+
+    it('même mot principal + la plupart des mots en commun : match', () => {
+      expect(areSimilar('Tomates cerises', 'Tomates')).toBe(true);
+    });
+
+    it('un seul mot en commun qui n\'est PAS le mot principal : pas de match ' +
+       '(exemple documenté par l\'oracle : « frais » ne suffit pas)', () => {
+      expect(areSimilar('Persil frais', 'Thon frais')).toBe(false);
+    });
+
+    it('repli flou sur fautes de frappe/pluriels, réservé aux chaînes de plus de 3 ' +
+       'caractères', () => {
+      expect(areSimilar('Carotte', 'Carottes')).toBe(true);
+      expect(areSimilar('Courgette', 'Courgettes')).toBe(true);
+    });
+
+    it('chaîne vide ou absente : jamais de correspondance, jamais de plantage', () => {
+      expect(areSimilar('', 'Tomate')).toBe(false);
+      expect(areSimilar('Tomate', '')).toBe(false);
+      expect(areSimilar(null, 'Tomate')).toBe(false);
+      expect(areSimilar(undefined, undefined)).toBe(false);
     });
   });
 

@@ -15,7 +15,12 @@ export function toggleStock(id) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
     ing.inStock = !ing.inStock;
-    if (ing.inStock) ing.inCart = false;
+    if (ing.inStock) {
+      ing.inCart = false;
+      // LOT 012, zone C (oracle l.4719) : un article qui redevient en stock n'a plus
+      // besoin d'etre achete, donc plus de trace de "pour quelle recette".
+      ing.shoppingSource = null;
+    }
     saveState();
   }
 }
@@ -55,14 +60,20 @@ export function toggleCart(id) {
     // (LOT 008, chantier 7 — sinon la synchro du LOT 007 diffuserait des ids fantômes).
     if (!ing.inCart) shoppingChecked.delete(id);
     saveState();
+    // LOT 012, zone C (oracle l.4730) — PAS de toast équivalent sur `toggleStock`,
+    // vérifié à l'audit : l'oracle n'en affiche jamais sur le retour en stock.
+    toast(ing.inCart ? `${ing.emoji} ${ing.name} ajouté à la liste` : `${ing.name} retiré de la liste`);
   }
 }
 
 export function deleteIngredient(id) {
+  const ing = state.ingredients.find(i => i.id === id);
+  if (!ing) return;
   if (confirm('Supprimer cet ingrédient ?')) {
     state.ingredients = state.ingredients.filter(i => i.id !== id);
     shoppingChecked.delete(id);
     saveState();
+    toast(`🗑️ ${ing.name} supprimé`); // LOT 012, zone C (oracle l.4752)
   }
 }
 
@@ -76,6 +87,7 @@ export function removeFromCart(id, type) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
     ing.inCart = false;
+    ing.shoppingSource = null; // LOT 012, zone C (oracle l.4826)
   }
   shoppingChecked.delete(id);
   saveState();
