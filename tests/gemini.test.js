@@ -172,6 +172,37 @@ describe('Gemini Service', () => {
         expect(fetch.mock.calls[0][1].body).toContain(motAttendu);
       });
 
+    it('le sauvetage de JSON tronqué exige des ingrédients — un objet avec SEULEMENT des ' +
+       'étapes est rejeté (trouvé par l\'audit du sous-lot 11B : accepté avant, il n\'avait ' +
+       'rien à montrer ni dans les ingrédients ni, en aval, dans le détail rendu)', async () => {
+      const brut = 'Voici : {"name":"Recette A","ingredients":[{"n":"Pomme"}],"steps":["Étape"]} ' +
+        'puis {"name":"Recette B","steps":["Étape seule, sans ingrédients"]}';
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: brut }] } }] })
+      });
+
+      const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      expect(recettes).toHaveLength(1);
+      expect(recettes[0].name).toBe('Recette A');
+    });
+
+    it('le sauvetage de JSON tronqué accepte une recette avec ingrédients mais SANS étapes ' +
+       '(une troncature peut couper juste avant les étapes sans invalider le reste — c\'est ' +
+       'au rendu, pas ici, de rester robuste à leur absence)', async () => {
+      const brut = 'Voici : {"name":"Recette tronquée","ingredients":[{"n":"Pomme"}]}';
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: brut }] } }] })
+      });
+
+      const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      expect(recettes).toHaveLength(1);
+      expect(recettes[0].name).toBe('Recette tronquée');
+    });
+
     it('si l\'API rejette le niveau d\'effort (400), rejoue sans lui et prévient l\'appelant ' +
        '(demande explicite de Joel : jamais silencieux)', async () => {
       fetch

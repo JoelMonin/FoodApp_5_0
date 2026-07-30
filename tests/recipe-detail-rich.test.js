@@ -159,6 +159,21 @@ describe('LOT 011 / chantier 2 — écran de détail complet', () => {
         });
     });
 
+    describe('Défense en profondeur — recette IA tronquée (sans étapes) ne doit jamais ' +
+             's\'afficher vide (trouvé par l\'audit du sous-lot 11B)', () => {
+        it('ingrédients présents mais `steps` absent : affiche la fiche complète, PAS le ' +
+           'rendu texte brut (qui serait vide, faute de r.content)', () => {
+            state.aiSuggestions = [recette({ steps: undefined })];
+
+            openRecipeDetail(0, 'ai');
+
+            const texte = document.getElementById('modal-recipe-detail').textContent;
+            expect(texte).toContain('Tarte aux pommes');
+            expect(texte).toContain('Pomme');
+            expect(texte).toContain('Aucune étape de préparation détaillée');
+        });
+    });
+
     describe('Non-régression — les 4 acquis 009/010 doivent survivre à cette réécriture', () => {
         it('le bouton 🖨️ imprimer est toujours présent dans l\'en-tête', () => {
             state.aiSuggestions = [recette()];

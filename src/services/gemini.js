@@ -221,7 +221,13 @@ Format JSON uniquement:
           if (depth === 0 && objStart !== -1) {
             try {
               let p = JSON.parse(cleanStr.substring(objStart, i + 1));
-              if (p.name && (p.ingredients || p.steps)) results.push(p);
+              // `p.ingredients` obligatoire (trouvé par l'audit du sous-lot 11B) : la
+              // condition précédente acceptait un objet avec SEULEMENT `steps`, sans
+              // ingrédients — ni une vraie recette, ni un favori texte brut valide côté
+              // rendu (chantier 2). `p.steps`, lui, reste optionnel ici : une troncature
+              // peut couper juste avant/pendant les étapes sans invalider le reste ; le
+              // rendu (src/ui/recipe.js) sait déjà afficher une recette sans étapes.
+              if (p.name && p.ingredients && p.ingredients.length > 0) results.push(p);
             } catch (err) { }
           }
         }

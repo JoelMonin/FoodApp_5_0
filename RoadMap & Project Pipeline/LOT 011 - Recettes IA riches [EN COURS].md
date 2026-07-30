@@ -590,9 +590,40 @@ comme le ferait un vrai appel de plusieurs secondes.
 
 **Validation finale des 7 chantiers du LOT 011 :** 311/311 Vitest, 13/13 Pytest, build OK.
 
-**Les 7 chantiers de la spec sont maintenant tous codés et testés.** Reste : audit du
-sous-lot 11B, puis clôture de lot (fiches, ROADMAP, CURRENT_GOAL, SHIP_LOG, checklist de
-campagne) avant de demander le feu vert de publication à Joel.
+## 18. AUDIT DU SOUS-LOT 11B — 2026-07-30 (Codex Terra + Gemini, en parallèle)
+
+**Verdict : NO-GO, les deux auditeurs, convergents sur les deux points bloquants.**
+Contre-vérifiés dans le vrai code avant correction — les deux confirmés au caractère près.
+
+| Point | TAG | Vérification | Correction |
+|---|---|---|---|
+| **« Sauvegarder tel quel » restait désactivé à l'ouverture** — `setPasteSaveButtonsEnabled(false)` (appelée par `openModal`) désactivait CE bouton en plus de « + Liste », alors que l'arbitrage A1 dit explicitement qu'il ne dépend PAS d'une transformation IA. Le bug que A1 était censé corriger était donc encore là, invisible parce que les tests appelaient la fonction directement. | **CRITIQUE** | ✅ CONFIRMÉ, code identique à la citation des deux auditeurs | `setPasteSaveButtonsEnabled` : « Sauvegarder tel quel » reste TOUJOURS actif (la validation se fait au clic, dans `buildPastedFavorite`) ; seul « + Liste » reste conditionné. Durcissement inclus : sa visibilité, elle, ne dépend plus de cette fonction (`openModal` le masque, `transformRecipeAI` le révèle) |
+| **Une recette IA tronquée juste avant les étapes s'afficherait vide** — le sauvetage de JSON (`generateRecipes`) acceptait un objet avec `steps` OU `ingredients` (Terra) ; côté rendu, `isStructured = !!r.steps` seul aurait fait basculer une telle recette sur le rendu « texte brut », vide car sans `r.content` non plus. | **CRITIQUE** (Terra) | ✅ CONFIRMÉ par lecture — Gemini n'avait pas creusé ce chemin spécifique (audit du même diff, verdict NO-GO porté par le seul point ci-dessus pour lui) | Double filet : `generateRecipes` exige désormais `ingredients` (pas seulement l'un ou l'autre) avant d'accepter un objet sauvé ; `isStructured` devient `!!(r.steps \|\| r.ingredients)` — une recette sans étapes affiche la fiche complète avec « Aucune étape », jamais un écran vide |
+
+**Durcissement intégré :** « + Liste » repart masqué à l'ouverture même si une session
+précédente l'avait révélé (les deux auditeurs l'ont noté, Terra en durcissement, Gemini
+en corollaire du point critique).
+
+**Contrôles confirmés par les deux auditeurs, aucune correction nécessaire :** les 4
+acquis 009/010 (racine `.modal-content`, boutons 🖨️/⛶ dans le nouveau header, contrôles
+d'échelle) ; le pare-feu A/B sur `matchIngredientToStock` (`openEnhancedCartPicker`
+inchangée) ; le regex `AI_EMOJI_ONLY` en instance unique ; la séparation
+`renderRecipeCard`/`renderFavoriteCard` ; le double chemin `buildPastedFavorite` ; le
+`clearInterval` garanti même sur un retour réseau rapide.
+
+**Tests ajoutés en réponse à l'audit :** le vrai parcours utilisateur (ouverture réelle
+via `openModal`, pas une classe posée à la main) dans `tests/favorites-rich.test.js` (+4),
+le sauvetage de JSON avec ingrédients mais sans étapes dans `tests/gemini.test.js` (+2),
+la défense en profondeur du rendu dans `tests/recipe-detail-rich.test.js` (+1).
+
+**Validation finale du LOT 011 complet (7 chantiers) :** 317/317 Vitest, 13/13 Pytest,
+build OK.
+
+**Les 7 chantiers de la spec sont codés, testés, et le sous-lot 11B est audité et
+corrigé.** Reste : clôture de lot (fiches, ROADMAP, CURRENT_GOAL, SHIP_LOG, checklist de
+campagne), puis feu vert de publication de Joel. Les deux acquis sans filet automatisé
+(🖨️ imprimer, ⛶ plein écran) restent à vérifier à la main par Joel en navigateur avant
+publication, comme prévu par le plan de test de la fiche.
 
 ## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
 

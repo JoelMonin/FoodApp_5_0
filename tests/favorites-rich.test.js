@@ -186,6 +186,48 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
         expect(document.getElementById('modal-paste-recipe').classList.contains('open')).toBe(false);
     });
 
+    // Trouvé par l'audit du sous-lot 11B (Codex Terra + Gemini, convergents) : la
+    // fonction de sauvegarde marchait, mais le bouton qui la déclenche restait DÉSACTIVÉ
+    // à l'ouverture du modal (setPasteSaveButtonsEnabled(false) grisait aussi
+    // « Sauvegarder tel quel », pas seulement « + Liste ») — le rendant INATTEIGNABLE
+    // depuis l'interface réelle. Les tests précédents appelaient savePastedRecipe()
+    // directement, contournant le bouton, ce qui masquait le bug.
+    it('le vrai parcours utilisateur fonctionne : après une ouverture RÉELLE du modal (pas ' +
+       'une classe posée à la main), le bouton "Sauvegarder tel quel" est CLIQUABLE sans ' +
+       'transformation — c\'était exactement le bug (la fonction marchait déjà, mais le ' +
+       'bouton qui la déclenche restait désactivé, donc inatteignable pour Joel)', () => {
+        openModal('modal-paste-recipe');
+
+        expect(document.getElementById('paste-save-btn').disabled).toBe(false);
+
+        // Câblage réel : window.saveRecipeOnly (posé par expose() au démarrage) est ce
+        // que l'attribut onclick="saveRecipeOnly()" de l'HTML appelle réellement.
+        window.saveRecipeOnly = savePastedRecipe;
+        document.getElementById('paste-title').value = 'Recette de mamie';
+        document.getElementById('paste-content').value = 'Mélanger, cuire, déguster.';
+        window.saveRecipeOnly();
+
+        expect(state.favorites.length).toBe(1);
+        expect(state.favorites[0].content).toBe('Mélanger, cuire, déguster.');
+    });
+
+    it('« + Liste » reste désactivé ET masqué à l\'ouverture (aucune recette structurée ' +
+       'encore disponible)', () => {
+        openModal('modal-paste-recipe');
+
+        const listBtn = document.getElementById('paste-list-btn');
+        expect(listBtn.disabled).toBe(true);
+        expect(listBtn.style.display).toBe('none');
+    });
+
+    it('« + Liste » repart masqué à l\'ouverture même si une session précédente l\'avait révélé', () => {
+        document.getElementById('paste-list-btn').style.display = '';
+
+        openModal('modal-paste-recipe');
+
+        expect(document.getElementById('paste-list-btn').style.display).toBe('none');
+    });
+
     it('savePastedRecipeAndList sur un texte brut sauvegarde SANS planter (pas d\'ingrédients ' +
        'à proposer pour la liste de courses)', () => {
         document.getElementById('paste-title').value = 'Recette de mamie';

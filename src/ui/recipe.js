@@ -140,10 +140,15 @@ export function renderRecipeDetail(r, source, handlers, scale = 1, tags = []) {
   } = handlers;
 
   const title = r.name || r.title || 'Recette';
-  // Bascule EXACTE de l'oracle (l.5486 : `if (r.steps) {...} else {...}`) : sans étapes
-  // structurées, c'est un favori texte brut collé sans passer par l'IA (arbitrage A1) —
-  // jamais de fiche vide, tout le corps devient le texte tel quel.
-  const isStructured = !!r.steps;
+  // Bascule inspirée de l'oracle (l.5486 : `if (r.steps) {...} else {...}`), DURCIE par
+  // l'audit du sous-lot 11B : `r.steps` seul peut être absent sur une vraie recette IA
+  // dont la réponse a été tronquée juste avant les étapes (le sauvetage de JSON,
+  // `src/services/gemini.js`, exige `ingredients` mais pas `steps`, précisément pour ne
+  // pas jeter une recette par ailleurs valide). `r.ingredients` sert de second signal :
+  // un favori texte brut collé (arbitrage A1) n'a NI l'un NI l'autre. Une recette IA
+  // structurée mais sans étapes tombe donc ici, et affiche « Aucune étape » plus bas —
+  // jamais un écran totalement vide.
+  const isStructured = !!(r.steps || r.ingredients);
 
   const header = h('div', { class: 'modal-header' }, [
     h('div', { class: 'mh-left' }, [

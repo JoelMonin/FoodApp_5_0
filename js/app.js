@@ -1540,17 +1540,25 @@ function updateBadges() {
 }
 
 /**
- * Active ou grise les boutons d'enregistrement de la fenêtre « Coller une recette ».
- * Ils n'ont de sens qu'une fois le texte transformé en recette structurée.
+ * Active/désactive les boutons d'enregistrement de la fenêtre « Coller une recette ».
+ *
+ * BUG RÉEL trouvé par l'audit du sous-lot 11B (Codex Terra + Gemini, convergents) :
+ * cette fonction désactivait AUSSI « Sauvegarder tel quel » tant qu'aucune transformation
+ * IA n'avait eu lieu — rendant l'arbitrage A1 (restaurer la sauvegarde d'un texte brut
+ * SANS IA) inatteignable depuis l'interface réelle, alors même que `buildPastedFavorite`
+ * fonctionnait parfaitement une fois appelée directement (ce que les tests faisaient,
+ * masquant le bug). Corrigé : « Sauvegarder tel quel » reste TOUJOURS actif — c'est
+ * `buildPastedFavorite` qui valide titre/contenu au moment du clic, pas l'état du bouton.
+ * Seul « + Liste » (qui suppose des ingrédients structurés) reste conditionné par
+ * `enabled` ; sa VISIBILITÉ, elle, est gérée séparément (révélée par `transformRecipeAI`,
+ * remise à `none` par `openModal`) — plus par cette fonction (durcissement de l'audit).
  */
 function setPasteSaveButtonsEnabled(enabled) {
-    ['paste-save-btn', 'paste-list-btn'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.disabled = !enabled;
-        // Le bouton « + Courses » etait masque en dur et jamais reaffiche.
-        btn.style.display = '';
-    });
+    const saveBtn = document.getElementById('paste-save-btn');
+    if (saveBtn) saveBtn.disabled = false;
+
+    const listBtn = document.getElementById('paste-list-btn');
+    if (listBtn) listBtn.disabled = !enabled;
 }
 
 function openModal(id) {
@@ -1579,6 +1587,11 @@ function openModal(id) {
         if (aiBtn) aiBtn.style.display = '';
         const saveBtn = document.getElementById('paste-save-btn');
         if (saveBtn) saveBtn.textContent = 'Sauvegarder tel quel';
+        // « + Liste » repart masqué (état par défaut du HTML) : sans cette ligne, une
+        // transformation IA de la session précédente le laissait visible — durcissement
+        // signalé par l'audit du sous-lot 11B.
+        const listBtn = document.getElementById('paste-list-btn');
+        if (listBtn) listBtn.style.display = 'none';
     }
 
     if (id === 'modal-api-config') {
