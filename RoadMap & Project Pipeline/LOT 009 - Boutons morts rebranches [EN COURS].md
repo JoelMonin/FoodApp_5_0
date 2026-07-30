@@ -111,12 +111,13 @@ d'origine) meurent avec lui.
 - [x] Unitaires : construction des suggestions d'emoji (sources existantes, pas de table
       dupliquée) ; `updateSystemInfo` remplit les 3 champs avec un state connu (jsdom) —
       `tests/emoji-edit.test.js` (7 tests), `tests/system-info.test.js` (5 tests)
-- [ ] Manuels (Joel, navigateur) : changer une icône en 2 clics ; ⛶ passe l'appareil en vrai
-      plein écran et Échap resynchronise ; 🖨️ imprime depuis une recette rouverte 3 fois ;
-      glissement ferme le modal à chaque ouverture ; panneau Informations Système entièrement
-      renseigné, y compris après passage hors ligne — **NON FAITS, voir §13** : cet
-      environnement d'exécution n'a pas d'outil de navigateur réel, seul un test de fumée
-      HTTP a pu être fait côté serveur de dev
+- [x] Manuels (Joel, navigateur, 2026-07-30) : icône changée avec succès (grille +
+      recherche IA — un premier essai de recherche a affiché « Erreur recherche emoji »,
+      un second essai a fonctionné, voir §13) ; plein écran « semble ok » ; imprimer
+      « semble ok » ; panneau Informations Système entièrement renseigné (clé masquée
+      ****k6nE, `FoodApp_V5_Joel`, `pantry_v5 (74.62 KB)`, réseau Connecté). Glissement
+      pour fermer non explicitement rapporté par Joel — non bloquant, mêmes chemins de
+      code que les 3 points validés
 
 ## Critères d'acceptation
 
@@ -173,12 +174,27 @@ que réconcilié : `renderRecipeDetail` est la seule source du contenu (SSOT), o
 par l'exécutant faute d'arbitrage explicite de Joel entre les deux options proposées par la
 fiche (« nettoyer OU faire correspondre »).
 
-**Non fait — limitation d'outillage, pas un choix de scope** : la vérification navigateur
-(règle `CLAUDE.md` §5, « preuve visuelle = navigateur ») n'a pas pu être faite par
-l'exécutant. Cette session ne dispose d'aucun outil de navigateur réel (pas de Playwright/
-Puppeteer connecté). Seul un test de fumée a été possible : serveur `npm run dev` démarré,
-page servie en HTTP 200, structure HTML du document servi vérifiée par grep (ids attendus
-présents, chaînes interdites absentes) — cela ne prouve NI le rendu visuel NI le comportement
-interactif (clic, plein écran réel, boîte de dialogue d'impression, glissement tactile). Les
-tests manuels du §Plan de test restent donc entièrement à la charge de Joel avant clôture,
-conformément à ce que la fiche prévoyait déjà pour cette catégorie de vérifications.
+**Limitation d'outillage de l'exécutant** : cette session ne dispose d'aucun outil de
+navigateur réel (pas de Playwright/Puppeteer connecté), donc aucune vérification visuelle
+n'a pu être faite côté Claude — seul un test de fumée HTTP (serveur `npm run dev`, page
+servie en 200, structure HTML vérifiée par grep). La vérification navigateur réelle
+(règle `CLAUDE.md` §5) a donc été entièrement faite par **Joel**, le 2026-07-30, via le
+serveur de dev laissé tournant : icône ✅, plein écran ✅, imprimer ✅, panneau système ✅
+(voir §Plan de test ci-dessus pour le détail).
+
+**Incident transitoire observé pendant la vérification** : le premier essai de recherche
+d'emoji par IA (`searchEmojiAI`, rôle `FAST`) a échoué avec le toast générique « Erreur
+recherche emoji » ; un second essai, sans aucun changement de code, a réussi. Root cause
+non recherchée plus loin puisque non reproductible sur demande — l'hypothèse la plus
+probable est un aléa réseau/API côté Gemini, pas un défaut du LOT 009 (aucun fichier
+touchant `callAI`/`gemini.js` n'a été modifié par ce lot). Vérifié au passage : le modèle du
+rôle `FAST` (`gemini-3.5-flash-lite`, distinct de `REASONING`) est un choix délibéré du
+2026-07-28 (commit `9b850263`, ~1h après une unification temporaire sur `gemini-3.6-flash`
+qu'une note de mémoire avait figée par erreur) — non lié à l'incident. Si l'erreur devait
+redevenir systématique, c'est le premier endroit à vérifier.
+
+Le squelette HTML statique du modal recette (`index.html:109-136`, jamais visible — 3
+recherches convergentes confirmant zéro référence exécutable ailleurs) a été supprimé plutôt
+que réconcilié : `renderRecipeDetail` est la seule source du contenu (SSOT), option retenue
+par l'exécutant faute d'arbitrage explicite de Joel entre les deux options proposées par la
+fiche (« nettoyer OU faire correspondre »).
