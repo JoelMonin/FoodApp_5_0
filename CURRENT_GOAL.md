@@ -9,14 +9,43 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-Aucun — **Version 5.7 publiée le 2026-07-30** (vérification manuelle de Joel + feu vert
-explicite). La check-list de campagne (`Backlog/BACKLOG - Regressions de la migration.md`)
-est désormais **entièrement close** (§1-§4 cochés, §5 = garde-fou permanent) : c'était le
-dernier étage de restauration prévu par la campagne. Prochain chantier à ouvrir :
-**LOT 015 — Réglages fiables et cohérents** (s'exécute avant le 013, arbitrages déjà
-tranchés).
+**LOT 015 — Réglages fiables et cohérents** — ouvert le 2026-07-30, branche
+`feat/lot15-reglages-fiables` (depuis `main` en 5.7). Niveau d'audit **DUR** (sauvegardes,
+restaurations, risque de données incohérentes). Version visée : **5.8**.
 
-## Lots tout juste publiés — Version 5.7 (2026-07-30)
+**But en une phrase :** chaque bouton de la page Réglages doit faire exactement ce que son
+titre annonce — aujourd'hui « Copier mon stock » copie la liste de courses, « Données
+techniques (JSON) » ne produit pas de JSON, et « Mise à zéro » annonce d'effacer la clé API
+alors qu'elle la conserve.
+
+**Suivi des 10 chantiers**
+
+| # | Chantier | État |
+|---|---|---|
+| 1 | « Copier mon stock » copie le stock, plus les courses | ⬜ |
+| 2 | « Partager par rayons » ne partage que le stock | ⬜ |
+| 3 | « Copier ma liste de courses » n'oublie plus les articles libres | ⬜ |
+| 4 | Suppression sèche du bouton « Données techniques (JSON) » | ⬜ |
+| 5 | Aller-retour cohérent sauvegarde ↔ restauration (coches comprises) | ⬜ |
+| 6 | Texte honnête de « Mise à zéro complète » | ⬜ |
+| 7 | Non-régressions (LOT 008, panier) | ⬜ |
+| 8 | Textes et retours de la page (pas de redesign) | ⬜ |
+| 9 | Garde-fou « rien à copier » + repli de copie restaurés | ⬜ |
+| 10 | Périmètre du fichier de sauvegarde (4 blocages) | ⬜ |
+
+**Phase découverte faite le 2026-07-30 (4 agents, obligatoire avant la 1ʳᵉ ligne de code).**
+Verdict : la fiche était juste sur le fond mais **toutes ses références de ligne étaient
+périmées** (décalages de +9 à +630, la 5.7 ayant beaucoup grossi `js/app.js`), plus
+**8 erreurs de contenu** et **7 pièges techniques** non repérés. Tout est corrigé dans la
+fiche. Un seul arbitrage reste à faire trancher par Joel (§G de la fiche).
+
+**Rappel : la campagne « Restauration & Refonte » est close côté restauration** — les
+LOTS 015/013/014 sont de la **refonte**. L'oracle `foodapp-v5-Joel.html` reste la référence
+de non-régression, mais ce lot assume **trois écarts délibérés** au-dessus de lui, tous
+décidés par Joel : suppression du bouton JSON, toasts chiffrés, coches dans le fichier de
+sauvegarde.
+
+## Lots précédents — Version 5.7 (2026-07-30)
 
 - **LOT 011 — Recettes IA riches** : les 7 chantiers faits et testés (cartes de résultats
   complètes, détail de recette riche, prompts/appels IA re-blindés, mode 🎲 complet, confort
@@ -59,7 +88,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011 + 012** — ✅ **PUBLIÉS en Version 5.7 le 2026-07-30** — campagne de restauration
   achevée
-- **015** Réglages fiables et cohérents — PLANIFIÉ, prochain à ouvrir, s'exécute avant le 013
+- **015** Réglages fiables et cohérents — 🔵 **EN COURS** depuis le 2026-07-30 (V5.8)
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (refonte)
   (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 
@@ -94,8 +123,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-**Version 5.7 en ligne.** Prochain chantier : **LOT 015 — Réglages fiables et cohérents**
-— ouvrir sur signal de Joel (`/new-lot 015 reglages-fiables`), après lecture de la fiche
-(arbitrages déjà tranchés le 2026-07-30) et phase découverte obligatoire.
+**LOT 015 ouvert, phase découverte faite, fiche corrigée.** En attente de deux décisions de
+Joel avant la première ligne de code : la **stratégie d'audit** (Codex n'a plus de budget de
+jetons — il reste Gemini et NotebookLM) et l'**arbitrage du §G** (les coches fantômes du
+chemin « Importer uniquement le stock »).
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.
