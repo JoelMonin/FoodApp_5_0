@@ -192,5 +192,32 @@ describe('LOT 010 / C10 — zone « Ingrédients imposés » + sous-titre vivant
             expect(document.querySelector('.pz-chip')).toBeNull();
             expect(document.getElementById('ai-context-sub').textContent).not.toContain('épinglé');
         });
+
+        it('chemin complet réel : cliquer la croix d\'un épinglé sur la vue IA active fait ' +
+           'disparaître la puce ET met à jour le sous-titre — pas seulement le booléen d\'état ' +
+           '(durcissement demandé par l\'audit Codex Terra du 2026-07-30)', () => {
+            state.currentView = 'ai';
+            state.ingredients = [ingredient('i1', 'Tomate', true)];
+            refreshImposedZone();
+            expect(document.querySelector('.pz-chip')).not.toBeNull();
+            expect(document.getElementById('ai-context-sub').textContent).toContain('épinglé');
+
+            document.querySelector('.pz-chip-del').click();
+
+            expect(document.querySelector('.pz-chip')).toBeNull();
+            expect(document.getElementById('ai-context-sub').textContent).not.toContain('épinglé');
+        });
+
+        it('un épinglé seul, sans aucun extra, n\'affiche PAS le segment « hors stock » ' +
+           '(durcissement Codex Terra : cas symétrique au précédent, non couvert)', () => {
+            state.ingredients = [ingredient('i1', 'Tomate', true)];
+            state.extraIngredients = [];
+
+            refreshImposedZone();
+
+            const text = document.getElementById('ai-context-sub').textContent;
+            expect(text).toContain('épinglé');
+            expect(text).not.toContain('hors stock');
+        });
     });
 });
