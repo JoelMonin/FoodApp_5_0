@@ -95,8 +95,11 @@ vérifiés EXACTS). Structure exacte à restaurer, dans cet ordre :
 4. **« 👨‍🍳 Ingrédients & Quantités »** (l.5499-5509) : une ligne par ingrédient —
    pastille ● colorée (vert exact / `#ef6c00` approximatif / `#d63031` manquant), emoji
    (repli `autoEmoji`), nom en gras, quantité mise à l'échelle via `scaleQty` à droite.
-5. **« 📋 État des stocks »** (l.5511-5524) : la série complète de tags colorés
-   (mêmes règles qu'au chantier 1, mais **sans limite de 6**).
+5. **« 📋 État des stocks »** (l.5511-5524) : la série complète de tags colorés,
+   **sans limite de nombre**. ⚠️ Mêmes COULEURS qu'au chantier 1, mais **info-bulles
+   DIFFÉRENTES** (§10-G) : ici l'oracle écrit `Nom (Stock : <noms>)` quand l'ingrédient est
+   en stock, et **rien du tout** (juste le nom) quand il est manquant. Ne pas recopier les
+   trois textes des cartes.
 6. **« 🔥 Préparation Détaillée »** (l.5536) : `<ol class="recipe-steps">` dont chaque
    `<li>` bascule la classe `done` au clic. **Vérifié : purement visuel dans l'oracle, aucune
    persistance** (`this.classList.toggle('done')`). Repli si aucune étape : ligne en
@@ -127,8 +130,11 @@ n'existaient pas dans le monolithe) :**
   (`HARASSMENT`, `HATE_SPEECH`, `SEXUALLY_EXPLICIT`, `DANGEROUS_CONTENT`).
   Absent aujourd'hui de `callAI` : à câbler dans le corps de requête, **frère** de
   `generationConfig`, pas dedans.
-- **`topK: 40` / `topP: 0.95`** (oracle l.5226-5233). Le mécanisme d'options existe déjà
-  dans `callAI` (`src/services/gemini.js:28-29`) mais l'appelant ne les passe jamais.
+- **`topK: 40` / `topP: 0.95`** (oracle l.5226-5233) : ❌ **NE PAS RESTAURER** — voir §10-A.
+  Ces paramètres sont **dépréciés et purement ignorés** par `gemini-3.6-flash` et
+  `gemini-3.5-flash-lite`. Les restaurer serait du code mort qui donnerait la fausse
+  impression d'avoir rebranché une protection. Le mécanisme d'options de `callAI`
+  (`src/services/gemini.js:28-29`) reste en place, simplement personne ne l'alimente.
 - **« RÈGLE D'OR »** (oracle l.5196), texte littéral à porter :
   `⚠️ RÈGLE D'OR : Si un ingrédient est "IMPOSÉ" (ex: Riz), il A PRIORITÉ et annule toute
   contrainte de régime qui l'interdirait (ex: Sans Céréales).`
@@ -141,7 +147,12 @@ n'existaient pas dans le monolithe) :**
   (`CATEGORIES.join(', ')`), le champ `s` (`stock|pinned|missing`), la `description`, et les
   règles de cohérence de l'oracle (titre exact, temps incluant repos, quantités réalistes,
   un seul emoji, repère sensoriel par étape, pas de formulation marketing).
-  **La signature doit être étendue** — elle ne reçoit pas le stock aujourd'hui.
+  **Contrat d'appel complet à écrire (§10-H)** — aujourd'hui la fonction ne reçoit que
+  `(text, apiKey, model)` (`src/services/gemini.js:146`) et l'appelant ne lui transmet **ni le
+  titre saisi par l'utilisateur, ni l'inventaire** (`js/app.js:1963`), alors que l'oracle
+  injecte les deux (l.5989-5993). Nouvelle signature : titre (repli littéral `Sans titre`),
+  contenu, liste des ingrédients en stock, clé, modèle. Un test doit prouver qu'un titre saisi
+  à la main arrive bien dans le prompt.
   **Ajout hors oracle validé par Joel (§9, Q1)** : une consigne demandant de conserver le
   nombre de personnes indiqué dans le texte source, au lieu de retomber sur 2.
 
@@ -149,22 +160,43 @@ n'existaient pas dans le monolithe) :**
 (`src/constants.js`) — aucun nom de modèle en dur ; les catégories viennent de `CATEGORIES`
 (`src/data.js`).
 
-**Niveau d'effort IA adapté par tâche (demande Joel 2026-07-30) :**
-- Câbler le support de `thinkingConfig` dans `callAI` (`src/services/gemini.js`) pour
-  transmettre `thinkingBudget` dans `generationConfig`.
-- **Génération de recettes** (tâche complexe) : `thinkingBudget: 2048` (ou
-  `thinkingLevel: "high"`) afin que le modèle de raisonnement travaille en profondeur et
-  respecte toutes les contraintes.
-- **Tâches instantanées** (`categorySuggest`, `emojiSearch`) : `thinkingBudget: 0` pour des
-  réponses sans délai.
-- Même patron que `topK`/`topP` : option facultative, ajoutée seulement si fournie, jamais
-  imposée par défaut.
+**Niveau d'effort IA adapté par tâche (demande Joel 2026-07-30) — FORME CORRIGÉE, §10-A :**
+- Câbler `thinkingConfig` dans `generationConfig` de `callAI` (`src/services/gemini.js`).
+- **`thinkingLevel` (chaîne), PAS `thinkingBudget` (nombre)** : les modèles Gemini 3.x
+  utilisent l'énumération `minimal` / `low` / `medium` / `high`. Envoyer les deux dans la
+  même requête provoque une **erreur 400**.
+- **Génération de recettes** (`gemini-3.6-flash`) : `thinkingLevel: "high"`.
+- **Tâches instantanées** (`categorySuggest`, `emojiSearch`, `gemini-3.5-flash-lite`) :
+  `thinkingLevel: "minimal"` — il n'existe pas de niveau « zéro ».
+- Option facultative : ajoutée seulement si fournie, jamais imposée par défaut.
+- **Filet de sécurité obligatoire** : si l'API répond 400 en citant `thinkingConfig` ou
+  `thinkingLevel`, `callAI` rejoue **une seule fois** la requête sans ce champ. Sans ce
+  repli, un changement d'API côté Google casserait 100 % des générations.
 
-**⚠️ TROIS CHAÎNES DE CARACTÈRES SONT FIGÉES PAR DES TESTS EXISTANTS** — toute réécriture du
-prompt de génération doit les préserver littéralement (`tests/gemini.test.js:82-101`,
-`tests/cuisine-ssot.test.js:118-134`) :
-`[QUANTITÉ+UNITÉ]` · `[1 EMOJI]` · `jamais vide` · la ligne `CUISINE : ${cuisineStr}`
-avec `Libre` en repli.
+**⚠️ CONFLIT ORACLE ↔ TESTS — LE PIÈGE PRINCIPAL DE CE CHANTIER (§10-B).**
+La consigne « restaurer le prompt à l'identique de l'oracle » est **impossible telle quelle** :
+porter littéralement le prompt de l'oracle **casse deux tests existants**.
+
+| Chaîne exigée par un test | Ce que produirait l'oracle littéral | Verdict |
+|---|---|---|
+| `CUISINE : italienne` (`tests/cuisine-ssot.test.js:118`) | `CUISINE : Limité STRICTEMENT à : italienne.` | ❌ casse |
+| `jamais vide` (`tests/gemini.test.js:96`) | `Interdiction des quantités vides` | ❌ casse |
+| `CUISINE : Libre` (`tests/cuisine-ssot.test.js:128`) | `CUISINE : Libre (Monde).` | ✅ passe |
+| `[QUANTITÉ+UNITÉ]` et `[1 EMOJI]` (`tests/gemini.test.js:86,93`) | présents dans le gabarit de l'oracle | ✅ passent |
+
+**Règle de résolution (non négociable) :** les formulations figées par les tests viennent du
+LOT 010 et corrigent un bug **que Joel a constaté en usage réel** (quantités sans unité,
+emojis remplacés par du texte). Elles sont **plus récentes que l'oracle et priment sur lui**.
+Le prompt final est donc une **FUSION explicite**, pas une copie :
+on porte la STRUCTURE et les CONTRAINTES de l'oracle, on garde les FORMULATIONS du LOT 010.
+Aucun test existant ne doit être modifié pour faire passer le nouveau prompt.
+
+**Contraintes de l'oracle absentes de la fiche initiale, à porter (l.5186-5205) :**
+mission « exactement 5 recettes » · `TYPE DE PLAT : Obligatoire ->` · imposés « C'est une
+obligation stricte » / « Aucune contrainte spécifique (liberté totale) » ·
+`NOMBRE DE PERSONNES : Exactement N personnes. Aligne les quantités.` · définition explicite
+des 4 valeurs de `s` · interdiction des ingrédients `Aucun` et `N/A` · « Tu NE DOIS retourner
+QUE du code JSON […] AUCUN texte explicatif ».
 
 **Risque si absent :** recettes bloquées par le filtre de sécurité Google, JSON invalide plus
 fréquent — c'étaient des protections gagnées à l'usage.
@@ -178,6 +210,14 @@ fréquent — c'étaient des protections gagnées à l'usage.
 `exceptions`, `exclusions` et le filtre de cuisine, **en conservant `ppl`**, puis générer
 avec une créativité aléatoire **entre 80 et 100** (`Math.floor(Math.random() * 21) + 80`).
 Le boost est ponctuel : la créativité SAUVEGARDÉE (acquis LOT 008) ne doit pas être écrasée.
+
+**🚨 DÉCOUVERTE MAJEURE — LA CRÉATIVITÉ N'AGIT PLUS DU TOUT (§10-C, arbitrage Joel requis).**
+Dans l'oracle, la créativité pilotait `temperature` (`0.2 + créativité/100`). Or
+**`temperature` est déprécié et purement ignoré par `gemini-3.6-flash`**. Conséquence
+vérifiée : le curseur « Créativité » de l'écran Recettes IA **n'a aucun effet aujourd'hui**,
+et un mode 🎲 qui se contente de pousser la créativité à 90 produirait **exactement les mêmes
+recettes** qu'une génération normale. Restaurer le mécanisme à l'identique reviendrait donc à
+livrer un bouton qui ne fait rien. Voir l'arbitrage A2 au §11.
 
 **🐛 Bug de l'oracle à NE PAS reproduire (décision D1, §8) :** l'oracle remet à zéro une clé
 `cuisine` (singulier) alors que le reste du code lit `cuisines` (pluriel) — le filtre de
@@ -216,6 +256,17 @@ de titre. **Oracle : `fetchRecipeFromUrl` l.5944-5974.**
 simple, sans encodage de l'URL cible), titre extrait de la première ligne du Markdown
 retourné : `text.split('\n')[0].replace(/^#+\s*/, '').trim()`.
 
+**Vérifications de l'oracle oubliées par la fiche initiale (l.5944-5959), à porter :**
+- URL vide → `Veuillez entrer une adresse URL`
+- URL ne commençant pas par `http` → `L'adresse doit commencer par http:// ou https://`
+- réponse HTTP en échec → `if (!res.ok) throw new Error('Impossible de lire la page')`
+  (c'est bien une RESTAURATION, pas un durcissement inventé)
+
+**Durcissement retenu (§10-D, ne réintroduit AUCUN repli — compatible avec l'arbitrage Q2) :**
+délai d'expiration de 10 s sur l'appel, et réponse vide ou non textuelle traitée comme un
+échec. Sans cela, un service tiers bloqué laisse le bouton en « Lecture… » indéfiniment, et
+une page d'erreur HTML finirait comme titre de recette.
+
 Conserver le contrat DOM actuel : bouton `#paste-fetch-btn`, champ cible `#paste-content`,
 champ titre `#paste-title`.
 
@@ -232,10 +283,31 @@ d'échec, message littéral de l'oracle :
 
 **Attendu (oracle l.5903-5915) :** carte `.fav-card` avec `.fav-header` / `.fav-title`,
 `.fav-excerpt` (description si recette structurée, sinon les 100 premiers caractères du
-texte brut suivis de `...`), la série de tags d'état, et `.fav-actions` avec
+texte brut suivis de `...`), la série de tags d'état (**plafond de 8**, oracle l.5891 — à ne
+pas confondre avec le plafond de 6 des cartes IA), et `.fav-actions` avec
 « 👁 Voir » / « 🗑 Supprimer » (les deux avec `stopPropagation`).
 État vide (oracle l.5871) : icône 📖, titre « Aucune recette favorite », phrase d'explication
 et bouton « 📋 Coller une recette ».
+
+**Les favoris ont leur PROPRE composant de rendu (`.fav-card`), distinct de la carte de
+résultat IA (`.recipe-card`).** C'est ainsi dans l'oracle — deux fonctions séparées. Cela
+supprime au passage le risque signalé par l'audit : aujourd'hui les deux écrans partagent
+`renderRecipeCard` sans passer les mêmes handlers, et un bouton d'action ajouté à la carte IA
+planterait au clic côté favoris (§10-E).
+
+**⚠️ FORME DES DONNÉES — point de sécurité (§10-F).** Joel a déjà des favoris enregistrés en
+production ET dans le cloud. Deux formes coexistent :
+
+| | Forme | Où |
+|---|---|---|
+| Oracle | `{ id, title, recipe, date }` ou `{ id, title, content, date }` (imbriquée) | l.6041-6055 |
+| Version 5.6 en ligne | `{ ...recette, id }` (plate, sans date) | `js/app.js:1187` |
+
+**Décision : la forme PLATE reste canonique.** On ajoute uniquement `date`, et on garde les
+replis de lecture déjà en place (`fav.recipe || fav`, `js/app.js:909` et `1173`) pour rester
+tolérant. **Aucune migration destructive des favoris existants** — un favori déjà enregistré
+doit continuer à s'ouvrir et à s'afficher, date absente = pas de date affichée, pas d'erreur.
+Le favori « texte brut » est la seule exception de forme : `{ id, title, content, date }`.
 
 Champ de date : l'oracle stocke bien `date: new Date().toLocaleDateString('fr-FR')` à
 l'ajout. Styles `.fav-card`, `.fav-date`, `.fav-excerpt`, `.fav-empty*` déjà présents,
@@ -388,11 +460,43 @@ tranchés :
 d'`allorigins`. Un seul chemin, un seul point de défaillance, message d'erreur littéral de
 l'oracle : `Erreur de lecture. Vérifiez l'URL ou copiez le texte manuellement.`
 
-## 10. AUDIT DE SPEC — AVANT LA PREMIÈRE LIGNE DE CODE
+## 10. AUDIT DE SPEC — 2026-07-30 (avant la première ligne de code)
 
-Décidé par Joel le 2026-07-30, comme au LOT 010 (où l'audit de spec avait rendu un NO-GO
-avec 5 points bloquants réels). Auditeur : Codex 5.6 Terra, niveau medium.
-Verdict et intégration : à compléter à réception.
+Décidé par Joel. **Duel** : Gemini 3.6 Flash ET Codex 5.6 Terra, en parallèle, sans se voir.
+**Les deux ont rendu NO-GO.** Chaque point a ensuite été **contre-vérifié contre le vrai
+code** avant intégration (protocole du LOT 010, où deux findings d'auditeur s'étaient révélés
+inexacts). Résultat : 8 points retenus, 1 réfuté, 2 défauts trouvés par la contre-vérification
+elle-même que ni l'un ni l'autre n'avait vus.
+
+| Réf | Point | Source | Vérification | Traitement |
+|---|---|---|---|---|
+| **A** | `topK`/`topP`/`temperature` dépréciés et ignorés par Gemini 3.x ; `thinkingBudget` remplacé par `thinkingLevel` ; les deux ensemble → erreur 400 | Terra (précis), Gemini (partiel) | ✅ **CONFIRMÉ** par la documentation Google | §3 réécrit : `thinkingLevel` `high`/`minimal`, `topK`/`topP` NON restaurés, repli sur erreur 400 |
+| **B** | Le prompt ne peut pas être porté « à l'identique » : il **casse 2 tests existants** | 🔍 **Trouvé par la contre-vérification** (Terra avait vu le prompt incomplet, pas le conflit) | ✅ vérifié ligne à ligne | §3 : règle de fusion explicite — les formulations du LOT 010 priment sur l'oracle |
+| **C** | La créativité ne pilote plus rien : `temperature` est ignoré ⇒ le mode 🎲 serait un bouton mort | 🔍 **Trouvé par la contre-vérification** | ✅ conséquence directe de A | §4 + arbitrage A2 (§11) |
+| **D** | Lecture d'URL : aucune validation, aucun délai, aucun contrôle de réponse | Terra + Gemini (convergents) | ✅ **CONFIRMÉ** — et la validation d'URL + `res.ok` sont dans l'oracle, donc des RESTAURATIONS oubliées | §6 complété |
+| **E** | `renderRecipeCard` partagé par deux écrans sans les mêmes handlers ⇒ plantage au clic | Gemini | ✅ **CONFIRMÉ**, mais le correctif proposé était mauvais : l'oracle a **deux composants distincts** | §7 : les favoris reçoivent leur propre `.fav-card` |
+| **F** | Forme des favoris non tranchée ; risque sur les données déjà enregistrées de Joel | Terra | ✅ **CONFIRMÉ** (plate en 5.6 vs imbriquée dans l'oracle) | §7 : forme plate canonique, `date` ajoutée, aucune migration destructive |
+| **G** | Info-bulles du détail ≠ info-bulles des cartes | Terra | ✅ **CONFIRMÉ**, la fiche disait « mêmes règles » à tort | §2 corrigé |
+| **H** | Prompt de collage : ni le titre ni l'inventaire ne sont transmis | Terra | ✅ **CONFIRMÉ** | §3 : contrat d'appel complet |
+| **I** | Plafond de 8 tags sur les favoris (vs 6 sur les cartes) | Terra | ✅ **CONFIRMÉ** (oracle l.5891) | §7 complété |
+| **J** | « Trois chaînes figées » alors que la fiche en énumérait quatre | Terra | ✅ **CONFIRMÉ** — erreur de rédaction | §3 corrigé |
+| **K** | ❌ « L'oracle écrit les textes d'attente dans `btn.textContent` » | Gemini | ❌ **RÉFUTÉ** : l'oracle utilise `setAttribute('data-loading-text')` (l.5054-5057), et le mécanisme CSS existe déjà (`css/style.css:3539`, `index.html:473`) | Aucun changement — la fiche avait raison |
+| **L** | Confirmer que `openEnhancedCartPicker` ne régresse pas | Gemini + Terra (convergents) | ✅ ajout pur confirmé | Test de non-régression ajouté au plan |
+
+**Ordre d'exécution retenu** (les deux auditeurs convergeaient) : sous-lots sur la MÊME
+branche, avec un audit à la fin de chacun.
+- **11A — moteur** : chantiers 3, 4, 6 (services + flux d'appel, validés par tests unitaires
+  sans risque d'altérer l'affichage).
+- **11B — rendu** : chantiers 1, 2, 5, 7 (DOM, CSS dormant, favoris) — c'est là que les
+  4 acquis des LOTS 009/010 doivent être rejoués impitoyablement.
+
+## 11. ARBITRAGES REMONTÉS À JOEL PAR L'AUDIT
+
+| # | Question | État |
+|---|---|---|
+| **A1** | « Sauvegarder tel quel » : l'oracle enregistrait un favori en texte brut SANS passer par l'IA (l.6048-6054). Le LOT 006 a grisé ce bouton tant que le texte n'est pas transformé, ce qui rend ce chemin **impossible** — et donc l'affichage `r.content` du chantier 2 serait du code mort. Restaurer le comportement d'origine revient à défaire un choix du LOT 006. | ⏳ en attente |
+| **A2** | Le curseur « Créativité » n'agit plus (§10-C). Que fait-on : exprimer la créativité dans le texte du prompt, ou l'assumer comme décoratif ? | ⏳ en attente |
+| **A3** | Confirmer explicitement l'écart D3 (une recette peut afficher « en stock » parce que l'IA l'affirme, même si l'inventaire dit épuisé). La fiche l'annonce, mais ce n'était pas un arbitrage formellement posé à Joel. | ⏳ en attente |
 
 ---
 
