@@ -1533,55 +1533,164 @@ function groupByCategory(ingredients) {
     return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
 }
 
-async function exportClipboard(type) {
-    let text = '';
+// LOT 015, chantier 3 : rubrique des articles libres de la liste de courses.
+// Nom volontairement NON collidable avec une vraie categorie -- `Autres` en est une
+// (src/data.js:32) ET le repli impose a tout ingredient sans categorie (src/state.js:173),
+// donc y verser les articles libres les melangerait a de vrais ingredients.
+const FREE_ITEMS_SECTION = '[ ARTICLES LIBRES ]';
+
+/**
+ * Nom affichable d'un article libre, ou null s'il n'en a pas (LOT 015, audit Gemini Q12).
+ * `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js:153 ne
+ * garantit que l'existence du tableau) : un objet venu du cloud ou d'un vieux fichier peut
+ * arriver sans `name`. Un tel article est ignore, jamais rendu en « undefined ».
+ */
+function freeCartItemName(item) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    return name || null;
+}
+
+const clipboardCount = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+// Les sources de rubrique viennent toujours de state.ingredients (categorie garantie par
+// sanitizeGlobalState) ; le repli reste par prudence, car cat.toUpperCase() planterait
+// SILENCIEUSEMENT -- l'appel est hors du try/catch de la copie.
+const clipboardSectionLabel = (cat) => String(cat || 'Autres').toUpperCase();
+
+/**
+ * Compose le texte d'un format de partage, ou null si le format est inconnu.
+ *
+ * Renvoie l'en-tete et le corps SEPAREMENT, et le nombre d'elements de la SOURCE : c'est
+ * ce qui permet au garde-fou « rien a copier » de porter sur les donnees et non sur le
+ * texte final (LOT 015, chantier 9 + audit Gemini Q1).
+ */
+function buildClipboardText(type) {
     const date = new Date().toLocaleDateString('fr-FR');
 
+    // Chantier 1 : le bouton promet le STOCK. Il copiait la liste de courses
+    // (oracle foodapp-v5-Joel.html l.6466-6468 : `inStock`, confirme).
     if (type === 'simple') {
-        text = `🛒 LISTE DE COURSES (${date})\n\n`;
-        const items = state.ingredients.filter(i => i.inCart);
-        if (items.length === 0) { text += "(Vide)"; }
-        else {
-            items.forEach(i => {
-                text += `${i.emoji || '🔸'} ${i.name}\n`;
-            });
-        }
-    } else if (type === 'full') {
-        text = `🍱 INVENTAIRE COMPLET (${date})\n\n`;
-        state.ingredients.forEach(i => {
-            const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-            text += `${status} ${i.emoji || '🔸'} ${i.name} [${i.category}]\n`;
-        });
-    } else if (type === 'categorized') {
-        text = `📦 INVENTAIRE PAR RAYON (${date})\n\n`;
-        for (const [cat, items] of groupByCategory(state.ingredients)) {
-            text += `\n--- ${cat.toUpperCase()} ---\n`;
-            items.forEach(i => {
-                const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-                text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
-            });
-        }
-    } else if (type === 'cart') {
-        text = `🛒 LISTE DE COURSES (${date})\n\n`;
-        const items = state.ingredients.filter(i => i.inCart);
-        if (items.length === 0) { text += "(Vide)"; }
-        else {
-            for (const [cat, catItems] of groupByCategory(items)) {
-                text += `\n[ ${cat.toUpperCase()} ]\n`;
-                catItems.forEach(i => {
-                    text += `☐ ${i.emoji || '🔸'} ${i.name}\n`;
-                });
-            }
-        }
+        const items = state.ingredients.filter(i => i.inStock);
+        return {
+            count: items.length,
+            emptyMessage: 'Votre stock est vide — rien à copier',
+            successMessage: `Stock copié (${clipboardCount(items.length, 'ingrédient')})`,
+            header: `✅ MON STOCK (${date})\n\n`,
+            body: items.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
+        };
     }
 
+    // Chantier 2 : le partage par rayons emportait TOUT l'inventaire, absents compris
+    // (oracle l.6469-6475 : `inStock` seul, avec l'emoji de rubrique).
+    // Le marqueur de statut est RETIRE : la source etant restreinte a `inStock`, il
+    // vaudrait toujours « ✅ » -- information morte (arbitrage tranche, audit Gemini Q2).
+    if (type === 'categorized') {
+        const items = state.ingredients.filter(i => i.inStock);
+        const sections = groupByCategory(items).map(([cat, catItems]) =>
+            `--- ${getCategoryEmoji(cat)} ${clipboardSectionLabel(cat)} ---\n` +
+            catItems.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
+        );
+        return {
+            count: items.length,
+            emptyMessage: 'Votre stock est vide — rien à copier',
+            successMessage: `Stock copié par rayon (${clipboardCount(items.length, 'ingrédient')})`,
+            header: `📦 MON STOCK PAR RAYON (${date})\n\n`,
+            body: sections.join('\n\n')
+        };
+    }
+
+    // Chantier 3 : la liste de courses ignorait les articles libres (oracle l.6476-6479 :
+    // les deux sources). La rubrique dediee est concatenee APRES la boucle, jamais via
+    // groupByCategory : son tri par defaut (l.1533) placerait `[` avant les categories
+    // accentuees, donc un simple choix de nom ne suffirait pas a la mettre en fin.
+    if (type === 'cart') {
+        const items = state.ingredients.filter(i => i.inCart);
+        const freeItems = (state.customCartItems || [])
+            .map(item => ({ name: freeCartItemName(item), emoji: item?.emoji || '🔸' }))
+            .filter(item => item.name);
+        const sections = groupByCategory(items).map(([cat, catItems]) =>
+            `[ ${clipboardSectionLabel(cat)} ]\n` +
+            catItems.map(i => `☐ ${i.emoji || '🔸'} ${i.name}`).join('\n')
+        );
+        if (freeItems.length) {
+            sections.push(
+                `${FREE_ITEMS_SECTION}\n` +
+                freeItems.map(i => `☐ ${i.emoji} ${i.name}`).join('\n')
+            );
+        }
+        const total = items.length + freeItems.length;
+        return {
+            count: total,
+            emptyMessage: 'Votre liste de courses est vide — rien à copier',
+            successMessage: `Liste de courses copiée (${clipboardCount(total, 'article')})`,
+            header: `🛒 LISTE DE COURSES (${date})\n\n`,
+            body: sections.join('\n\n')
+        };
+    }
+
+    // Chantier 4 : le format 'full' a ete SUPPRIME (arbitrage de Joel du 2026-07-30).
+    // Un type inconnu ne copie plus une chaine vide en annoncant un succes.
+    return null;
+}
+
+/**
+ * Ecrit dans le presse-papiers, avec le repli de l'oracle (l.6484-6486) DURCI.
+ * L'oracle appelait document.execCommand sans garde d'existence et sans lire son retour
+ * (il vaut `false` en cas d'echec silencieux) : le porter tel quel reproduirait un bug,
+ * sous jsdom comme sur un vieux navigateur.
+ * @returns {Promise<boolean>} vrai si le texte est reellement parti.
+ */
+async function writeToClipboard(text) {
     try {
-        await navigator.clipboard.writeText(text);
-        toast('Copié dans le presse-papiers !');
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
     } catch (err) {
         console.error('Erreur copie:', err);
-        toast('Erreur lors de la copie', 'error');
     }
+
+    if (typeof document.execCommand !== 'function') return false;
+
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let copied = false;
+    try {
+        copied = document.execCommand('copy') === true;
+    } catch (err) {
+        console.error('Erreur copie (repli):', err);
+    }
+    document.body.removeChild(ta);
+    return copied;
+}
+
+/**
+ * LOT 015, chantiers 1-4 et 9 — copie d'un format de partage.
+ *
+ * GARDE-FOU « rien a copier » : il porte sur la SOURCE, jamais sur le texte final.
+ * L'oracle testait `if (!text)` (l.6483) parce que chez lui le texte restait vide sans
+ * donnees. Ici, chaque format ecrivait son en-tete AVANT de regarder les donnees : le meme
+ * test ne se serait JAMAIS declenche (audit Gemini du 2026-07-30, Q1). D'ou la separation
+ * en-tete / corps / compte de buildClipboardText.
+ */
+async function exportClipboard(type) {
+    const built = buildClipboardText(type);
+    if (!built) {
+        toast('Rien à copier', 'error');
+        return;
+    }
+    if (built.count === 0) {
+        toast(built.emptyMessage, 'error');
+        return;
+    }
+
+    const copied = await writeToClipboard(built.header + built.body);
+    if (copied) toast(built.successMessage);
+    else toast('Erreur lors de la copie', 'error');
 }
 
 function updateSystemInfo() {

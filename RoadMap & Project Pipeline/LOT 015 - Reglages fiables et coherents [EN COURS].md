@@ -727,6 +727,24 @@ Tout tient dans `exportClipboard` (`js/app.js:1536-1585`) et dans la carte à su
 **Preuve :** `tests/export-clipboard.test.js` (neuf), avec son propre stub de
 `navigator.clipboard` et de `document.execCommand`.
 
+✅ **FAIT le 2026-07-30 — 27 tests, validation unifiée verte (383/383 Vitest, 13/13
+verrous).** Décisions prises à l'exécution, toutes traçées :
+- **Le garde-fou porte sur la source** : `buildClipboardText(type)` renvoie l'en-tête, le
+  corps et le **compte de la source** séparément ; `exportClipboard` sort avant toute
+  écriture si le compte est nul. Un type inconnu renvoie `null` → « Rien à copier ».
+- **Marqueur ✅ retiré** du format « par rayons » (arbitrage Q2) : la source étant
+  restreinte au stock, il aurait toujours valu ✅.
+- **En-têtes rendus honnêtes** : `✅ MON STOCK` et `📦 MON STOCK PAR RAYON` — les deux
+  annonçaient auparavant une liste de courses ou un inventaire complet.
+- **Repli de copie durci** : garde d'existence sur `document.execCommand`, lecture de son
+  retour booléen, nettoyage du `<textarea>` même en cas d'échec.
+- **Second point d'entrée couvert** : le bouton `📋 Copier` de la barre supérieure est
+  désormais **cliqué** dans un test, plus seulement lu.
+- **3 recherches convergentes sur `'full'` consignées** : aucun appel JS, aucun `onclick`
+  restant, aucun accès dynamique. Seules occurrences restantes : l'oracle (référence en
+  lecture seule), les fiches, et `dist/` (artefact de build versionné, faux positif attendu
+  et annoncé, régénéré par `npm run build`).
+
 ### Sous-lot B — Les textes des cartes (chantier 6 + reste du 8)
 
 Aucun comportement touché : titres de sections (« Partager », « Sauvegarde »), sous-titre
@@ -812,21 +830,22 @@ dans l'estimation de ~2 journées.** Deuxième aggravation : **aucun bouton de l
 Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par rang dans
 `.export-grid`, ce qui est le point le plus fragile du lot.
 
-- [ ] Un test par format de copie restant (`simple`, `categorized`, `cart`) + preuve de
+- [x] Un test par format de copie restant (`simple`, `categorized`, `cart`) + preuve de
       la suppression propre de `'full'` (3 recherches convergentes consignées, aucune
       référence morte)
-- [ ] Tests des toasts chiffrés et des messages d'état vide (chantiers 1-3 et 8)
-- [ ] Tests avec stock vide, courses vides, et articles libres (`customCartItems`)
+- [x] Tests des toasts chiffrés et des messages d'état vide (chantiers 1-3 et 8)
+- [x] Tests avec stock vide, courses vides, et articles libres (`customCartItems`)
 - [ ] Test aller-retour sauvegarde → restauration **avec coches** (les anciennes coches ne
       survivent jamais)
 - [ ] Test d'une ancienne sauvegarde sans le champ des coches (compatibilité)
 - [ ] Test de deux sélections successives du même fichier (champ réarmé)
 - [ ] Preuve que la **clé API ne sort jamais** (presse-papiers ET fichier)
-- [ ] Garde-fou « rien à copier » : chaque format, source vide → aucune écriture dans le
+- [x] Garde-fou « rien à copier » : chaque format, source vide → aucune écriture dans le
       presse-papiers + message d'erreur (chantier 9)
-- [ ] Repli de copie : `navigator.clipboard` en échec → le texte est quand même copié
-      (chantier 9)
-- [ ] Articles libres sans catégorie → rubrique dédiée, jamais `undefined` (chantier 3)
+- [x] Repli de copie : `navigator.clipboard` en échec → le texte est quand même copié
+      (chantier 9) — **et** son échec silencieux (`execCommand` renvoyant `false`) traité
+      comme un échec, ce que l'oracle ne faisait pas
+- [x] Articles libres sans catégorie → rubrique dédiée, jamais `undefined` (chantier 3)
 - [ ] **Synchro :** restauration d'un fichier → l'état ET les coches partent dans le
       MÊME document cloud (chantier 5) ; aucune fenêtre avec les anciennes coches
 - [ ] Restauration d'un fichier **partiel** : comportement conforme au texte affiché
@@ -843,27 +862,28 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
       défaut, aucun envoi cloud (chantier 10d)
 - [ ] **Ajouté par la découverte (P5)** : fichier avec `ingredients: "abc"` (une chaîne) →
       **refusé** lui aussi, pas de reconstruction des 297, aucun envoi cloud
-- [ ] **Ajouté par la découverte (P1)** : `exportClipboard` appelé avec un type inconnu →
+- [x] **Ajouté par la découverte (P1)** : `exportClipboard` appelé avec un type inconnu →
       **rien n'est écrit** dans le presse-papiers, message d'erreur, aucun toast de succès
-- [ ] **Ajouté par la découverte (P2)** : un article libre sans catégorie ne fait **jamais
+- [x] **Ajouté par la découverte (P2)** : un article libre sans catégorie ne fait **jamais
       planter** la copie (le plantage serait silencieux : ni toast, ni erreur visible)
-- [ ] **Ajouté par la découverte (P3)** : la rubrique des articles libres sort bien **en
+- [x] **Ajouté par la découverte (P3)** : la rubrique des articles libres sort bien **en
       dernier**, y compris quand l'inventaire contient une catégorie accentuée
       (`Épices sèches`) — le seul choix du nom ne le garantit pas
 - [ ] **Ajouté par la découverte (P6)** : la restauration **attend la fin d'un envoi en
       vol** avant d'écrire (barrière `awaitSyncQuiescence`), sinon l'ancien état peut
       revenir écraser le cloud après coup
-- [ ] **Ajouté par la découverte** : le second bouton de copie (`📋 Copier` de la barre
+- [x] **Ajouté par la découverte** : le second bouton de copie (`📋 Copier` de la barre
       supérieure, `js/app.js:711`) produit bien le **même résultat** que la carte de
-      Réglages — aujourd'hui il n'est testé que sur son libellé
-- [ ] **Ajouté par l'audit Gemini (Q1)** : source vide → **aucun en-tête n'est composé** et
+      Réglages — il n'était testé que sur son libellé. Le test **clique réellement** le
+      bouton rendu par `renderTopbar('shopping')`
+- [x] **Ajouté par l'audit Gemini (Q1)** : source vide → **aucun en-tête n'est composé** et
       `navigator.clipboard.writeText` **n'est jamais appelé du tout**. C'est le test qui
       distingue le vrai garde-fou du faux : un `if (!text)` naïf laisserait passer un texte
       « en-tête + (Vide) » et le test resterait vert à tort
 - [ ] **Ajouté par l'audit Gemini (Q9)** : un état contenant une clé orpheline
       `state.shoppingChecked` (comme après un aller-retour par la 5.7) ressort **élagué**
-      de `sanitizeGlobalState` ; le Set reste la seule représentation
-- [ ] **Ajouté par l'audit Gemini (Q12)** : un article libre sans `name` exploitable est
+      de `sanitizeGlobalState` ; le Set reste la seule représentation *(sous-lot C)*
+- [x] **Ajouté par l'audit Gemini (Q12)** : un article libre sans `name` exploitable est
       **ignoré** à la copie — la chaîne « undefined » n'apparaît jamais dans le texte copié
 - [ ] Manuels (Joel) : vérification navigateur de CHAQUE carte de Réglages — le résultat
       correspond au titre et au sous-titre
