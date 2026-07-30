@@ -4,6 +4,20 @@
 > **Branche :** `feat/lot15-reglages-fiables` (créée depuis `main` en 5.7)
 > **Niveau d'audit : DUR** — le lot touche les sauvegardes, les restaurations et des
 > risques de données incohérentes (zones sensibles : `src/state.js`, chemins d'export/import)
+>
+> **DISPOSITIF D'AUDIT (tranché par Joel le 2026-07-30 — Codex n'a plus de budget de
+> jetons, il est hors jeu pour tout ce lot) :**
+> - **Gemini = auditeur officiel** : audit du plan AVANT la 1ʳᵉ ligne de code, puis audit du
+>   diff final. Consigne d'usage : ne lui poser que des **questions fermées et vérifiables**
+>   (sa faiblesse connue est d'affirmer sans rouvrir le fichier), et **contrôler chaque
+>   reproche sur pièce** avant de l'intégrer.
+> - **Agents adversariaux locaux = le niveau DUR par étape.** Ce sont eux qui portent
+>   l'intensité réelle : ils ont durci cette fiche (8 angles morts) puis trouvé 15 erreurs
+>   de plus en phase découverte.
+> - **NotebookLM = un seul passage de cohérence** sur la spec (« contredit-on une décision
+>   d'un lot précédent ? »). **Jamais comme auditeur de code** : il ne voit pas le code.
+> - ⚠️ Le critère d'acceptation « /ultra-audit » ci-dessous est **remplacé** par ce
+>   dispositif (consigne permanente de Joel : ne pas lancer `/ultra-audit` sans demande).
 > **Effort estimé :** ~2 journées (révisé après l'audit du 2026-07-30 : 10 chantiers,
 > dont 2 blocages sur le format du fichier de sauvegarde) · **Version visée :** 5.8
 
@@ -182,7 +196,14 @@ explicitement « comportement inchangé, seuls les textes bougent ».
   lettre, mais le lot se clôt en sachant qu'une porte de données incohérentes reste ouverte
   juste à côté de celle qu'il vient de fermer.
 
-**Décision de Joel (2026-07-30) : _à compléter à la réponse_.**
+**DÉCISION DE JOEL (2026-07-30) : OPTION A — on corrige aussi ce chemin.**
+Entorse au pare-feu A/B **explicitement autorisée et tracée ici** : le chantier 7 cesse
+d'être « comportement strictement inchangé » sur ce point précis. Conditions d'exécution :
+- la correction se limite à purger `shoppingChecked` des ids repassés hors panier, rien
+  d'autre — la fusion douce (appariement, 4 champs, ajout d'inconnus) ne bouge pas ;
+- elle est couverte par son propre test, distinct de ceux du chantier 10c ;
+- elle est signalée en clair à l'audit final comme un écart au périmètre initial, décidé
+  par Joel, et non comme un débordement de l'exécutant.
 
 ---
 
@@ -682,7 +703,10 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
 - [ ] Suppression sèche du bouton « Données techniques (JSON) » appliquée (arbitrage
       Joel du 2026-07-30) et retouches UX du chantier 8 en place
 - [ ] Validation unifiée verte + build OK
-- [ ] **Audit DUR final** (boucle par étape + /ultra-audit — zones sauvegardes/restauration)
+- [ ] **Audit DUR** selon le dispositif tranché en tête de fiche (Gemini sur le plan puis
+      sur le diff final + agents adversariaux locaux par étape) — ~~/ultra-audit~~ remplacé
+- [ ] Le chemin « Importer uniquement le stock » ne laisse plus de coche fantôme (§G,
+      écart au périmètre initial autorisé par Joel le 2026-07-30)
 - [ ] Chaque carte de Réglages vérifiée en navigateur par Joel
 
 ## Traçabilité
