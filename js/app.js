@@ -526,7 +526,8 @@ export {
     renderExtraChips,
     updateAIContextSub,
     refreshImposedZone,
-    removeExtraIngredient
+    removeExtraIngredient,
+    getFilteredIngredients
 };
 
 function renderCurrentView() {
@@ -690,7 +691,13 @@ function getFilteredIngredients() {
         const s = normalizeString(state.search);
         list = list.filter(i => normalizeString(i.name).includes(s));
     }
-    return list;
+
+    // 4. Tri alphabétique (LOT 010, casse C11) — porté depuis l'oracle
+    // (`foodapp-v5-Joel.html` l.4646). N'affecte QUE la grille d'inventaire : l'export
+    // presse-papier lit `state.ingredients` directement via `groupByCategory`, dont le
+    // tri « par défaut volontaire » (LOT 005) reste intact — chemins disjoints, vérifié
+    // en phase découverte du lot.
+    return list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 }
 
 // Le filtrage normalise chaque nom d'ingredient : trop couteux a chaque touche frappee.
