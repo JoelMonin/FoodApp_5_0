@@ -580,7 +580,8 @@ export {
     clearSearch,
     renderTopbar,
     updateBadges,
-    addIngredient
+    addIngredient,
+    addIngredientFromDb
 };
 
 function renderCurrentView() {
@@ -2109,8 +2110,13 @@ function addIngredientFromDb(dbItem) {
     document.getElementById('add-frozen').checked = false;
     _isManualCategory = false;
     renderAdd();
-    
+
     toast(`${dbItem.name} ajouté !`);
+    // LOT 012, zone C — trouvé par l'audit du diff final (Codex Terra) : ce chemin
+    // d'ajout (clic sur une suggestion d'autocomplétion, absent de l'oracle) ajoute
+    // vraiment un ingrédient au même titre que `addIngredient` — même retour auto pour
+    // que les deux parcours se comportent pareil du point de vue de Joel.
+    setTimeout(() => switchView('pantry'), 500);
 }
 
 function confirmBulkAdd() {

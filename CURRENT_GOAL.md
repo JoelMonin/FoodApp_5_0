@@ -9,25 +9,44 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 012 — Confort d'usage retrouvé**, statut `[EN COURS]` depuis le 2026-07-30 — branche
-`feat/lot12-confort-usage`, chaînée depuis `feat/lot11-recettes-ia-riches` (comme 010 depuis
-009). Phase découverte faite (3 agents Explore en parallèle) : 8 citations périmées
-corrigées dans la fiche + 3 découvertes hors fiche initiale (le ＋ flottant doit redevenir
-masqué hors inventaire ; risque de collision cartographié entre la topbar mobile et le
-voyant de synchro du LOT 007 ; deux fonctions mortes en doublon repérées et non touchées).
-Ferme la check-list de campagne avec le LOT 011 ; publication combinée en **version 5.7**
-sur feu vert explicite de Joel (comme 007+008→5.5, 009+010→5.6).
+Aucun — **LOT 011 ET LOT 012 sont tous deux terminés, validés et au statut `[A PUBLIER]`**
+depuis le 2026-07-30. La campagne « Restauration & Refonte » a fermé toute sa check-list
+(`Backlog/BACKLOG - Regressions de la migration.md` §1-§4 entièrement cochés ou reportés).
+Reste : la vérification manuelle de Joel sur le LOT 012, puis une publication combinée des
+deux lots en **version 5.7**, comme les paires précédentes (007+008→5.5, 009+010→5.6).
 
-### LOT 012 — périmètre (fiche : `LOT 012 - Confort d usage retrouve [EN COURS].md`)
+### LOT 012 — Confort d'usage retrouvé — bilan complet
 
-| Zone | Contenu |
-|---|---|
-| A | Sélecteur d'articles : édition par ligne (nom + emoji via 🎲 `cycleEmoji`), complète le LOT 006 |
-| B | Clavier et gestes : Entrée sur `#ez-input`/`#paste-title`, scroll filtres mobile, anti-autofill |
-| C | Navigation : barre supérieure contextuelle, ＋ flottant pantry-only, retour auto, toasts, `shoppingSource` — **zone la plus sensible du lot**, proximité DOM avec les voyants de synchro LOT 007 |
-| D | Styles neufs (pas des pertes) : `.add-results-list`/`.add-res-item`, `.tb-btn.small` |
+Fiche : `RoadMap & Project Pipeline/LOT 012 - Confort d usage retrouve [A PUBLIER].md`.
+La vingtaine de petits gestes qui faisaient la fluidité de l'app d'origine — ferme la
+check-list de campagne avec le LOT 011.
 
-### LOT 011 — Recettes IA riches — bilan complet (terminé, `[A PUBLIER]`, attend le LOT 012)
+**Les 4 zones, toutes codées et testées :**
+
+| Zone | Contenu | État |
+|---|---|---|
+| A | Sélecteur d'articles : édition par ligne (nom + emoji via 🎲 `cycleEmoji`), complète le LOT 006 | ✅ |
+| B | Clavier et gestes : Entrée sur `#ez-input`/`#paste-title`, scroll filtres mobile, anti-autofill | ✅ |
+| D | Styles neufs (pas des pertes) : `.add-results-list`/`.add-res-item`, `.tb-btn.small` | ✅ |
+| C | Navigation : barre supérieure contextuelle, retour auto, toasts, `shoppingSource` — zone la plus sensible, proximité DOM avec les voyants de synchro LOT 007 | ✅ |
+
+**Gouvernance complète :**
+- [x] Phase découverte (3 explorateurs) : 8 citations périmées corrigées + 3 découvertes
+      hors fiche initiale
+- [x] Audit de spec (Codex Terra, GO) : 3 précisions intégrées, la plus importante révélant
+      que le vrai FAB oracle (`#fab-add`) était déjà restauré — la découverte avait raté cet
+      élément, le vrai correctif était de retirer le doublon (`#topbar-add-btn`), pas de lui
+      ajouter une bascule
+- [x] 4 zones codées, chacune avec ses tests (33 tests neufs + 1 fichier adapté)
+- [x] **Défaut hors-plan trouvé et corrigé** (zone A) : la case à cocher du sélecteur
+      s'affichait toujours cochée visuellement (bug `checked` + `setAttribute`, LOT 006,
+      jamais testé) — corrigé à son unique point d'appel
+- [x] Audit du diff final (Codex Terra, GO) : 1 précision intégrée (retour auto à
+      l'inventaire manquant sur l'ajout par autocomplétion, `addIngredientFromDb`)
+- [x] Validation unifiée verte : 357/357 Vitest, 13/13 Pytest, build OK
+- [ ] Vérification manuelle de Joel (mobile ET bureau) — seul point restant avant clôture
+
+### LOT 011 — Recettes IA riches — bilan complet
 
 Fiche : `RoadMap & Project Pipeline/LOT 011 - Recettes IA riches [A PUBLIER].md`.
 Le plus gros lot de restauration de la campagne — rend à la partie « recettes IA » la
@@ -70,6 +89,9 @@ richesse qu'elle avait dans l'app d'origine, celle que Joel utilise pour cuisine
 - **Zéro nom de modèle IA en dur** hors `src/constants.js` (recherche `gemini-`).
 - **Aucun `innerHTML`** avec du contenu venant de l'IA — rendu via `h()` uniquement.
 - **Préserver le jeton anti-course** `_aiSuggestGenId` (acquis LOT 006).
+- **Ne jamais remplacer en bloc un conteneur DOM qui porte un état vivant** (ex. le voyant
+  de synchro dans `.mh-icons`) — mise à jour chirurgicale du nœud précis, sinon un état en
+  cours (thinking/error) se réinitialise silencieusement (leçon LOT 012, zone C).
 
 ## Lots précédents — Version 5.6 (2026-07-30, en ligne)
 
@@ -89,8 +111,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **007 + 008** — ✅ **PUBLIÉS en Version 5.5 le 2026-07-30**
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011** Recettes IA riches — 🟡 **A PUBLIER** depuis le 2026-07-30, attend le 012
-- **012** Confort d'usage retrouvé — 🟢 **EN COURS** depuis le 2026-07-30, ferme la
-  check-list de campagne avec le 011, se publiera avec lui en 5.7
+- **012** Confort d'usage retrouvé — 🟡 **A PUBLIER** depuis le 2026-07-30, attend la
+  vérification manuelle de Joel ; ferme la check-list de campagne, se publiera avec le 011
+  en 5.7
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne
   (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 - **015** Réglages fiables et cohérents — PLANIFIÉ, s'exécute avant le 013
@@ -98,32 +121,40 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Vérités à ne pas perdre
 
-- **Check-list de campagne** : `Backlog/BACKLOG - Regressions de la migration.md` — le
-  LOT 011 y a coché **tout le §4 sauf la topbar** (cartes, détail, prompts, favoris, URL)
-  et le confort de génération du §3. Reste au LOT 012 : §3 restant + topbar (§4).
+- **Check-list de campagne close** : `Backlog/BACKLOG - Regressions de la migration.md` —
+  tout le §1-§4 est désormais coché ou explicitement reporté (§5, garde-fou permanent). Le
+  LOT 012 a fermé le dernier morceau (§3 restant + topbar contextuelle du §4).
 - **Le monolithe `foodapp-v5-Joel.html` est l'oracle comportemental** : on porte, on
   n'invente pas. Lire les lignes citées par chaque fiche AVANT d'écrire — et les **vérifier** :
-  au LOT 010, 10 citations de lignes sur la fiche étaient périmées ; au LOT 011, une
-  vérification a aussi tranché « voulu vs défaut » sur `areSimilar` (Ail/Ail en poudre).
+  au LOT 010, 10 citations périmées ; au LOT 011, un arbitrage « voulu vs défaut » sur
+  `areSimilar` ; au LOT 012, 8 citations périmées + une phase découverte qui avait raté un
+  élément déjà correct (`#fab-add`), trouvé seulement par l'audit de spec qui a suivi.
 - **Ne pas reperdre les acquis des LOTS 005/006** (démarrage instantané, anti-course IA,
-  sélecteur intelligent, `applyCloudState`) ni ceux des LOTS 009/010/011 (🖨️, ⛶, glissement,
-  quantités, `_aiSuggestGenId`, `AI_EMOJI_ONLY`).
-- `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
-  campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ». `.r-tag` déjà réactivé
-  par le LOT 011 : interdiction de le supprimer au LOT 014.
+  sélecteur intelligent, `applyCloudState`) ni ceux des LOTS 009/010/011/012 (🖨️, ⛶,
+  glissement, quantités, `_aiSuggestGenId`, `AI_EMOJI_ONLY`, `cycleEmoji`, topbar
+  contextuelle).
+- `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant REBRANCHÉ par la
+  campagne — ne plus jamais les traiter en « CSS mort ». `.r-tag` (LOT 011), `.tb-btn-add`/
+  `.add-results-list`/`.tb-btn.small` (LOT 012) : interdiction de les supprimer au LOT 014.
 - **`areSimilar`** (`src/utils/helpers.js`) compare désormais des mots entiers, jamais des
   fragments de texte (porté depuis l'oracle, LOT 011 hors-plan) — ne pas revenir à une
   comparaison de sous-chaînes brutes en y retouchant plus tard.
+- **`buildEmojiEditSuggestions(seed, category)`** (`js/app.js`, LOT 009 étendue au LOT 012) :
+  le 2ᵉ paramètre est optionnel, réservé aux appelants hors édition d'ingrédient (ex.
+  `cycleEmoji`) — ne jamais dupliquer une table d'emojis à côté.
 - **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
-  medium — préféré à `/ultra-audit` et à Codex Sol, retenu après comparaison avec Gemini.
-  Le LOT 011 a aussi utilisé Gemini en parallèle sur l'audit du sous-lot 11B (les deux ont
-  convergé sur le même défaut critique, sans se voir).
+  medium — préféré à `/ultra-audit` et à Codex Sol. Discipline confirmée sur tout le LOT 012 :
+  spec ET diff final systématiquement audités avant clôture, même au niveau Standard.
 
 ## Prochaine étape
 
-Coder les 4 zones du LOT 012 (A sélecteur, B clavier, C navigation, D styles) — ordre de
-risque croissant, C en dernier car c'est la seule zone à proximité des voyants de synchro
-LOT 007. Audit standard en fin de lot, ciblé sur ce risque de collision. À sa clôture :
-publication combinée 011+012 en version 5.7.
+**Aucun lot en cours.** En attente de :
+1. La vérification manuelle de Joel sur le LOT 012 (mobile ET bureau — voir le Plan de
+   test de la fiche).
+2. Son feu vert explicite pour la publication combinée LOT 011 + LOT 012 en **version 5.7**.
+
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.
+
+Après publication : prochain lot d'exécution de la campagne = **LOT 015 — Réglages fiables
+et cohérents** (s'exécute avant le 013, arbitrages déjà tranchés), sur signal de Joel.

@@ -1,6 +1,9 @@
 # LOT 012 — Confort d'usage retrouvé — SPÉCIFICATION
 
-> **Statut :** 🟢 EN COURS — branche ouverte, phase découverte faite (2026-07-30)
+> **Statut :** 🟡 A PUBLIER — 4 zones codées et testées, audit de spec + audit de diff
+> final tous deux GO (Codex Terra), check-list de campagne §1-§4 entièrement close.
+> En attente de la vérification manuelle de Joel puis d'une publication combinée avec
+> le LOT 011 (2026-07-30)
 > **Branche :** `feat/lot12-confort-usage` (chaînée depuis `feat/lot11-recettes-ia-riches`)
 > **Niveau d'audit : Léger à Standard** — aucun fichier de la liste « zones sensibles »
 > (`DOCTRINE_PRODUIT.md` §3) n'est modifié, MAIS la Zone C touche par proximité DOM les
@@ -284,16 +287,35 @@ désormais comprise : le voyant de synchro de l'oracle est STATIQUE (jamais d'é
 thinking/error), celui du LOT 007 est dynamique. Porter le remplacement en bloc de l'oracle
 casserait un comportement que l'oracle lui-même n'a jamais eu à préserver.
 
+## Audit du diff final (2026-07-30)
+
+**Codex 5.6 Terra, niveau medium — VERDICT : GO.** Diff `ddde060..HEAD` (13 fichiers,
+~1130 lignes) relu en entier. 6 points confirmés sans changement (protection du voyant
+de synchro étanche sur les 4 vues testées ; aucune référence résiduelle à
+`#topbar-add-btn` ; suppression de clé API cohérente avec le reste du flux ; distinction
+input-absent/nom-vidé correctement implémentée dans `confirmRecipeToCart` ; correctif de
+la case à cocher bien borné à son unique point d'appel ; toasts/`shoppingSource`
+conformes à l'oracle). Un point « à corriger » intégré :
+
+- **`addIngredientFromDb`** (ajout par clic sur une suggestion d'autocomplétion, Zone D)
+  n'avait pas le retour auto à l'inventaire, contrairement à `addIngredient` (formulaire
+  complet) — les deux ajoutent pourtant vraiment un ingrédient. Absent de l'oracle (ce
+  parcours n'existe pas dans le monolithe, donc pas une question de fidélité), mais
+  incohérent du point de vue de Joel : les deux chemins d'ajout se comportent maintenant
+  pareil. Corrigé + test dédié.
+
 ## Plan de test
 
-- [ ] Unitaires : `cycleEmoji` (cycle circulaire, liste de secours, réutilise
+- [x] Unitaires : `cycleEmoji` (cycle circulaire, liste de secours, réutilise
       `buildEmojiEditSuggestions`) ; validation du sélecteur avec nom/emoji édités ;
       `autoEmoji` sur extra ; bascule `hidden` du FAB ＋ selon la vue ; resets
       `shoppingSource` (stock retrouvé + retrait panier) ; **voyant de synchro
       (`#sync-indicator-mobile`) qui SURVIT à un changement de vue pendant un état
       `thinking`/`error`** — le point le plus à risque de la zone C, cf. §C ;
       toasts panier/suppression émis (PAS stock) ; titres/sous-titres = table oracle §C
-      au caractère près
+      au caractère près — **33 tests neufs dans 3 fichiers** (picker-row-editing 8,
+      keyboard-gestures 5, topbar-context 20), + `ai-ingredient-fidelity` adapté
+      (mêmes 7 cas, nouvelle structure DOM)
 - [ ] Manuels (Joel, mobile ET bureau) : 🎲 change l'emoji ; nom corrigé conservé dans la
       liste ; Entrée partout ; filtres scrollables au doigt ; barre supérieure contextuelle
       sur les 6 vues (pantry/shopping/ai/favorites/export/add) ; retour auto après ajout ;
@@ -302,9 +324,11 @@ casserait un comportement que l'oracle lui-même n'a jamais eu à préserver.
 
 ## Critères d'acceptation
 
-- [ ] Validation unifiée verte + build OK ; audit Léger/Standard rendu
-- [ ] Cocher les points §3 dans la fiche régressions — **fin de la restauration : tous les
-      points §1-§4 de la fiche doivent être cochés ou explicitement reportés**
+- [x] Validation unifiée verte + build OK ; audit Léger/Standard rendu — 357/357 Vitest,
+      13/13 Pytest, build OK ; audit de spec GO + audit de diff final GO (Codex Terra)
+- [x] Cocher les points §3 dans la fiche régressions — **fin de la restauration : tous les
+      points §1-§4 de la fiche doivent être cochés ou explicitement reportés** — fait,
+      la check-list de campagne est désormais entièrement cochée ou reportée (§5)
 
 ## Traçabilité
 

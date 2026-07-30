@@ -5,6 +5,7 @@ import {
     renderTopbar,
     updateBadges,
     addIngredient,
+    addIngredientFromDb,
     addExtraIngredient,
     saveApiKey,
     openEnhancedCartPicker,
@@ -150,6 +151,20 @@ describe('LOT 012 / zone C — retour auto, emoji deviné, clé API', () => {
         vi.useFakeTimers();
         try {
             addIngredient();
+            expect(state.currentView).toBe('add'); // pas encore
+            vi.advanceTimersByTime(500);
+            expect(state.currentView).toBe('pantry');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("retour automatique aussi depuis l'ajout par suggestion d'autocomplétion " +
+       "(addIngredientFromDb) — même geste qu'un ajout manuel du point de vue de Joel, " +
+       "trouvé par l'audit du diff final", () => {
+        vi.useFakeTimers();
+        try {
+            addIngredientFromDb({ name: 'Céleri', emoji: '🥬', category: 'Légumes' });
             expect(state.currentView).toBe('add'); // pas encore
             vi.advanceTimersByTime(500);
             expect(state.currentView).toBe('pantry');
