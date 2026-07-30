@@ -20,10 +20,13 @@ attaque le lot 09 »). Branche `feat/lot9-boutons-morts` ouverte depuis `main`
 | 3. Bouton imprimer + swipe-to-close | C7 | ✅ Codé + testé |
 | 4. Panneau Informations Système (3 champs restants) | C8 | ✅ Codé + testé |
 
-**Prêt à publier** : audit Standard Codex GO (2 passages : NO-GO puis GO après correction
-de 2 CRITIQUE + durcissement) et vérification navigateur de Joel faites. 112/112 tests,
-13/13 Pytest, build OK. Reste uniquement le feu vert explicite de Joel pour merger dans
-`main` (VERROU PRODUCTION). Détail complet : fiche LOT 009 §13-§14.
+**Prêt à publier, publication reportée par choix de Joel (2026-07-30)** : audit Standard
+Codex GO (2 passages : NO-GO puis GO après correction de 2 CRITIQUE + durcissement) et
+vérification navigateur de Joel faites. 112/112 tests, 13/13 Pytest, build OK. Joel a
+confirmé les commits mais a explicitement dit « pas pour déjà publier en 5.6 » — le lot
+reste sur `feat/lot9-boutons-morts` (statut `[A PUBLIER]`), **aucun merge vers `main` tant
+qu'il ne redonne pas le feu vert au moment même** (VERROU PRODUCTION — une confirmation
+passée ne vaut pas pour la suivante). Détail complet : fiche LOT 009 §13-§14.
 
 **Rappel synchro (LOT 007 en production)** : point de vigilance à l'usage — les
 tests à deux appareils du §6.2 ont été levés par décision de Joel ; au moindre
