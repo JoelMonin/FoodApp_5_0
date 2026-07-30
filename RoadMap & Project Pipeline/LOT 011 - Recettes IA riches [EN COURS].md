@@ -142,6 +142,8 @@ n'existaient pas dans le monolithe) :**
   règles de cohérence de l'oracle (titre exact, temps incluant repos, quantités réalistes,
   un seul emoji, repère sensoriel par étape, pas de formulation marketing).
   **La signature doit être étendue** — elle ne reçoit pas le stock aujourd'hui.
+  **Ajout hors oracle validé par Joel (§9, Q1)** : une consigne demandant de conserver le
+  nombre de personnes indiqué dans le texte source, au lieu de retomber sur 2.
 
 **Règles SSOT impératives :** les modèles restent gouvernés par `AI_ROLES`
 (`src/constants.js`) — aucun nom de modèle en dur ; les catégories viennent de `CATEGORIES`
@@ -217,10 +219,10 @@ retourné : `text.split('\n')[0].replace(/^#+\s*/, '').trim()`.
 Conserver le contrat DOM actuel : bouton `#paste-fetch-btn`, champ cible `#paste-content`,
 champ titre `#paste-title`.
 
-**⚠️ Point à arbitrer (§9, Q2)** : l'oracle n'a **AUCUN repli** — en cas d'échec il affiche
-seulement un message (`Erreur de lecture. Vérifiez l'URL ou copiez le texte manuellement.`).
-La version initiale de cette fiche parlait de « conserver un repli » : c'est une addition,
-pas une restauration.
+**Comportement d'échec — ARBITRÉ (§9, Q2) : AUCUN repli.** Joel a tranché le 2026-07-30 :
+on s'en tient à l'oracle. `allorigins` est **remplacé**, pas conservé en secours. En cas
+d'échec, message littéral de l'oracle :
+`Erreur de lecture. Vérifiez l'URL ou copiez le texte manuellement.`
 
 ### 7. Favoris riches
 
@@ -239,8 +241,9 @@ Champ de date : l'oracle stocke bien `date: new Date().toLocaleDateString('fr-FR
 l'ajout. Styles `.fav-card`, `.fav-date`, `.fav-excerpt`, `.fav-empty*` déjà présents,
 orphelins, `css/style.css:1746-1842`.
 
-**⚠️ Point à arbitrer (§9, Q3)** : dans l'oracle la date est stockée mais **jamais affichée**
-(zéro lecture dans tout le monolithe). L'afficher est une addition.
+**Affichage de la date — ARBITRÉ (§9, Q3) : OUI.** Dans l'oracle la date était stockée mais
+**jamais affichée** (zéro lecture dans tout le monolithe). Joel a tranché le 2026-07-30 :
+on la stocke ET on l'affiche, dans `.fav-date` qui existe déjà et attend ce champ.
 
 ## Pièges connus
 
@@ -369,17 +372,27 @@ Reader · date de sauvegarde des favoris · boutons directs par carte.
 
 ---
 
-## 9. ARBITRAGES EN ATTENTE DE JOEL
+## 9. ARBITRAGES DE JOEL — TRANCHÉS le 2026-07-30
 
-La phase découverte a établi que **trois points de cette fiche décrivent des NOUVEAUTÉS et
-non des restaurations**. Règle du projet : « on porte, on n'invente pas » — donc ils ne sont
-pas exécutés sans accord explicite.
+La phase découverte a établi que **trois points de cette fiche décrivaient des NOUVEAUTÉS et
+non des restaurations**. Règle du projet : « on porte, on n'invente pas ». Soumis à Joel,
+tranchés :
 
-| # | Point | Réalité de l'oracle | Recommandation |
+| # | Point | Réalité de l'oracle | **Décision de Joel** |
 |---|---|---|---|
-| Q1 | « Respecter le nombre de personnes du texte source » dans le prompt de collage | Aucune instruction de ce type ; `"people":2` n'est qu'un exemple de format | **Ajouter** — coût nul, évite une recette collée pour 6 qui repart à 2 |
-| Q2 | Repli si Jina Reader échoue | Aucun repli — seulement un message d'erreur | **Ajouter** un repli sur le service actuel (allorigins), avec message explicite si les deux échouent |
-| Q3 | Date de sauvegarde des favoris **affichée** | Stockée, jamais affichée (0 lecture) | **Ajouter** — le style `.fav-date` existe déjà et attend ce champ |
+| Q1 | « Respecter le nombre de personnes du texte source » dans le prompt de collage | Aucune instruction de ce type ; `"people":2` n'est qu'un exemple de format | ✅ **RETENU** — la consigne est ajoutée au prompt de collage |
+| Q2 | Repli si Jina Reader échoue | Aucun repli — seulement un message d'erreur | ❌ **ÉCARTÉ** — on s'en tient à l'oracle : Jina Reader seul, et en cas d'échec un message explicite invitant à copier le texte à la main. **Le code allorigins actuel est donc REMPLACÉ, pas conservé en secours.** |
+| Q3 | Date de sauvegarde des favoris **affichée** | Stockée, jamais affichée (0 lecture) | ✅ **RETENU** — date stockée à l'ajout ET affichée dans `.fav-date` |
+
+**Conséquence directe de Q2 sur le chantier 6 :** `fetchRecipeFromUrl` ne garde aucune trace
+d'`allorigins`. Un seul chemin, un seul point de défaillance, message d'erreur littéral de
+l'oracle : `Erreur de lecture. Vérifiez l'URL ou copiez le texte manuellement.`
+
+## 10. AUDIT DE SPEC — AVANT LA PREMIÈRE LIGNE DE CODE
+
+Décidé par Joel le 2026-07-30, comme au LOT 010 (où l'audit de spec avait rendu un NO-GO
+avec 5 points bloquants réels). Auditeur : Codex 5.6 Terra, niveau medium.
+Verdict et intégration : à compléter à réception.
 
 ---
 
