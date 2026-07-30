@@ -85,4 +85,24 @@ describe('Édition d\'icône d\'ingrédient (LOT 009, casse C1)', () => {
     expect(suggestions.length).toBeGreaterThan(0);
     expect(suggestions).toContain('🍎'); // emoji de la catégorie Fruits (getCategoryEmoji)
   });
+
+  it('un ingrédient qui ne correspond QU\'À LUI-MÊME offre quand même PLUSIEURS alternatives ' +
+     '(audit Codex : « Banane » n\'avait qu\'1 tuile, sa propre icône — aucun vrai choix)', () => {
+    const banane = DEFAULT_DB.find(i => i.name === 'Banane');
+    expect(banane).toBeTruthy(); // l'hypothèse du test : un seul match canonique attendu
+    Object.assign(state.ingredients[0], { id: 'ing_1', name: banane.name, category: banane.category });
+    openEditEmoji('ing_1');
+    const suggestions = buildEmojiEditSuggestions(banane.name);
+    expect(suggestions).toContain(banane.emoji); // son icône actuelle reste proposée...
+    expect(suggestions.length).toBeGreaterThan(1); // ...mais jamais SEULE : un vrai choix existe
+  });
+
+  it('le socle générique de repli est un SEUL et même tableau, jamais dupliqué (SSOT, audit Codex)', () => {
+    // buildEmojiEditSuggestions sans aucune correspondance DOIT au moins contenir TOUT le
+    // socle générique partagé — pas une seconde copie divergente qui aurait dérivé.
+    openEditEmoji('ing_1');
+    const suggestions = buildEmojiEditSuggestions('xyzIntrouvableDansLeCatalogue123');
+    const generic = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
+    generic.forEach(e => expect(suggestions).toContain(e));
+  });
 });

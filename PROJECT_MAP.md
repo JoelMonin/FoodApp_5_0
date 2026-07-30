@@ -42,6 +42,7 @@
 - `tests/sync-engine.test.js` : Moteur de synchro bidirectionnelle (LOT 007 — temporisation, drapeau, anti-boucle, retry).
 - `tests/emoji-edit.test.js` : Édition d'icône d'ingrédient (LOT 009 — grille immédiate, clic = applique/sauvegarde/ferme).
 - `tests/system-info.test.js` : Panneau Informations Système (LOT 009 — clé API masquée, utilisateur cloud, stockage local).
+- `tests/swipe-close.test.js` : Glissement pour fermer un modal (LOT 009 — survit au rendu dynamique, geste isolé du précédent).
 - `tests/gemini.test.js` : Mocks et tests du service IA Gemini.
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.

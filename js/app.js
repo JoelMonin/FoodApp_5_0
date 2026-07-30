@@ -516,7 +516,8 @@ export {
     openEditEmoji,
     buildEmojiEditSuggestions,
     applyEditedEmoji,
-    updateSystemInfo
+    updateSystemInfo,
+    initSwipeToClose
 };
 
 function renderCurrentView() {
@@ -1348,22 +1349,29 @@ function openEditEmoji(id) {
     openModal('modal-edit-emoji');
 }
 
+// Socle générique de secours pour les suggestions d'emoji — SSOT unique, partagé
+// par `updateEmojiSuggestions` (flux Ajouter) et `buildEmojiEditSuggestions` (flux
+// Édition, LOT 009). Ne JAMAIS dupliquer cette liste ailleurs.
+const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
+
 /**
  * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
  * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
- * de table d'emojis dupliquée (SSOT). Repli sur l'emoji de catégorie + un socle
- * générique quand le nom ne correspond à rien (ingrédient ajouté manuellement).
+ * de table d'emojis dupliquée (SSOT, `GENERIC_EMOJI_FALLBACK` partagé avec
+ * `updateEmojiSuggestions`). Complète TOUJOURS avec l'emoji de catégorie puis le
+ * socle générique tant qu'il manque des alternatives : un ingrédient dont le nom
+ * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
+ * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
+ * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
  */
 function buildEmojiEditSuggestions(seed) {
     const s = (seed || '').toLowerCase();
     const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
-    let emojis = [...new Set(matches.map(i => i.emoji))].slice(0, 15);
-    if (emojis.length === 0) {
-        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-        const generic = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
-        emojis = [...new Set([ing ? getCategoryEmoji(ing.category) : null, ...generic].filter(Boolean))];
-    }
-    return emojis;
+    const fromMatches = matches.map(i => i.emoji);
+    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
+    const categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
+    return emojis.slice(0, 15);
 }
 
 function renderEmojiEditGrid(seed) {
@@ -1464,8 +1472,7 @@ function updateEmojiSuggestions(val) {
     const container = document.getElementById('emoji-suggestions');
     if (!container) return;
     if (!val) {
-        const defaults = ['🧂','🧅','🧄','🥦','🥩','🍎','🥚','🥛'];
-        container.replaceChildren(...defaults.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
+        container.replaceChildren(...GENERIC_EMOJI_FALLBACK.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
         return;
     }
     const s = val.toLowerCase();
@@ -1932,6 +1939,10 @@ function initSwipeToClose(modalId) {
         // Allow swipe from the top 100px (header/drag handle)
         if (touch.clientY - rect.top < 100) {
             startY = touch.clientY;
+            // Repart de zéro à CHAQUE geste (audit Codex, LOT 009) : sans ce reset,
+            // currentY gardait la valeur du geste PRÉCÉDENT — un simple toucher sans
+            // glissement après une fermeture réussie pouvait re-fermer aussitôt.
+            currentY = touch.clientY;
             isSwiping = true;
             modal.style.transition = 'none';
         }
