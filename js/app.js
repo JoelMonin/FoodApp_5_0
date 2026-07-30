@@ -80,11 +80,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+  initFieldEnterShortcuts();
+  initChipsRowTouchScroll();
+
   // Synchro cloud : moteur bidirectionnel (LOT 007). Le pull de demarrage part en
   // arriere-plan — l'ecran ne depend jamais du reseau (acquis LOT 005). Les
   // garde-fous d'empreinte (donnees locales + formulaire IA) qui vivaient ici sont
   // GENERALISES a tous les pulls, dans performSyncPull.
   initSyncEngine();
+
+  initSearchAutofillGuard();
 });
 
 window.addEventListener('stateUpdated', () => {
@@ -568,7 +573,11 @@ export {
     generateSuggestions,
     // LOT 012 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
     cycleEmoji,
-    confirmRecipeToCart
+    confirmRecipeToCart,
+    initFieldEnterShortcuts,
+    initChipsRowTouchScroll,
+    initSearchAutofillGuard,
+    clearSearch
 };
 
 function renderCurrentView() {
@@ -2475,6 +2484,42 @@ function initKeyboardShortcuts() {
             }
         }
     });
+}
+
+/**
+ * LOT 012, zone B (oracle l.6744/l.6746) : Entree sur un champ PRECIS, pas un raccourci
+ * global par modale — la modale "Coller une recette" a plusieurs actions possibles
+ * (recuperer l'URL, transformer par IA, sauvegarder), donc contrairement aux modales
+ * gerees par `initKeyboardShortcuts` il n'y a pas UNE seule action a associer a la
+ * touche. Ecouteurs dedies sur des champs statiques du HTML, fonction separee (et non
+ * repliee dans `initKeyboardShortcuts`) pour rester ré-appelable isolement en test sans
+ * ré-empiler un listener global sur `window` a chaque appel.
+ */
+function initFieldEnterShortcuts() {
+    document.getElementById('ez-input')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addExtraIngredient();
+    });
+    document.getElementById('paste-title')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('paste-content')?.focus();
+    });
+}
+
+/** LOT 012, zone B (oracle l.6790-6793) : sans ce stopPropagation, un balayage horizontal
+ * pour faire defiler les puces de filtre remonte au conteneur parent et fait defiler
+ * toute la page verticalement (mobile). `.chips-row` est statique dans le HTML — un seul
+ * passage suffit, comme dans l'oracle. */
+function initChipsRowTouchScroll() {
+    document.querySelectorAll('.chips-row').forEach(el => {
+        el.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+    });
+}
+
+/** LOT 012, zone B (oracle l.6773-6781, "FINAL OVERRIDE") : le remplissage automatique du
+ * navigateur peut pre-remplir les barres de recherche avant que ce delai ne s'ecoule ;
+ * `clearSearch()` (deja utilisee par la croix d'effacement) vide les deux champs et
+ * resynchronise `state.search` avec ce que Joel voit vraiment. */
+function initSearchAutofillGuard() {
+    setTimeout(() => clearSearch(), 100);
 }
 
 const resetCart = Actions.resetCart;

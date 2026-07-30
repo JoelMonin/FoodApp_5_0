@@ -365,6 +365,15 @@
       border-color: var(--terra)
     }
 
+    /* LOT 012, zone D : variante reduite, jamais stylee jusqu'ici — seul usage actuel,
+       le bouton "Estimer le Nutri-Score" (src/ui/recipe.js), qui n'a pas besoin de la
+       meme presence visuelle qu'une action principale de la topbar. */
+    .tb-btn.small {
+      padding: 5px 10px;
+      font-size: 12px;
+      gap: 4px;
+    }
+
     .tb-icon-btn {
       width: 36px;
       height: 36px;
@@ -2010,6 +2019,36 @@
 
     .form-input:focus {
       border-color: var(--green)
+    }
+
+    /* LOT 012, zone D : autocomplétion du formulaire d'ajout, jamais stylée jusqu'ici
+       (texte brut sans mise en forme). `:not(:empty)` évite un cadre vide affiché quand
+       aucune suggestion n'est proposée — le conteneur est toujours présent dans le HTML. */
+    .add-results-list {
+      margin-top: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      border-radius: var(--r-sm);
+    }
+
+    .add-results-list:not(:empty) {
+      border: 1.5px solid var(--border);
+    }
+
+    .add-res-item {
+      padding: 9px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+
+    .add-res-item:last-child {
+      border-bottom: none;
+    }
+
+    .add-res-item:hover {
+      background: var(--cream);
     }
 
     .form-select {
