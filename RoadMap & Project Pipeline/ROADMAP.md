@@ -25,7 +25,7 @@ fonctionnelle à 100 %.
 | 6 | **012 — Confort d'usage retrouvé** | 🎲 emojis, clavier, topbar contextuelle, ~20 gestes | 5.7 |
 | 7 | **015 — Réglages fiables et cohérents** | Chaque bouton de Réglages fait ce qu'il annonce (copies, sauvegardes, reset) | 5.8 |
 | 8 | **013 — Filet de tests UI** | Figer le comportement restauré AVANT la refonte | 5.8 |
-| 9 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **6.0** |
+| 9 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **5.9** |
 
 La check-list de campagne est `Backlog/BACKLOG - Regressions de la migration.md` : chaque lot
 y coche ses points ; à la fin du LOT 012, tout §1-§4 doit être coché ou explicitement reporté.
@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BEN%20COURS%5D.md) | Recettes IA riches (phase découverte faite, ancrages vérifiés) | **EN COURS** | `feat/lot11-recettes-ia-riches` |
+| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BA%20PUBLIER%5D.md) | Recettes IA riches (7 chantiers codés, 2 sous-lots audités, vérifié en navigateur) | **A PUBLIER** — attend le LOT 012 | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |
 | [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BPLANIFIE%5D.md) | Réglages fiables et cohérents (arbitrages tranchés le 2026-07-30) — s'exécute AVANT le 013 | PLANIFIÉ | `feat/lot15-reglages-fiables` |
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |

@@ -9,48 +9,51 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 011 — Recettes IA riches** — ouvert le **2026-07-30**.
-Branche : `feat/lot11-recettes-ia-riches` (partie de `main` en 5.6).
-Fiche : `RoadMap & Project Pipeline/LOT 011 - Recettes IA riches [EN COURS].md`.
-**Niveau d'audit : DUR** — touche `src/services/gemini.js`, zone sensible
-(`DOCTRINE_PRODUIT.md` §3). Version visée : **5.7** (avec le LOT 012).
+Aucun — **LOT 011 terminé, validé et vérifié en navigateur par Joel le 2026-07-30**,
+statut `[A PUBLIER]`. Il attend le LOT 012 pour une publication combinée en **version
+5.7**, comme les paires précédentes (007+008→5.5, 009+010→5.6). Prochaine étape :
+ouvrir le **LOT 012 — Confort d'usage retrouvé** sur signal de Joel.
 
-C'est le plus gros lot de restauration de la campagne : il rend à la partie « recettes IA »
-la richesse qu'elle avait dans l'app d'origine — c'est la partie que Joel utilise pour
-cuisiner.
+### LOT 011 — Recettes IA riches — bilan complet
 
-### Suivi des 7 chantiers
+Fiche : `RoadMap & Project Pipeline/LOT 011 - Recettes IA riches [A PUBLIER].md`.
+Le plus gros lot de restauration de la campagne — rend à la partie « recettes IA » la
+richesse qu'elle avait dans l'app d'origine, celle que Joel utilise pour cuisiner.
+
+**Les 7 chantiers, tous codés et testés :**
 
 | # | Chantier | État |
 |---|---|---|
-| 1 | Cartes de résultats IA complètes (méta, pitch, tags stock colorés, boutons directs) | ✅ codé (11B) |
-| 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ✅ codé (11B) — 4 acquis 009/010 vérifiés par test (sauf 🖨️/⛶, à vérifier à la main) |
-| 3 | Prompts et appels IA re-blindés (+ effort IA adapté par tâche, demande Joel du 2026-07-30) | ✅ codé (11A) |
-| 4 | Mode 🎲 « recette aléatoire » complet | ✅ codé (11A) |
-| 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ✅ codé (11B) — les 7 chantiers du lot sont maintenant tous codés |
-| 6 | Récupération d'URL propre (Jina Reader + titre auto) | ✅ codé (11A) |
-| 7 | Favoris riches (vignette, tags, boutons, date de sauvegarde) | ✅ codé (11B) — inclut la restauration de « Sauvegarder tel quel » (arbitrage A1) |
+| 1 | Cartes de résultats IA complètes | ✅ |
+| 2 | Détail de recette complet (4 acquis 009/010 vérifiés, dont 🖨️/⛶ en navigateur par Joel) | ✅ |
+| 3 | Prompts et appels IA re-blindés | ✅ |
+| 4 | Mode 🎲 « recette aléatoire » complet | ✅ |
+| 5 | Confort de génération | ✅ |
+| 6 | Récupération d'URL propre (Jina Reader) | ✅ |
+| 7 | Favoris riches (+ restauration « Sauvegarder tel quel », arbitrage A1) | ✅ |
 
-**Étapes de gouvernance :**
-- [x] Fiche lue, branche créée
-- [x] Phase découverte (3 explorateurs : ancrages oracle, chaîne IA, rendu/favoris)
-- [x] Audit de spec AVANT code — duel Gemini + Codex Terra, tous deux NO-GO, 8 points
-      intégrés après contre-vérification, 2 défauts trouvés en plus (créativité inopérante,
-      conflit prompt/tests), 6 arbitrages tranchés par Joel
-- [x] **Sous-lot 11A (moteur : chantiers 3, 4, 6) codé, audité (Codex Terra, NO-GO puis
-      GO), 2 défauts réels corrigés** (paramètre IA obsolète toujours envoyé ; deux
-      générations concurrentes pouvaient corrompre les réglages sauvegardés de Joel) —
-      253/253 Vitest, 13/13 Pytest, build OK
-- [ ] Sous-lot 11B (rendu : chantiers 1, 2, 5, 7) — EN COURS. C'est là que les 4 acquis
-      009/010 doivent être rejoués (bouton 🖨️, plein écran, glissement, quantités)
-- [ ] Validation unifiée finale + build OK
-- [ ] Feu vert explicite de Joel pour la publication
+**Gouvernance complète :**
+- [x] Phase découverte (3 explorateurs) puis audit de spec en duel (Gemini + Codex Terra,
+      NO-GO, 8 points intégrés, 6 arbitrages de Joel)
+- [x] Sous-lot 11A (moteur) : codé, audité (Codex Terra, NO-GO puis GO), 2 défauts réels
+      corrigés (paramètre IA obsolète ; générations concurrentes pouvant corrompre les
+      réglages sauvegardés de Joel)
+- [x] Sous-lot 11B (rendu) : codé, audité (Codex Terra + Gemini en parallèle, NO-GO puis
+      GO), 2 défauts réels corrigés (bouton « Sauvegarder tel quel » resté inatteignable
+      malgré l'arbitrage A1 ; recette IA tronquée pouvant s'afficher vide)
+- [x] **Correctif hors-plan** trouvé par Joel en test réel : `areSimilar` confondait des
+      ingrédients sans rapport par fragment de texte (« Eau »≈« Agneau », « Oeuf »≈« Bœuf »)
+      — corrigé en portant l'algorithme mot-à-mot de l'oracle. Point adjacent identifié
+      (« Ail »/« Ail en poudre », un vrai défaut, pas un choix voulu comme dit à tort au
+      premier passage) : **laissé tel quel sur décision de Joel**, à revisiter si ça gêne
+      à l'usage
+- [x] Vérification manuelle de Joel en navigateur (imprimer, plein écran, parcours complet)
+- [x] Validation unifiée verte : 324/324 Vitest, 13/13 Pytest, build OK
 
-### Critères d'acceptation qui ne se négocient pas
+### Critères d'acceptation qui ne se négocient pas (rappel pour les lots suivants)
 
-- **Rejouer objectivement les acquis 009/010** après la réécriture de l'écran de recette :
-  bouton 🖨️, plein écran + sortie par Échap, fermeture par glissement, recalcul des
-  quantités −/+ avec aller-retour exact. Ce sont des critères, pas des rappels.
+- **Rejouer objectivement les acquis** d'un lot précédent avant de clore un chantier qui
+  touche le même composant partagé.
 - **Zéro nom de modèle IA en dur** hors `src/constants.js` (recherche `gemini-`).
 - **Aucun `innerHTML`** avec du contenu venant de l'IA — rendu via `h()` uniquement.
 - **Préserver le jeton anti-course** `_aiSuggestGenId` (acquis LOT 006).
@@ -72,33 +75,41 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 - **007 + 008** — ✅ **PUBLIÉS en Version 5.5 le 2026-07-30**
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
-- **011** Recettes IA riches — 🔵 **EN COURS** depuis le 2026-07-30
-- **012** Confort d'usage retrouvé — PLANIFIÉ, ferme la check-list de campagne avec le 011
-- **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
+- **011** Recettes IA riches — 🟡 **A PUBLIER** depuis le 2026-07-30, attend le 012
+- **012** Confort d'usage retrouvé — PLANIFIÉ, ferme la check-list de campagne avec le 011,
+  se publiera avec lui en 5.7
+- **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne
+  (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 - **015** Réglages fiables et cohérents — PLANIFIÉ, s'exécute avant le 013
 - **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29**
 
 ## Vérités à ne pas perdre
 
-- **Check-list de campagne** : `Backlog/BACKLOG - Regressions de la migration.md` — le LOT 011
-  doit y cocher **tout le §4 sauf la topbar** (cartes, détail, prompts, favoris, URL) et le
-  confort de génération du §3.
+- **Check-list de campagne** : `Backlog/BACKLOG - Regressions de la migration.md` — le
+  LOT 011 y a coché **tout le §4 sauf la topbar** (cartes, détail, prompts, favoris, URL)
+  et le confort de génération du §3. Reste au LOT 012 : §3 restant + topbar (§4).
 - **Le monolithe `foodapp-v5-Joel.html` est l'oracle comportemental** : on porte, on
   n'invente pas. Lire les lignes citées par chaque fiche AVANT d'écrire — et les **vérifier** :
-  au LOT 010, 10 citations de lignes sur la fiche étaient périmées.
+  au LOT 010, 10 citations de lignes sur la fiche étaient périmées ; au LOT 011, une
+  vérification a aussi tranché « voulu vs défaut » sur `areSimilar` (Ail/Ail en poudre).
 - **Ne pas reperdre les acquis des LOTS 005/006** (démarrage instantané, anti-course IA,
-  sélecteur intelligent, `applyCloudState`).
-- `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
-  campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ». **Le LOT 011 réactive
-  `.r-tag` : interdiction de le supprimer au LOT 014.**
+  sélecteur intelligent, `applyCloudState`) ni ceux des LOTS 009/010/011 (🖨️, ⛶, glissement,
+  quantités, `_aiSuggestGenId`, `AI_EMOJI_ONLY`).
+- `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
+  campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ». `.r-tag` déjà réactivé
+  par le LOT 011 : interdiction de le supprimer au LOT 014.
+- **`areSimilar`** (`src/utils/helpers.js`) compare désormais des mots entiers, jamais des
+  fragments de texte (porté depuis l'oracle, LOT 011 hors-plan) — ne pas revenir à une
+  comparaison de sous-chaînes brutes en y retouchant plus tard.
 - **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
-  medium — préféré à `/ultra-audit` et à Codex Sol, retenu après comparaison avec Gemini
-  (Terra a trouvé un défaut réel que Gemini avait manqué sur le chantier 3 du LOT 010).
+  medium — préféré à `/ultra-audit` et à Codex Sol, retenu après comparaison avec Gemini.
+  Le LOT 011 a aussi utilisé Gemini en parallèle sur l'audit du sous-lot 11B (les deux ont
+  convergé sur le même défaut critique, sans se voir).
 
 ## Prochaine étape
 
-Terminer la **phase découverte** du LOT 011, en tirer un plan d'attaque qui réutilise
-explicitement les ressources existantes (`matchIngredientToStock`, `h()`, `AI_ROLES`,
-`CATEGORIES`, styles `.r-tag`), puis le faire auditer AVANT d'écrire du code.
+Ouvrir le **LOT 012 — Confort d'usage retrouvé** sur signal de Joel
+(`/new-lot 012 confort-usage`), branche chaînée depuis `feat/lot11-recettes-ia-riches`
+(comme 010 depuis 009). À sa clôture : publication combinée 011+012 en version 5.7.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.

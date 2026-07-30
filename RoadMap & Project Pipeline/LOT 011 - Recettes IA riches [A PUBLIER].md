@@ -1,6 +1,8 @@
 # LOT 011 — Recettes IA riches — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-07-30, après publication de la 5.6
+> **Statut :** 🟡 A PUBLIER — 7 chantiers codés, 2 sous-lots audités et corrigés,
+> vérification manuelle de Joël faite (2026-07-30). En attente du LOT 012 pour
+> publication combinée en 5.7, comme les paires précédentes.
 > **Branche :** `feat/lot11-recettes-ia-riches` (partie de `main` en 5.6)
 > **Niveau d'audit : DUR** — touche `src/services/gemini.js` (zone sensible,
 > `DOCTRINE_PRODUIT.md` §3)
@@ -638,9 +640,17 @@ coïncidence orthographique, sans aucun rapport avec le sens. L'oracle, lui, com
 de la liste de mots) — une régression de la migration, jamais rattrapée, antérieure à ce
 lot mais découverte en le testant.
 
-**Second cas relevé par Joël (« Ail » / « Ail en poudre »), vérifié : PAS un bug.**
-L'oracle fait déjà ce rapprochement volontairement (tous les mots du plus court se
-retrouvent dans le plus long). Confirmé, non touché.
+**Second cas relevé par Joël (« Ail » / « Ail en poudre »), à nuancer — correction de
+Joël (2026-07-30) sur ma première réponse.** L'oracle produit bien ce rapprochement (tous
+les mots du plus court se retrouvent dans le plus long), mais rien ne prouve que ce soit
+un choix DÉLIBÉRÉ pour ce cas précis plutôt qu'un effet de bord d'une règle générale
+pensée pour des variétés (« Tomates » / « Tomates cerises »), pas pour des changements de
+forme (frais/poudre/moulu/séché/haché/surgelé). **C'est bien un défaut, pas un
+comportement voulu** — Joël a explicitement corrigé ma première caractérisation. Décision
+de Joël : **laissé tel quel pour l'instant**, effet jugé bénin (évite d'acheter un
+article déjà possédé sous une autre forme) ; à traiter dans un lot dédié si l'usage réel
+s'avère gênant — nécessiterait une liste de mots de changement de forme qui bloquent le
+rapprochement même si le reste correspond.
 
 **Arbitrage Joël (2026-07-30) :** corriger maintenant, dans ce lot, plutôt que de
 reporter — la fonction est partagée par plusieurs écrans (détection de doublons à
