@@ -233,6 +233,17 @@ l'arbitrage de Joel ci-dessous.
 > maximum** (`½ citron` × 3 → `1,5 citron`). À l'échelle 1, la chaîne d'origine reste
 > **inchangée** (`½` reste `½`), ce qui garantit l'aller-retour exact.
 
+**BUG RÉEL trouvé par Joel en test navigateur (2026-07-30, après commit `28859da`) :**
+quantités affichées sans unité (« 200 » au lieu de « 200 g ») et, dans la liste de courses,
+une unité seule (« g », « pièce », « ml », « brins ») à la place de l'emoji. Cause racine :
+le prompt IA modulaire (`src/services/gemini.js`) avait perdu les indications de format que
+l'oracle donnait explicitement (`foodapp-v5-Joel.html` l.5214 : `"q":"[QUANTITÉ+UNITÉ]"`,
+`"e":"[1 EMOJI]"`) — sans elles, l'IA improvisait. Corrigé au commit `9dc5d08` : indications
+restaurées + filet de sécurité (`openEnhancedCartPicker`, `js/app.js`) qui rejette tout champ
+emoji ne ressemblant pas à un vrai emoji Unicode, même si l'IA dévie encore un jour.
+**Revérifié par Joel en navigateur après correctif : confirmé bon** (« c mieux » — captures
+d'écran d'une nouvelle recette, unités et emojis corrects sur les deux écrans).
+
 ### 6. Menu « Moteur Tâches Complexes » — TRANCHÉ par Joel (2026-07-29)
 
 Le choix de l'utilisateur y est écrasé à chaque chargement (`sanitizeGlobalState` force les
