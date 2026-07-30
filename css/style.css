@@ -2663,8 +2663,9 @@
     }
 
     /* Recipe detail modal — styles reels (le JS insere .modal-content directement dans
-       .modal-overlay via replaceChildren, en contournant le wrapper statique .modal ;
-       ces classes mh- et rd- sont celles reellement utilisees par src/ui/recipe.js,
+       .modal-overlay via replaceChildren ; depuis le LOT 009, ce modal n'a plus AUCUN
+       wrapper statique .modal dans index.html, .modal-content est la seule racine.
+       Ces classes mh- et rd- sont celles reellement utilisees par src/ui/recipe.js,
        contrairement aux .recipe-detail / .recipe-steps ci-dessus, orphelines) */
     .modal-content {
       background: white;
@@ -3155,10 +3156,11 @@
       padding: 0;
     }
 
-    .modal-overlay.recipe-fullscreen .modal {
+    .modal-overlay.recipe-fullscreen .modal-content {
       width: 100vw;
       height: 100vh;
       max-width: none;
+      max-height: none;
       border-radius: 0;
     }
 
@@ -3167,14 +3169,14 @@
     }
 
     /* Cooking Mode Optimizations */
-    .modal-overlay.recipe-fullscreen .modal-title {
+    .modal-overlay.recipe-fullscreen .mh-title {
       font-size: 1.4rem;
     }
-    .modal-overlay.recipe-fullscreen .recipe-detail-content {
+    .modal-overlay.recipe-fullscreen .rd-instructions {
       font-size: 1.15rem;
       line-height: 1.65;
     }
-    .modal-overlay.recipe-fullscreen .rd-ing-list li {
+    .modal-overlay.recipe-fullscreen .rd-ingredients li {
       padding: 8px 0;
       border-bottom: 1px solid rgba(0,0,0,0.05);
     }
@@ -3224,10 +3226,11 @@
       overflow-y: auto;
     }
 
-    .modal-overlay:fullscreen .modal {
+    .modal-overlay:fullscreen .modal-content {
       width: 100vw;
       height: 100vh;
       max-width: none;
+      max-height: none;
       border-radius: 0;
       display: flex;
       flex-direction: column;
@@ -3376,7 +3379,7 @@
         padding: 0 !important;
       }
 
-      #modal-recipe-detail .modal {
+      #modal-recipe-detail .modal-content {
         position: static !important;
         height: auto !important;
         max-height: none !important;
@@ -3389,10 +3392,10 @@
         background: transparent !important;
       }
 
-      .modal-hdr-actions,
-      .modal-close,
-      .modal-footer,
-      .rd-scale-bar {
+      #modal-recipe-detail .mh-right,
+      #modal-recipe-detail .mh-left .mh-btn,
+      #modal-recipe-detail .modal-footer,
+      #modal-recipe-detail .scale-btn {
         display: none !important;
       }
 
@@ -3403,7 +3406,7 @@
         background: transparent !important;
       }
 
-      .modal-title {
+      .mh-title {
         color: #000 !important;
         font-size: 24px !important;
         font-weight: 800 !important;
@@ -3419,7 +3422,7 @@
         color: #000 !important;
       }
 
-      .recipe-detail-section {
+      .rd-section-title {
         border-bottom: 2px solid #000;
         color: #000;
         margin-top: 30px;
@@ -3432,7 +3435,7 @@
         background: #fff !important;
       }
 
-      .recipe-steps li {
+      .rd-instructions li {
         page-break-inside: avoid;
         margin-bottom: 10px;
       }

@@ -23,8 +23,9 @@ fonctionnelle à 100 %.
 | 4 | **010 — Règles métier retrouvées** | Cuisine transmise à l'IA, plafond épinglés, tri, quantités | 5.6 |
 | 5 | **011 — Recettes IA riches** | Cartes, détail, prompts blindés, favoris, URL | 5.7 |
 | 6 | **012 — Confort d'usage retrouvé** | 🎲 emojis, clavier, topbar contextuelle, ~20 gestes | 5.7 |
-| 7 | **013 — Filet de tests UI** | Figer le comportement restauré AVANT la refonte | 5.8 |
-| 8 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **6.0** |
+| 7 | **015 — Réglages fiables et cohérents** | Chaque bouton de Réglages fait ce qu'il annonce (copies, sauvegardes, reset) | 5.8 |
+| 8 | **013 — Filet de tests UI** | Figer le comportement restauré AVANT la refonte | 5.8 |
+| 9 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **6.0** |
 
 La check-list de campagne est `Backlog/BACKLOG - Regressions de la migration.md` : chaque lot
 y coche ses points ; à la fin du LOT 012, tout §1-§4 doit être coché ou explicitement reporté.
@@ -59,10 +60,9 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BPLANIFIE%5D.md) | Boutons morts rebranchés | PLANIFIÉ — **prochain chantier** | `feat/lot9-boutons-morts` |
-| [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BPLANIFIE%5D.md) | Règles métier retrouvées (1 arbitrage Joel : menu « Moteur Tâches Complexes ») | PLANIFIÉ | `feat/lot10-regles-metier` |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |
+| [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BPLANIFIE%5D.md) | Réglages fiables et cohérents (arbitrages tranchés le 2026-07-30) — s'exécute AVANT le 013 | PLANIFIÉ | `feat/lot15-reglages-fiables` |
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
 
@@ -70,6 +70,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [010](LOT%20010%20-%20Regles%20metier%20retrouvees%20%5BCLOTURE%5D.md) | **Règles métier retrouvées** — cuisine transmise à l'IA, plafond épinglés, zone imposée complète, tri alphabétique, quantités recalculées, menu modèles remplacé | **5.6** |
+| [009](LOT%20009%20-%20Boutons%20morts%20rebranches%20%5BCLOTURE%5D.md) | **Boutons morts rebranchés** — icône d'ingrédient, plein écran, imprimer, panneau système | **5.6** |
 | [007](LOT%20007%20-%20Synchro%20collaborative%20%5BCLOTURE%5D.md) | **Synchro collaborative** — moteur bidirectionnel complet (la restauration phare) | **5.5** |
 | [008](LOT%20008%20-%20Donnees%20en%20securite%20%5BCLOTURE%5D.md) | **Données en sécurité** — import/export/reset sûrs, catalogue 297 ingrédients | **5.5** |
 | [006](LOT%20006%20-%20Comportements%20produit%20%5BCLOTURE%5D.md) | Liste de courses intelligente, emojis devinés, Cloud Sync réparé | **5.4** |

@@ -1,4 +1,5 @@
 import { h } from '../utils/dom.js';
+import { scaleQty } from '../utils/helpers.js';
 
 export function renderRecipeCard(r, index, handlers) {
   const { openRecipeDetail, source = 'ai' } = handlers;
@@ -15,24 +16,38 @@ export function renderRecipeCard(r, index, handlers) {
   ]);
 }
 
-export function renderRecipeDetail(r, source, handlers) {
-  const { 
-    closeModal, 
-    toggleRecipeFullscreen, 
-    changePplScale, 
-    saveSuggestionToFav, 
+/**
+ * @param {number} [scale=1] - Facteur d'échelle des quantités (LOT 010, casse C12).
+ *   Présentation UNIQUEMENT : ne touche jamais `r.ingredients` (recette, favori,
+ *   suggestion IA — tous préservés intacts), recalculé depuis la chaîne d'origine
+ *   à chaque rendu. À 1, la chaîne d'origine est rendue telle quelle (aucun
+ *   reformatage), ce qui garantit l'aller-retour exact.
+ */
+export function renderRecipeDetail(r, source, handlers, scale = 1) {
+  const {
+    closeModal,
+    toggleRecipeFullscreen,
+    changePplScale,
+    saveSuggestionToFav,
     addSuggestionToCart,
     saveRecipeOnly,
     saveRecipeAndList,
-    deleteFav
+    deleteFav,
+    printRecipe
   } = handlers;
 
+  const originalPpl = parseInt(r.people || r.ppl) || 2;
+  const displayedPpl = Math.round(originalPpl * scale);
+
   // Ingredients list
-  const ingList = h('ul', { class: 'rd-ingredients' }, 
-    (r.ingredients || []).map(ing => h('li', {}, [
-      h('span', { class: 'rd-ing-name' }, ing.n || ing.name),
-      (ing.q || ing.amount) ? h('span', { class: 'rd-ing-amount' }, ` (${ing.q || ing.amount})`) : null
-    ]))
+  const ingList = h('ul', { class: 'rd-ingredients' },
+    (r.ingredients || []).map(ing => {
+      const qty = scaleQty(ing.q || ing.amount, scale);
+      return h('li', {}, [
+        h('span', { class: 'rd-ing-name' }, ing.n || ing.name),
+        qty ? h('span', { class: 'rd-ing-amount' }, ` (${qty})`) : null
+      ]);
+    })
   );
 
   // Instructions list
@@ -69,7 +84,8 @@ export function renderRecipeDetail(r, source, handlers) {
             h('div', { class: 'mh-title' }, r.name)
         ]),
         h('div', { class: 'mh-right' }, [
-            h('button', { class: 'mh-btn', onclick: () => toggleRecipeFullscreen('modal-recipe-detail') }, '⛶')
+            h('button', { class: 'mh-btn', onclick: () => printRecipe(), title: 'Imprimer' }, '🖨️'),
+            h('button', { class: 'mh-btn', onclick: () => toggleRecipeFullscreen('modal-recipe-detail'), title: 'Plein écran' }, '⛶')
         ])
     ]),
     h('div', { class: 'modal-body' }, [
@@ -80,7 +96,7 @@ export function renderRecipeDetail(r, source, handlers) {
                 h('span', { class: 'rd-meta-badge' }, r.difficulty || r.diff),
                 h('span', { class: 'rd-meta-badge' }, [
                     h('button', { class: 'scale-btn', onclick: () => changePplScale(-1) }, '−'),
-                    h('span', { id: 'rd-ppl-count' }, r.people || r.ppl),
+                    h('span', { id: 'rd-ppl-count' }, displayedPpl),
                     ' pers.',
                     h('button', { class: 'scale-btn', onclick: () => changePplScale(1) }, '+')
                 ])

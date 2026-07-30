@@ -1,6 +1,6 @@
 // SSOT du numéro de version. Pour changer la version partout :
 // modifier UNIQUEMENT cette ligne puis lancer `python scripts/sync_version.py`.
-export const APP_VERSION = '5.5.0';
+export const APP_VERSION = '5.6.0';
 
 // SSOT des modeles IA par role metier. Ne JAMAIS ecrire un nom de modele ailleurs.
 // REASONING : recettes, nutrition, transformation de texte (qualite avant tout).
@@ -9,6 +9,14 @@ export const AI_ROLES = {
   REASONING: 'gemini-3.6-flash',
   FAST: 'gemini-3.5-flash-lite'
 };
+
+// SSOT des plafonds d'ingrédients imposés à l'IA (LOT 010, casse C9).
+// L'oracle plafonnait SÉPARÉMENT les deux familles — 6 épinglés ET 6 hors stock
+// (`foodapp-v5-Joel.html` l.4737 et l.4916) — et non « 6 au total » comme le
+// prétendait le libellé de l'interface. Ces constantes alimentent à la fois la
+// règle, les messages et le libellé affiché : ne jamais réécrire un 6 en dur.
+export const MAX_PINNED_INGREDIENTS = 6;
+export const MAX_EXTRA_INGREDIENTS = 6;
 
 export const FB_USER = 'FoodApp_V5_Joel';
 export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebasedatabase.app';

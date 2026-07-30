@@ -183,6 +183,29 @@ export function sanitizeGlobalState() {
   // Force la mise à jour des modèles à chaque chargement
   // pour écraser les valeurs périmées stockées en localStorage
   state.aiConfig.models = defaultAiModels();
+
+  // LOT 010 (casse C5) — migration douce vers le champ canonique UNIQUE `cuisines`.
+  //
+  // Les puces « Types de cuisine » écrivaient `aiConfig.cuisine` alors que le prompt lit
+  // `aiConfig.cuisines` : le choix ne parvenait jamais à l'IA. Arbitrage de Joel du
+  // 2026-07-30, SSOT strict — la valeur de l'ancien champ est versée dans `cuisines`,
+  // puis `cuisine` est SUPPRIMÉ. La suppression n'est pas cosmétique :
+  // `buildSyncDocument` (services/firebase.js) recopie tous les réglages sauf clé et
+  // modèles ; un `cuisine` laissé en place repartirait au cloud et ressusciterait le
+  // champ mort sur l'autre appareil.
+  //
+  // En cas de collision (les deux champs présents et différents), l'ancien `cuisine`
+  // l'emporte : c'est le champ que l'interface cassée écrivait ET relisait, il porte donc
+  // le choix le plus récent, tandis qu'un `cuisines` survivant date de l'ère monolithe.
+  //
+  // Idempotent : après un passage, `cuisine` n'existe plus et la condition est fausse —
+  // y compris pendant `resetAllData`, qui repart d'une config canonique avant d'assainir.
+  if ('cuisine' in state.aiConfig) {
+    const legacy = state.aiConfig.cuisine;
+    if (Array.isArray(legacy)) state.aiConfig.cuisines = legacy;
+    delete state.aiConfig.cuisine;
+  }
+  if (!Array.isArray(state.aiConfig.cuisines)) state.aiConfig.cuisines = [];
 }
 
 /**

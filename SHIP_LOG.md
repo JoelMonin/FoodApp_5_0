@@ -1,11 +1,36 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.5.0
+- **Version actuelle** : 5.6.0
 - **Dernière mise à jour** : 30/07/2026
-- **Statut** : Version 5.5 publiée (LOTS 007 + 008) — campagne « Restauration & Refonte » en cours, prochain chantier LOT 009
+- **Statut** : Version 5.6 publiée (LOTS 009 + 010) — campagne « Restauration & Refonte » en cours, prochain chantier LOT 011
 
 ## Historique des modifications
+- [x] [VERSION 5.6 - OnLine] 30/07/2026 : Publication des lots 009 + 010
+    - Lot 009 — Boutons morts rebranchés : icône d'ingrédient (grille locale immédiate),
+      plein écran recette (vraie API navigateur + repli CSS), bouton imprimer + swipe-to-close
+      restaurés dans le modal recette (entièrement rendu par `renderRecipeDetail`), panneau
+      Informations Système (clé masquée, utilisateur cloud, taille du stockage)
+    - Lot 010 — Règles métier retrouvées : filtre « type de cuisine » enfin transmis à l'IA
+      (SSOT `cuisines`, migration douce du champ mort, étanchéité cloud), plafond de 6
+      ingrédients épinglés restauré (libellé UI corrigé), zone « Ingrédients imposés »
+      complète (épinglés + hors stock, sous-titre vivant), inventaire trié par ordre
+      alphabétique français, quantités recalculées selon le nombre de personnes (`scaleQty`,
+      fractions ASCII et Unicode gérées — corrige une corruption de l'oracle sur `1/2`),
+      menu « Moteur Tâches Complexes » supprimé au profit d'une information en lecture seule
+      dérivée de `AI_ROLES`
+    - Correctif hors-plan (constaté par Joel en test réel après le lot 010) : le prompt IA
+      avait perdu ses indications de format à la migration (quantité+unité, un seul emoji) —
+      restaurées à l'identique de l'oracle, plus un filet de sécurité qui empêche tout texte
+      parasite de s'afficher à la place d'un emoji
+    - Audits : LOT 009 Standard GO (Codex) ; LOT 010 Dur — audit de spec avant code (NO-GO
+      levé), audit interne 6 lentilles sur les chantiers 1-2 (0 défaut confirmé), Gemini GO
+      sur le chantier 3, Codex Terra GO sur les chantiers 4-6 (2 durcissements comblés,
+      dont un vrai trou dans le filet de sécurité emoji)
+    - Deux arbitrages de Joel : SSOT strict sur `cuisines` ; prise en charge réelle des
+      fractions dans le recalcul des quantités (dépassement volontaire de l'oracle,
+      corrige un bug de corruption)
+    - Métriques : 218/218 Vitest + 13/13 Pytest verts, build OK
 - [x] [VERSION 5.5 - OnLine] 30/07/2026 : Publication des lots 008 + 007
     - Lot 008 — Données en sécurité : « Importer uniquement le stock » refait fusionner
       (statuts seulement), export blanchi de la clé API, `applyExternalState` point d'entrée

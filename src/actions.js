@@ -3,7 +3,7 @@ import { generateId, normalizeString, areSimilar } from './utils/helpers.js';
 import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
-import { LOCAL_STORAGE_SYNC_REF_KEY } from './constants.js';
+import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS } from './constants.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -20,12 +20,31 @@ export function toggleStock(id) {
   }
 }
 
+/**
+ * Épingle / désépingle un ingrédient pour l'IA (LOT 010, casse C9).
+ *
+ * Le plafond de l'oracle (`foodapp-v5-Joel.html` l.4733-4742) avait disparu à la
+ * migration, alors que l'interface continuait de l'annoncer. Trois règles exactes,
+ * confirmées par l'audit de spec :
+ *  - le refus porte UNIQUEMENT sur un passage non-épinglé → épinglé ;
+ *  - le désépinglage reste TOUJOURS autorisé, même au-delà du plafond : c'est la
+ *    seule façon de redescendre pour un utilisateur dont la base en contient déjà
+ *    plus de 6 (données existantes, jamais tronquées d'office) ;
+ *  - libellés repris mot pour mot de l'oracle.
+ */
 export function togglePin(id) {
   const ing = state.ingredients.find(i => i.id === id);
-  if (ing) {
-    ing.pinned = !ing.pinned;
-    saveState();
+  if (!ing) return;
+
+  const pinnedCount = state.ingredients.filter(i => i.pinned).length;
+  if (!ing.pinned && pinnedCount >= MAX_PINNED_INGREDIENTS) {
+    toast(`Maximum ${MAX_PINNED_INGREDIENTS} ingrédients épinglés`, 'error');
+    return;
   }
+
+  ing.pinned = !ing.pinned;
+  saveState();
+  toast(ing.pinned ? `📌 ${ing.name} épinglé pour l'IA` : `${ing.name} désépinglé`);
 }
 
 export function toggleCart(id) {

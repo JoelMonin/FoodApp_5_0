@@ -9,25 +9,38 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun — VERSION 5.5 PUBLIÉE le 2026-07-30** (feu vert explicite de Joel) : les
-LOTS 007 (synchro collaborative) et 008 (données en sécurité) sont en production.
-**Point de vigilance à l'usage** : les tests à deux appareils du §6.2 ont été levés
-par décision de Joel — au moindre comportement étrange de la synchro, la fiche du
-LOT 007 (§6.2) sert de grille de diagnostic.
-**Prochain chantier : LOT 009 — Boutons morts rebranchés** (fiche prête, branche
-`feat/lot9-boutons-morts` à ouvrir sur signal de Joel).
+Aucun — **Version 5.6 publiée le 2026-07-30** (feu vert de Joel). Prochain chantier à ouvrir :
+**LOT 011 — Recettes IA riches**.
+
+## Lots tout juste publiés — Version 5.6 (2026-07-30)
+
+- **LOT 010 — Règles métier retrouvées** : les 6 chantiers faits, audités (Codex spec + audit
+  interne + Gemini + Codex Terra, tous GO), 218/218 tests. Cuisine transmise à l'IA (SSOT
+  `cuisines`), plafond 6 épinglés restauré, zone imposée complète + sous-titre vivant,
+  inventaire trié, quantités recalculées (fractions gérées, corrige un bug de l'oracle),
+  menu de modèles remplacé par une info en lecture seule. Correctif hors-plan inclus : le
+  prompt IA avait perdu ses indications de format (unités/emoji), corrigé et vérifié par
+  Joel en navigateur.
+- **LOT 009 — Boutons morts rebranchés** : icône d'ingrédient, plein écran recette, imprimer
+  + swipe-to-close, panneau Informations Système. Audit Standard Codex GO, vérifié au
+  navigateur par Joel.
+
+Les deux lots ont été chaînés sur une seule branche (`feat/lot10-regles-metier` ouverte
+depuis `feat/lot9-boutons-morts`) puis fusionnés ensemble dans `main` en un seul geste,
+exactement comme les LOTS 007+008 pour la version 5.5.
+
+**Rappel synchro (LOT 007 en production)** : point de vigilance à l'usage — les
+tests à deux appareils du §6.2 ont été levés par décision de Joel ; au moindre
+comportement étrange, la fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## État des lots
 
-- **008** Données en sécurité — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30**.
-  `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
-- **007** Synchro collaborative — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30** (audit Dur
-  double GO ; tests réels levés par Joel, constat à l'usage)
-- **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
-  fiches détaillées prêtes à confier à un exécutant
+- **007 + 008** — ✅ **PUBLIÉS en Version 5.5 le 2026-07-30**
+- **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
+- **011 → 012** Restaurations (IA riche, confort) — PLANIFIÉS, fiches détaillées prêtes
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
-- **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29** (feu vert de Joel) — la
-  campagne part d'une base en ligne saine
+- **015** Réglages fiables et cohérents — PLANIFIÉ, s'exécute avant le 013
+- **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29**
 
 ## Vérités à ne pas perdre
 
@@ -39,12 +52,14 @@ LOT 007 (§6.2) sert de grille de diagnostic.
   sélecteur intelligent, `applyCloudState`).
 - `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
   campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ».
-- Arbitrage « Moteur Tâches Complexes » TRANCHÉ (2026-07-29) : menu supprimé, remplacé par
-  une information en lecture seule dérivée de `AI_ROLES` (LOT 010 §6).
+- **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
+  medium — préféré à `/ultra-audit` et à Codex Sol, retenu après comparaison avec Gemini
+  (Terra a trouvé un défaut réel que Gemini avait manqué sur le chantier 3 du LOT 010).
 
 ## Prochaine étape
 
-Version 5.5 en ligne. **Prochain chantier : LOT 009 — Boutons morts rebranchés**
-(icône d'ingrédient C1, plein écran C6, imprimer C7, panneau système C8 restant) —
-ouvrir `feat/lot9-boutons-morts` sur signal de Joel (« on attaque le lot 9 »).
-Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
+**Version 5.6 en ligne.** Prochain chantier de la campagne : **LOT 011 — Recettes IA
+riches** — ouvrir sur signal de Joel (`/new-lot 011 recettes-ia-riches`), après lecture
+de la fiche et phase découverte obligatoire.
+Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
+une confirmation passée ne vaut pas pour la suivante.

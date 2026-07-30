@@ -17,7 +17,7 @@ import {
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -50,7 +50,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderCurrentView();
   restoreAIConfig();
   initKeyboardShortcuts();
-  
+  initRecipeFullscreenListeners();
+
   // Initialize swipe-to-close and overlay click for all modals
   ['modal-shopping-bulk', 'modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
     .forEach(id => {
@@ -510,7 +511,31 @@ export {
     setSyncStatus,
     isSyncPending,
     syncEngineBarrier,
-    __resetSyncEngineForTests
+    __resetSyncEngineForTests,
+    // LOT 009 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    openEditEmoji,
+    buildEmojiEditSuggestions,
+    applyEditedEmoji,
+    updateSystemInfo,
+    initSwipeToClose,
+    // LOT 010 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    toggleAiChip,
+    restoreAIConfig,
+    renderImposedCapHint,
+    addExtraIngredient,
+    renderExtraChips,
+    updateAIContextSub,
+    refreshImposedZone,
+    removeExtraIngredient,
+    getFilteredIngredients,
+    openRecipeDetail,
+    analyzeNutrition,
+    changePplScale,
+    renderRecipeModal,
+    openEnhancedCartPicker,
+    renderAiModelsInfo,
+    saveApiKey,
+    openModal
 };
 
 function renderCurrentView() {
@@ -528,7 +553,7 @@ function renderCurrentView() {
 
     if (view === 'pantry') renderPantry();
     else if (view === 'shopping') renderShopping();
-    else if (view === 'ai') { renderAI(); renderExtraChips(); }
+    else if (view === 'ai') { renderAI(); refreshImposedZone(); renderImposedCapHint(); }
     else if (view === 'fav' || view === 'favorites') renderFavorites();
     else if (view === 'add') renderAdd();
     else if (view === 'export' || view === 'settings') updateSystemInfo();
@@ -674,7 +699,13 @@ function getFilteredIngredients() {
         const s = normalizeString(state.search);
         list = list.filter(i => normalizeString(i.name).includes(s));
     }
-    return list;
+
+    // 4. Tri alphabétique (LOT 010, casse C11) — porté depuis l'oracle
+    // (`foodapp-v5-Joel.html` l.4646). N'affecte QUE la grille d'inventaire : l'export
+    // presse-papier lit `state.ingredients` directement via `groupByCategory`, dont le
+    // tri « par défaut volontaire » (LOT 005) reste intact — chemins disjoints, vérifié
+    // en phase découverte du lot.
+    return list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 }
 
 // Le filtrage normalise chaque nom d'ingredient : trop couteux a chaque touche frappee.
@@ -827,6 +858,49 @@ function saveAiConfigFromUI() {
 let _currentPickerData = [];
 let _currentPickerRecipeName = '';
 
+// LOT 010 (casse C12) — état du modal recette ouvert, module-level comme dans l'oracle
+// (`_originalPpl`/`_currentScale`, `foodapp-v5-Joel.html` l.5357-5359). `_originalPpl`
+// est LA référence : `_currentScale` en est toujours dérivé, jamais accumulé, ce qui
+// évite toute dérive d'arrondi d'un changement à l'autre.
+let _currentRecipeDetail = null;
+let _currentRecipeSource = 'ai';
+let _currentRecipeFavId = null;
+let _originalPpl = 2;
+let _currentScale = 1;
+
+function buildRecipeHandlers(r, source, favId) {
+    return {
+        closeModal,
+        toggleRecipeFullscreen,
+        changePplScale,
+        saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
+        addSuggestionToCart: () => openEnhancedCartPicker(r),
+        saveRecipeOnly: () => saveRecipeOnly(r),
+        saveRecipeAndList: () => saveRecipeAndList(r),
+        deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
+        analyzeNutrition: () => analyzeNutrition(r, source, favId),
+        printRecipe: () => printRecipe()
+    };
+}
+
+/**
+ * Re-rend le modal recette avec l'échelle courante (LOT 010, casse C12).
+ * Point d'entrée UNIQUE du rendu du modal : `openRecipeDetail` (nouvelle ouverture,
+ * échelle réinitialisée), `changePplScale` (échelle changée) et `analyzeNutrition`
+ * (échelle PRÉSERVÉE — l'analyse ne doit jamais remettre à 1 un choix déjà fait) s'y
+ * appellent tous, jamais un `replaceChildren` direct.
+ */
+function renderRecipeModal() {
+    const modal = document.getElementById('modal-recipe-detail');
+    if (!modal || !_currentRecipeDetail) return;
+    modal.replaceChildren(renderRecipeDetail(
+        _currentRecipeDetail,
+        _currentRecipeSource,
+        buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
+        _currentScale
+    ));
+}
+
 function openRecipeDetail(idx, source = 'ai') {
     let r = null;
     let favId = null;
@@ -839,21 +913,16 @@ function openRecipeDetail(idx, source = 'ai') {
             favId = fav.id;
         }
     }
-    
+
     if (!r) return;
 
-    const modal = document.getElementById('modal-recipe-detail');
-    modal.replaceChildren(renderRecipeDetail(r, source, {
-        closeModal,
-        toggleRecipeFullscreen,
-        changePplScale,
-        saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
-        addSuggestionToCart: () => openEnhancedCartPicker(r),
-        saveRecipeOnly: () => saveRecipeOnly(r),
-        saveRecipeAndList: () => saveRecipeAndList(r),
-        deleteFav: () => deleteFav(favId),
-        analyzeNutrition: () => analyzeNutrition(r, source, favId)
-    }));
+    _currentRecipeDetail = r;
+    _currentRecipeSource = source;
+    _currentRecipeFavId = favId;
+    _originalPpl = parseInt(r.people || r.ppl) || 2;
+    _currentScale = 1;
+
+    renderRecipeModal();
     openModal('modal-recipe-detail');
 }
 
@@ -879,23 +948,12 @@ async function analyzeNutrition(r, source, favId) {
         
         const nutrition = JSON.parse(match[0]);
         r.nutrition = nutrition;
-        
+
         saveState();
-        // Refresh modal
-        const modal = document.getElementById('modal-recipe-detail');
-        if (modal) {
-            modal.replaceChildren(renderRecipeDetail(r, source, {
-                closeModal,
-                toggleRecipeFullscreen,
-                changePplScale,
-                saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
-                addSuggestionToCart: () => openEnhancedCartPicker(r),
-                saveRecipeOnly: () => saveRecipeOnly(r),
-                saveRecipeAndList: () => saveRecipeAndList(r),
-                deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
-                analyzeNutrition: () => analyzeNutrition(r, source, favId)
-            }));
-        }
+        // LOT 010 (casse C12) : re-rend via le point d'entrée unique, qui PRÉSERVE
+        // l'échelle courante — une analyse ne doit jamais remettre le nombre de
+        // personnes à sa valeur d'origine si l'utilisateur l'avait déjà changé.
+        renderRecipeModal();
         toast('Analyse nutritionnelle terminée !');
     } catch (e) {
         console.error(e);
@@ -907,18 +965,67 @@ async function analyzeNutrition(r, source, favId) {
     }
 }
 
-function toggleRecipeFullscreen(id) {
-    const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (el) el.classList.toggle('fullscreen');
+/**
+ * Vrai plein écran d'appareil (LOT 009, casse C6) : la classe CSS
+ * `recipe-fullscreen` assure le repli visuel même si l'API navigateur refuse
+ * (contexte non interactif, permission absente) — la classe est posée AVANT
+ * l'appel API et ne dépend jamais de sa réussite.
+ */
+function isDocumentFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+        document.mozFullScreenElement || document.msFullscreenElement);
 }
 
+function requestElementFullscreen(el) {
+    const request = el.requestFullscreen || el.webkitRequestFullscreen ||
+        el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (!request) return Promise.reject(new Error('Fullscreen API indisponible'));
+    return request.call(el);
+}
+
+function exitDocumentFullscreen() {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen ||
+        document.mozCancelFullScreen || document.msExitFullscreen;
+    if (!exit) return Promise.resolve();
+    return exit.call(document);
+}
+
+function toggleRecipeFullscreen(id) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    if (el.classList.contains('recipe-fullscreen')) {
+        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+        else el.classList.remove('recipe-fullscreen');
+    } else {
+        el.classList.add('recipe-fullscreen');
+        requestElementFullscreen(el).catch(() => { /* repli CSS pur, cf. commentaire ci-dessus */ });
+    }
+}
+
+// Resynchronise la classe si l'utilisateur sort par Échap ou un geste système —
+// les 4 variantes préfixées de l'évènement (oracle l.5457-5464).
+function syncRecipeFullscreenClass() {
+    const el = document.getElementById('modal-recipe-detail');
+    if (el && !isDocumentFullscreen()) el.classList.remove('recipe-fullscreen');
+}
+
+function initRecipeFullscreenListeners() {
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(evt => document.addEventListener(evt, syncRecipeFullscreenClass));
+}
+
+/**
+ * Recalcule les quantités affichées selon le nombre de personnes (LOT 010, casse
+ * C12). Porté depuis l'oracle (`foodapp-v5-Joel.html` l.5467-5472) : la nouvelle
+ * échelle se calcule TOUJOURS depuis `_originalPpl`, jamais en cumulant sur la
+ * précédente — c'est ce qui garantit l'absence de dérive d'arrondi. Bornes 1-20 :
+ * au-delà, le clic est sans effet.
+ */
 function changePplScale(delta) {
-    const pplEl = document.getElementById('rd-ppl-count');
-    if (!pplEl) return;
-    let val = parseInt(pplEl.textContent);
-    val = Math.max(1, val + delta);
-    pplEl.textContent = val;
-    // Note: Quantitative scaling logic could be added here if needed
+    const newPpl = (_originalPpl * _currentScale) + delta;
+    if (newPpl < 1 || newPpl > 20) return;
+    _currentScale = newPpl / _originalPpl;
+    renderRecipeModal();
 }
 
 /**
@@ -963,12 +1070,23 @@ function openEnhancedCartPicker(recipe) {
         const name = i.n || i.name;
         const category = i.c || i.category || 'Autres';
         const status = matchIngredientToStock(i);
+        // Filet de sécurité (LOT 010, casse C12) : un prompt IA sans indication de
+        // format a pu, par le passé, faire dériver du texte (une unité comme "g") dans
+        // ce champ au lieu d'un emoji. Durci après audit Codex Terra du 2026-07-30 :
+        // `.test()` cherche n'importe où dans la chaîne, une valeur mixte ("g🐟") passait
+        // donc le filtre avec la lettre toujours collée devant l'emoji — la correspondance
+        // est désormais ancrée sur la chaîne ENTIÈRE. `\p{Emoji}️` (sélecteur de
+        // variante 16, écrit en échappement explicite pour rester lisible) couvre en
+        // plus les emojis à présentation texte par défaut, explicitement forcés en
+        // emoji, sans quoi ils étaient rejetés à tort.
+        const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+        const aiEmoji = i.e && AI_EMOJI_ONLY.test(i.e.trim()) ? i.e : null;
         return {
             name,
             category,
-            // Emoji : celui de l'IA, sinon celui de la base d'ingredients,
+            // Emoji : celui de l'IA (validé), sinon celui de la base d'ingredients,
             // sinon celui de la categorie.
-            emoji: i.e || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
+            emoji: aiEmoji || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
             isMissing: !status.inStock,
             matchedName: status.matchedName,
             isExact: status.isExact
@@ -1155,10 +1273,9 @@ async function exportClipboard(type) {
 }
 
 function updateSystemInfo() {
-    // LOT 007 : seules les deux tuiles du perimetre synchro sont rebranchees ici
-    // (#info-last-sync, #info-network — oracle l.4466-4482) ; les trois autres
-    // (#info-api-key, #info-fb-user, #info-storage) restent au LOT 009. L'ancien
-    // corps visait #system-storage, un id qui n'existe nulle part (0 occurrence).
+    // LOT 007 a rebranché #info-last-sync/#info-network (oracle l.4466-4482).
+    // LOT 009 complète avec les 3 derniers champs (oracle l.4443-4464) et retire
+    // la branche morte #system-storage, un id qui n'existe nulle part (0 occurrence).
     const syncEl = document.getElementById('info-last-sync');
     if (syncEl) {
         let raw = null;
@@ -1172,6 +1289,33 @@ function updateSystemInfo() {
             });
         }
     }
+
+    const keyEl = document.getElementById('info-api-key');
+    if (keyEl) {
+        const key = state.aiConfig?.apiKey || '';
+        const isConfigured = key.length > 10;
+        const last4 = key.length > 4 ? key.slice(-4) : '****';
+        keyEl.replaceChildren(
+            isConfigured
+                ? h('span', {}, [`****${last4}`, h('span', { class: 'system-info-value tag green' }, 'Configurée (Locale)')])
+                : h('span', {}, ['Non configurée', h('span', { class: 'system-info-value tag red' }, 'Manquante')])
+        );
+    }
+
+    const fbUserEl = document.getElementById('info-fb-user');
+    if (fbUserEl) fbUserEl.textContent = FB_USER;
+
+    const storageEl = document.getElementById('info-storage');
+    if (storageEl) {
+        let raw = '';
+        try { raw = localStorage.getItem(LOCAL_STORAGE_KEY) || ''; } catch { /* affichage seulement */ }
+        const sizeKB = (raw.length / 1024).toFixed(2);
+        storageEl.replaceChildren(
+            h('code', {}, LOCAL_STORAGE_KEY),
+            h('span', { style: { opacity: '0.6', fontSize: '11px', marginLeft: '4px' } }, `(${sizeKB} KB)`)
+        );
+    }
+
     updateNetworkInfo();
     updateApiStatus();
 }
@@ -1243,13 +1387,30 @@ function openModal(id) {
     if (id === 'modal-api-config') {
         const keyInput = document.getElementById('api-key-input');
         if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
-        const modelSelect = document.getElementById('api-model-complex');
-        if (modelSelect && state.aiConfig?.models?.recipeGeneration) {
-            modelSelect.value = state.aiConfig.models.recipeGeneration;
-        }
+        renderAiModelsInfo();
     }
 }
-function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+/**
+ * Bloc d'information en lecture seule sur les modèles IA (LOT 010, arbitrage §6).
+ * Dérivé de la SSOT (`state.aiConfig.models`, toujours réalignée sur `AI_ROLES` par
+ * `sanitizeGlobalState`) — aucun nom de modèle n'est jamais écrit en dur ici.
+ */
+function renderAiModelsInfo() {
+    const el = document.getElementById('api-models-info');
+    if (!el) return;
+    const models = state.aiConfig?.models || {};
+    el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
+        `Catégories et emojis : ${models.categorySuggest}`;
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    el?.classList.remove('open');
+    if (el?.classList.contains('recipe-fullscreen')) {
+        el.classList.remove('recipe-fullscreen');
+        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+    }
+}
 
 let _currentEditingIngId = null;
 function openEditEmoji(id) {
@@ -1257,14 +1418,51 @@ function openEditEmoji(id) {
     const ing = state.ingredients.find(i => i.id === id);
     if (!ing) return;
     document.getElementById('edit-emoji-name').textContent = ing.name;
-    document.getElementById('edit-emoji-input').value = ing.emoji;
+    const searchInput = document.getElementById('emoji-search-input');
+    if (searchInput) searchInput.value = '';
+    renderEmojiEditGrid(ing.name);
     openModal('modal-edit-emoji');
 }
 
-function saveEmoji() {
+// Socle générique de secours pour les suggestions d'emoji — SSOT unique, partagé
+// par `updateEmojiSuggestions` (flux Ajouter) et `buildEmojiEditSuggestions` (flux
+// Édition, LOT 009). Ne JAMAIS dupliquer cette liste ailleurs.
+const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
+
+/**
+ * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
+ * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
+ * de table d'emojis dupliquée (SSOT, `GENERIC_EMOJI_FALLBACK` partagé avec
+ * `updateEmojiSuggestions`). Complète TOUJOURS avec l'emoji de catégorie puis le
+ * socle générique tant qu'il manque des alternatives : un ingrédient dont le nom
+ * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
+ * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
+ * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
+ */
+function buildEmojiEditSuggestions(seed) {
+    const s = (seed || '').toLowerCase();
+    const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
+    const fromMatches = matches.map(i => i.emoji);
+    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
+    const categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
+    return emojis.slice(0, 15);
+}
+
+function renderEmojiEditGrid(seed) {
+    const grid = document.getElementById('edit-emoji-grid');
+    if (!grid) return;
+    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(e =>
+        h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
+    ));
+}
+
+/** Applique l'emoji choisi, sauvegarde, ferme — contrat du `updateEmoji` du
+ * monolithe : pas d'étape intermédiaire, aucun input libre à valider. */
+function applyEditedEmoji(emoji) {
     const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
     if (ing) {
-        ing.emoji = document.getElementById('edit-emoji-input').value;
+        ing.emoji = emoji;
         saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
     }
     closeModal('modal-edit-emoji');
@@ -1349,8 +1547,7 @@ function updateEmojiSuggestions(val) {
     const container = document.getElementById('emoji-suggestions');
     if (!container) return;
     if (!val) {
-        const defaults = ['🧂','🧅','🧄','🥦','🥩','🍎','🥚','🥛'];
-        container.replaceChildren(...defaults.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
+        container.replaceChildren(...GENERIC_EMOJI_FALLBACK.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
         return;
     }
     const s = val.toLowerCase();
@@ -1614,8 +1811,10 @@ function addExtraIngredient() {
     const val = input?.value?.trim();
     if (!val) return;
     
-    if (state.extraIngredients.length >= 6) {
-        toast('Maximum 6 ingrédients hors stock', 'error'); return;
+    // Plafond des « hors stock », séparé de celui des épinglés (LOT 010 : le 6 en dur
+    // est remonté dans la SSOT des plafonds, le message reste celui de l'oracle l.4917).
+    if (state.extraIngredients.length >= MAX_EXTRA_INGREDIENTS) {
+        toast(`Maximum ${MAX_EXTRA_INGREDIENTS} ingrédients hors stock`, 'error'); return;
     }
 
     // Check similarity in Inventory
@@ -1633,22 +1832,96 @@ function addExtraIngredient() {
     state.extraIngredients.push({ name: val, emoji: '✨', id: generateId('extra') });
     input.value = '';
     saveState();
+    refreshImposedZone();
 }
 
+/**
+ * Remplit le libellé des plafonds depuis la SSOT (LOT 010, casse C9).
+ * L'interface annonçait « Max 6 ingrédients imposés au total » alors que les deux
+ * familles sont plafonnées SÉPARÉMENT — un mensonge visible par l'utilisateur.
+ */
+function renderImposedCapHint() {
+    const el = document.getElementById('imposed-cap-hint');
+    if (el) el.textContent = `Max ${MAX_PINNED_INGREDIENTS} épinglés + ${MAX_EXTRA_INGREDIENTS} hors stock`;
+}
+
+/**
+ * Zone « Ingrédients imposés » de l'écran IA (LOT 010, casse C10).
+ *
+ * Remplace l'ancien `renderExtraChips` qui n'affichait QUE les extras, sans emoji,
+ * et ne se rafraîchissait qu'au rendu de la vue IA — un épinglé était envoyé à l'IA
+ * (`gemini.js`) mais invisible et non retirable ici.
+ *
+ * Porté depuis l'oracle (`renderImposedZone`, `foodapp-v5-Joel.html` l.4875-4910),
+ * en DOM-safe via `h()` plutôt que le `innerHTML` littéral de l'original — même
+ * choix de sécurité que pour le panneau système du LOT 009.
+ */
 function renderExtraChips() {
     const container = document.getElementById('imposed-chips');
     if (!container) return;
-    const chips = state.extraIngredients.map(it => h('div', { class: 'chip active' }, [
-        it.name,
-        h('span', { style: { marginLeft: '6px', cursor: 'pointer' }, onclick: () => removeExtraIngredient(it.id) }, '✕')
-    ]));
-    container.replaceChildren(...chips);
-    if (chips.length === 0) container.replaceChildren(h('span', { class: 'pz-empty' }, 'Aucun ingrédient imposé'));
+
+    const pinned = state.ingredients.filter(i => i.pinned);
+    const extras = state.extraIngredients || [];
+
+    if (pinned.length === 0 && extras.length === 0) {
+        container.replaceChildren(h('span', { class: 'pz-empty' }, 'Aucun ingrédient imposé'));
+        return;
+    }
+
+    const blocs = [];
+
+    if (pinned.length > 0) {
+        blocs.push(h('div', { class: 'pz-label' }, "📍 Dans l'inventaire"));
+        blocs.push(h('div', { class: 'pz-chips' }, pinned.map(ing => h('div', { class: 'pz-chip' }, [
+            h('span', {}, ing.emoji),
+            ` ${ing.name} `,
+            h('span', { class: 'pz-chip-del', onclick: () => togglePin(ing.id) }, '✕')
+        ]))));
+    }
+
+    if (extras.length > 0) {
+        blocs.push(h('div', { class: 'ez-label', style: { marginTop: '12px' } }, '🛒 Hors inventaire'));
+        blocs.push(h('div', { class: 'pz-chips' }, extras.map(ei => h('div', { class: 'ez-chip' }, [
+            h('span', {}, ei.emoji),
+            ` ${ei.name} `,
+            h('span', { class: 'ez-chip-del', onclick: () => removeExtraIngredient(ei.id) }, '✕')
+        ]))));
+    }
+
+    container.replaceChildren(...blocs);
+}
+
+/**
+ * Sous-titre vivant de l'écran IA (LOT 010, casse C10).
+ * Porté depuis l'oracle (`updateAIContextSub`, `foodapp-v5-Joel.html` l.4943-4953) :
+ * segments « épinglé(s) » et « hors stock » masqués quand leur compteur vaut 0.
+ */
+function updateAIContextSub() {
+    const el = document.getElementById('ai-context-sub');
+    if (!el) return;
+    const stock = state.ingredients.filter(i => i.inStock).length;
+    const pinned = state.ingredients.filter(i => i.pinned).length;
+    const extra = (state.extraIngredients || []).length;
+    let s = stock + ' ingrédient' + (stock > 1 ? 's' : '') + ' en stock';
+    if (pinned > 0) s += ` · ${pinned} épinglé${pinned > 1 ? 's' : ''}`;
+    if (extra > 0) s += ` · ${extra} hors stock`;
+    el.textContent = s;
+}
+
+/**
+ * Rafraîchit la zone imposée ET le sous-titre en un seul appel (LOT 010, casse C10) :
+ * dépassement volontaire de l'oracle, assumé et tracé dans la fiche du lot — l'oracle
+ * ne rafraîchissait le sous-titre qu'à certains endroits, oubliant l'épinglage.
+ */
+function refreshImposedZone() {
+    renderExtraChips();
+    updateAIContextSub();
 }
 
 function removeExtraIngredient(id) {
     state.extraIngredients = state.extraIngredients.filter(it => it.id !== id);
     saveState();
+    refreshImposedZone();
 }
 
 function generateRandomWithStock() {
@@ -1729,15 +2002,6 @@ function saveApiKey() {
     if (!key) { toast('Clé API requise', 'error'); return; }
     state.aiConfig.apiKey = key;
 
-    // Save model selection if present
-    const modelSelect = document.getElementById('api-model-complex');
-    if (modelSelect?.value) {
-        if (!state.aiConfig.models) state.aiConfig.models = {};
-        state.aiConfig.models.recipeGeneration = modelSelect.value;
-        state.aiConfig.models.nutrition = modelSelect.value;
-        state.aiConfig.models.smartPaste = modelSelect.value;
-    }
-
     saveState();
     updateApiStatus();
     closeModal('modal-api-config');
@@ -1782,17 +2046,9 @@ async function searchEmojiAI() {
             const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
             const grid = document.getElementById('edit-emoji-grid');
             if (grid) {
-                grid.replaceChildren();
-                emojis.forEach(e => {
-                    const b = h('button', { 
-                        class: 'emoji-btn', 
-                        onclick: () => {
-                            const editInput = document.getElementById('edit-emoji-input');
-                            if (editInput) editInput.value = e;
-                        } 
-                    }, e);
-                    grid.appendChild(b);
-                });
+                grid.replaceChildren(...emojis.map(e =>
+                    h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
+                ));
             }
         }
     } catch (e) {
@@ -1807,26 +2063,35 @@ async function searchEmojiAI() {
 function initSwipeToClose(modalId) {
     const overlay = document.getElementById(modalId);
     if (!overlay) return;
-    const modal = overlay.querySelector('.modal-content') || overlay.querySelector('.modal');
-    if (!modal) return;
 
     let startY = 0;
     let currentY = 0;
     let isSwiping = false;
+    let modal = null;
 
-    modal.addEventListener('touchstart', (e) => {
+    // Écouteurs posés UNE FOIS sur l'overlay, qui survit à tout `replaceChildren`
+    // de son contenu (ex. `openRecipeDetail`) — le noeud `.modal-content`/`.modal`
+    // visé est recalculé à CHAQUE geste, jamais capturé une fois pour toutes
+    // (LOT 009, casse C7 : le glissement mourait après le premier rendu dynamique).
+    overlay.addEventListener('touchstart', (e) => {
+        modal = overlay.querySelector('.modal-content') || overlay.querySelector('.modal');
+        if (!modal) return;
         const touch = e.touches[0];
         const rect = modal.getBoundingClientRect();
         // Allow swipe from the top 100px (header/drag handle)
         if (touch.clientY - rect.top < 100) {
             startY = touch.clientY;
+            // Repart de zéro à CHAQUE geste (audit Codex, LOT 009) : sans ce reset,
+            // currentY gardait la valeur du geste PRÉCÉDENT — un simple toucher sans
+            // glissement après une fermeture réussie pouvait re-fermer aussitôt.
+            currentY = touch.clientY;
             isSwiping = true;
             modal.style.transition = 'none';
         }
     }, { passive: true });
 
-    modal.addEventListener('touchmove', (e) => {
-        if (!isSwiping) return;
+    overlay.addEventListener('touchmove', (e) => {
+        if (!isSwiping || !modal) return;
         currentY = e.touches[0].clientY;
         const diff = currentY - startY;
         if (diff > 0) {
@@ -1836,13 +2101,25 @@ function initSwipeToClose(modalId) {
         }
     }, { passive: true });
 
-    modal.addEventListener('touchend', () => {
-        if (!isSwiping) return;
+    overlay.addEventListener('touchend', () => {
+        if (!isSwiping || !modal) return;
         isSwiping = false;
         const diff = currentY - startY;
         if (diff > 100) {
             closeModal(modalId);
         }
+        modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        modal.style.transform = '';
+        overlay.style.backgroundColor = '';
+    });
+
+    // Durcissement (contre-vérification Codex, LOT 009) : un geste interrompu par le
+    // système (appel entrant, geste OS concurrent...) ne doit ni fermer le modal ni le
+    // laisser visuellement décalé — même remise en place que touchend, sans décision
+    // de fermeture.
+    overlay.addEventListener('touchcancel', () => {
+        if (!isSwiping || !modal) return;
+        isSwiping = false;
         modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
         modal.style.transform = '';
         overlay.style.backgroundColor = '';
@@ -1858,7 +2135,6 @@ function initKeyboardShortcuts() {
             const activeModal = document.querySelector('.modal-overlay.open');
             if (activeModal) {
                 if (activeModal.id === 'modal-api-config') saveApiKey();
-                else if (activeModal.id === 'modal-edit-emoji') saveEmoji();
                 else if (activeModal.id === 'modal-recipe-to-cart') confirmRecipeToCart();
                 else if (activeModal.id === 'modal-shopping-bulk') confirmBulkAdd();
             } else if (state.currentView === 'add') {
@@ -1877,7 +2153,7 @@ expose({
     toggleStock, togglePin, toggleCart, deleteIngredient,
     generateSuggestions, openRecipeDetail, confirmRecipeToCart,
     saveApiKey, resetCart, resetAllData, exportJSON,
-    openModal, closeModal, saveEmoji, openEditEmoji,
+    openModal, closeModal, openEditEmoji,
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
     confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
