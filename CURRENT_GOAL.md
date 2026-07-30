@@ -9,12 +9,25 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-Aucun — **LOT 011 terminé, validé et vérifié en navigateur par Joel le 2026-07-30**,
-statut `[A PUBLIER]`. Il attend le LOT 012 pour une publication combinée en **version
-5.7**, comme les paires précédentes (007+008→5.5, 009+010→5.6). Prochaine étape :
-ouvrir le **LOT 012 — Confort d'usage retrouvé** sur signal de Joel.
+**LOT 012 — Confort d'usage retrouvé**, statut `[EN COURS]` depuis le 2026-07-30 — branche
+`feat/lot12-confort-usage`, chaînée depuis `feat/lot11-recettes-ia-riches` (comme 010 depuis
+009). Phase découverte faite (3 agents Explore en parallèle) : 8 citations périmées
+corrigées dans la fiche + 3 découvertes hors fiche initiale (le ＋ flottant doit redevenir
+masqué hors inventaire ; risque de collision cartographié entre la topbar mobile et le
+voyant de synchro du LOT 007 ; deux fonctions mortes en doublon repérées et non touchées).
+Ferme la check-list de campagne avec le LOT 011 ; publication combinée en **version 5.7**
+sur feu vert explicite de Joel (comme 007+008→5.5, 009+010→5.6).
 
-### LOT 011 — Recettes IA riches — bilan complet
+### LOT 012 — périmètre (fiche : `LOT 012 - Confort d usage retrouve [EN COURS].md`)
+
+| Zone | Contenu |
+|---|---|
+| A | Sélecteur d'articles : édition par ligne (nom + emoji via 🎲 `cycleEmoji`), complète le LOT 006 |
+| B | Clavier et gestes : Entrée sur `#ez-input`/`#paste-title`, scroll filtres mobile, anti-autofill |
+| C | Navigation : barre supérieure contextuelle, ＋ flottant pantry-only, retour auto, toasts, `shoppingSource` — **zone la plus sensible du lot**, proximité DOM avec les voyants de synchro LOT 007 |
+| D | Styles neufs (pas des pertes) : `.add-results-list`/`.add-res-item`, `.tb-btn.small` |
+
+### LOT 011 — Recettes IA riches — bilan complet (terminé, `[A PUBLIER]`, attend le LOT 012)
 
 Fiche : `RoadMap & Project Pipeline/LOT 011 - Recettes IA riches [A PUBLIER].md`.
 Le plus gros lot de restauration de la campagne — rend à la partie « recettes IA » la
@@ -76,8 +89,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **007 + 008** — ✅ **PUBLIÉS en Version 5.5 le 2026-07-30**
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011** Recettes IA riches — 🟡 **A PUBLIER** depuis le 2026-07-30, attend le 012
-- **012** Confort d'usage retrouvé — PLANIFIÉ, ferme la check-list de campagne avec le 011,
-  se publiera avec lui en 5.7
+- **012** Confort d'usage retrouvé — 🟢 **EN COURS** depuis le 2026-07-30, ferme la
+  check-list de campagne avec le 011, se publiera avec lui en 5.7
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne
   (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 - **015** Réglages fiables et cohérents — PLANIFIÉ, s'exécute avant le 013
@@ -108,8 +121,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-Ouvrir le **LOT 012 — Confort d'usage retrouvé** sur signal de Joel
-(`/new-lot 012 confort-usage`), branche chaînée depuis `feat/lot11-recettes-ia-riches`
-(comme 010 depuis 009). À sa clôture : publication combinée 011+012 en version 5.7.
+Coder les 4 zones du LOT 012 (A sélecteur, B clavier, C navigation, D styles) — ordre de
+risque croissant, C en dernier car c'est la seule zone à proximité des voyants de synchro
+LOT 007. Audit standard en fin de lot, ciblé sur ce risque de collision. À sa clôture :
+publication combinée 011+012 en version 5.7.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.
