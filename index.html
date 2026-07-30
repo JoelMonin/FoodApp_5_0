@@ -202,7 +202,7 @@
         <span class="sb-item-icon">📋</span> Coller une recette
       </div>
       <div class="sb-footer">
-        <div class="sync-indicator" data-view="export" onclick="switchView('export')" title="Ouvrir les rglages">
+        <div class="sync-indicator" data-view="export" onclick="switchView('export')" title="Ouvrir les réglages">
           <span style="font-size:14px; margin-right:4px">⚙️</span>
           <span class="sync-label">Réglages</span>
         </div>
@@ -512,7 +512,7 @@
                 </div>
               </button>
             </div>
-            <div class="export-section-title">Copier dans le presse-papiers</div>
+            <div class="export-section-title">Partager</div>
             <div class="export-grid">
               <button class="export-btn export-share" onclick="exportClipboard('simple')">
                 <span class="export-btn-icon">📋</span>
@@ -532,31 +532,31 @@
                 <span class="export-btn-icon">🛒</span>
                 <div>
                   <div class="export-btn-label">Copier ma liste de courses</div>
-                  <div class="export-btn-sub">Préparez votre message de courses avec tous les articles cochés "À acheter".</div>
+                  <div class="export-btn-sub">Tout ce qu'il vous reste à acheter, rangé par rayon, articles libres compris.</div>
                 </div>
               </button>
             </div>
-            <div class="export-section-title">Fichier JSON</div>
+            <div class="export-section-title">Sauvegarde</div>
             <div class="export-grid">
               <button class="export-btn export-backup" onclick="exportJSON()">
                 <span class="export-btn-icon">💾</span>
                 <div>
                   <div class="export-btn-label">Télécharger une sauvegarde</div>
-                  <div class="export-btn-sub">Récupérer un fichier (.json) contenant tout votre inventaire et vos favoris.</div>
+                  <div class="export-btn-sub">Un fichier (.json) avec votre inventaire, vos favoris et vos réglages. Votre clé API n'y est jamais écrite.</div>
                 </div>
               </button>
               <button class="export-btn export-danger" onclick="document.getElementById('import-file').click()">
                 <span class="export-btn-icon">📥</span>
                 <div>
                   <div class="export-btn-label">Restaurer une sauvegarde</div>
-                  <div class="export-btn-sub">⚠️ Remplace TOUTES vos données actuelles par celles d'un fichier JSON.</div>
+                  <div class="export-btn-sub">⚠️ REMPLACE TOUT par le contenu d'un fichier de sauvegarde. Votre clé API reste sur cet appareil.</div>
                 </div>
               </button>
               <button class="export-btn export-backup" onclick="document.getElementById('restore-file').click()">
                 <span class="export-btn-icon">🔄</span>
                 <div>
                   <div class="export-btn-label">Importer uniquement le stock</div>
-                  <div class="export-btn-sub">Met à jour la disponibilité de vos ingrédients sans modifier votre configuration.</div>
+                  <div class="export-btn-sub">Le MÊME fichier, mais en douceur : reprend stock, à acheter, épinglés et surgelés, ajoute les ingrédients inconnus, et ne touche ni aux favoris ni aux réglages.</div>
                 </div>
               </button>
             </div>
@@ -568,14 +568,14 @@
                 <span class="export-btn-icon">🗑️</span>
                 <div>
                   <div class="export-btn-label">Réinitialiser mon panier</div>
-                  <div class="export-btn-sub">Décoche tous les articles "À acheter" pour repartir sur une liste vide.</div>
+                  <div class="export-btn-sub">Vide entièrement votre liste de courses, articles libres compris. Votre stock n'est pas touché.</div>
                 </div>
               </button>
               <button class="export-btn export-danger" onclick="resetAllData()">
                 <span class="export-btn-icon">⚠️</span>
                 <div>
                   <div class="export-btn-label">Mise à zéro complète</div>
-                  <div class="export-btn-sub">Efface absolument tout (Stock, Favoris, Config) et restaure l'application d'origine.</div>
+                  <div class="export-btn-sub">⚠️ Repart de l'inventaire d'origine et efface favoris et réglages IA — ici ET dans le cloud. Votre clé API est conservée.</div>
                 </div>
               </button>
             </div>

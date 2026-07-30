@@ -259,7 +259,10 @@ export function importStockOnly(file) {
       });
 
       saveState();
-      toast(`📥 Restauration : ${updatedCount} mis à jour, ${addedCount} ajoutés`);
+      // LOT 015, chantier 8 : le mot « Restauration » entretenait la confusion avec le
+      // bouton d'a cote (« Restaurer une sauvegarde »), qui remplace TOUT. Ici c'est une
+      // fusion douce -- le libelle doit le dire.
+      toast(`🔄 Stock fusionné : ${updatedCount} mis à jour, ${addedCount} ajoutés`);
     } catch (err) {
       toast('Format JSON invalide', 'error');
     }

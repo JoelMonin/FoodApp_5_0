@@ -755,6 +755,34 @@ paire Restaurer / Importer-stock rendue limpide, toast « Stock fusionné » au 
 
 **Preuve :** test léger sur les libellés + relecture visuelle de Joel.
 
+✅ **FAIT le 2026-07-30 — 15 tests (`tests/settings-labels.test.js`).** Le test lit le
+**vrai `index.html`** (aucun test du dépôt ne le faisait) et cible les boutons par leur
+`onclick`, **jamais par leur texte** : chercher une carte par son libellé pour ensuite
+vérifier ce libellé serait circulaire, et aucun bouton de la page ne porte d'`id`.
+
+Textes réécrits :
+- sections « Copier dans le presse-papiers » → **« Partager »**, « Fichier JSON » →
+  **« Sauvegarde »** ;
+- « Copier ma liste de courses » annonce désormais les **articles libres** qu'elle inclut ;
+- « Télécharger une sauvegarde » prévient que **la clé API n'est jamais écrite** ;
+- « Restaurer une sauvegarde » dit **REMPLACE TOUT** + clé locale conservée ;
+- « Importer uniquement le stock » dit la vérité : **le MÊME fichier, en douceur**, les
+  **quatre** états repris (stock, à acheter, épinglé, surgelé) et l'**ajout** d'inconnus —
+  l'ancien texte n'en disait aucun ;
+- « Mise à zéro complète » ne prétend plus effacer la clé API (le code la conserve) et
+  précise que **le cloud est visé aussi** ;
+- son toast passe de « 📥 Restauration : … » à **« 🔄 Stock fusionné : … »**, le mot
+  « Restauration » entretenant la confusion avec le bouton voisin.
+
+**Hors fiche, trouvé à la découverte et corrigé ici** (texte pur, même sous-lot) :
+l'infobulle du bouton qui ouvre les Réglages affichait « Ouvrir les **rglages** »
+(`index.html:205`) — accents perdus à un moment de l'historique.
+
+**Écart de périmètre assumé** : le sous-titre de « Réinitialiser mon panier » a lui aussi
+été corrigé (il annonçait « décoche les articles à acheter » alors qu'il **vide aussi les
+articles libres**). Le chantier 7 garantit son COMPORTEMENT, pas son texte — et ce texte
+devenait trompeur maintenant que les articles libres sont visibles à la copie.
+
 ### Sous-lot C — Sauvegarde et restauration (chantiers 5, 7, 10a-d + §G)
 
 Le cœur du risque, donc en dernier. Ordre interne :
