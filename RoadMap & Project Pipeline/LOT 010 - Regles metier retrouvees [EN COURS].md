@@ -398,6 +398,15 @@ de mise à l'échelle de l'oracle ne se contente pas d'ignorer les fractions, el
 **corrompt** — `1/2 citron` à l'échelle 2 devient `2/4 citron`. Cela transforme l'arbitrage
 « fractions » de Joel en correction de bug, et non en simple confort.
 
+**Audits d'étape post-implémentation :**
+- Chantiers 1+2 (`f09c423`, `7eebf03`) — `/ultra-audit` interne, 6 lentilles + vérification
+  adversariale : **0 défaut confirmé**. 3 pointeurs confirmant que le chantier 3 est la suite
+  logique (la zone imposée devait afficher aussi les épinglés).
+- Chantier 3 (`1fa05fe`) — audité par **Gemini** (Codex et l'audit interne mis en pause pour
+  raison de budget de tokens, cf. décision de Joel du 2026-07-30) : **GO sans réserve**.
+  Lignes citées vérifiées à un ou deux près, conclusion confirmée indépendamment par l'audit
+  précédent (le sélecteur `.chip` générique ne capte plus les nouvelles puces).
+
 **Arbitrages de Joel (2026-07-30) :**
 1. **SSOT strict** — `cuisines` est l'unique champ définitif ; l'ancien `cuisine` est versé
    dedans puis supprimé ; tous les chemins (local, cloud, IA) n'utilisent plus que `cuisines`.
