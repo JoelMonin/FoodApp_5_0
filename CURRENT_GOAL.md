@@ -9,41 +9,51 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 015 — Réglages fiables et cohérents** — ouvert le 2026-07-30, branche
-`feat/lot15-reglages-fiables` (depuis `main` en 5.7). Niveau d'audit **DUR** (sauvegardes,
-restaurations, risque de données incohérentes). Version visée : **5.8**.
+**LOT 015 — Réglages fiables et cohérents** — 🟢 **TERMINÉ, EN ATTENTE DU FEU VERT DE JOEL.**
+Ouvert et achevé le 2026-07-30, branche `feat/lot15-reglages-fiables` (depuis `main` en 5.7).
+Niveau d'audit **DUR** tenu en 4 passages. Version visée : **5.8**.
+Métriques : **448/448 Vitest, 13/13 verrous, build OK**, vérification navigateur de Joel faite.
 
 **But en une phrase :** chaque bouton de la page Réglages doit faire exactement ce que son
 titre annonce — aujourd'hui « Copier mon stock » copie la liste de courses, « Données
 techniques (JSON) » ne produit pas de JSON, et « Mise à zéro » annonce d'effacer la clé API
 alors qu'elle la conserve.
 
-**Suivi des 10 chantiers**
+**Les 10 chantiers — tous faits**
 
 | # | Chantier | État |
 |---|---|---|
-| 1 | « Copier mon stock » copie le stock, plus les courses | ⬜ |
-| 2 | « Partager par rayons » ne partage que le stock | ⬜ |
-| 3 | « Copier ma liste de courses » n'oublie plus les articles libres | ⬜ |
-| 4 | Suppression sèche du bouton « Données techniques (JSON) » | ⬜ |
-| 5 | Aller-retour cohérent sauvegarde ↔ restauration (coches comprises) | ⬜ |
-| 6 | Texte honnête de « Mise à zéro complète » | ⬜ |
-| 7 | Non-régressions (LOT 008, panier) | ⬜ |
-| 8 | Textes et retours de la page (pas de redesign) | ⬜ |
-| 9 | Garde-fou « rien à copier » + repli de copie restaurés | ⬜ |
-| 10 | Périmètre du fichier de sauvegarde (4 blocages) | ⬜ |
+| 1 | « Copier mon stock » copie le stock, plus les courses | ✅ |
+| 2 | « Partager par rayons » ne partage que le stock | ✅ |
+| 3 | « Copier ma liste de courses » n'oublie plus les articles libres | ✅ |
+| 4 | Suppression sèche du bouton « Données techniques (JSON) » | ✅ |
+| 5 | Aller-retour cohérent sauvegarde ↔ restauration (coches comprises) | ✅ |
+| 6 | Texte honnête de « Mise à zéro complète » | ✅ |
+| 7 | Non-régressions (LOT 008, panier) | ✅ |
+| 8 | Textes et retours de la page (pas de redesign) | ✅ |
+| 9 | Garde-fou « rien à copier » + repli de copie restaurés | ✅ |
+| 10 | Périmètre du fichier de sauvegarde (4 blocages) | ✅ |
 
-**Phase découverte faite le 2026-07-30 (4 agents, obligatoire avant la 1ʳᵉ ligne de code).**
-Verdict : la fiche était juste sur le fond mais **toutes ses références de ligne étaient
-périmées** (décalages de +9 à +630, la 5.7 ayant beaucoup grossi `js/app.js`), plus
-**8 erreurs de contenu** et **7 pièges techniques** non repérés. Tout est corrigé dans la
-fiche. Un seul arbitrage reste à faire trancher par Joel (§G de la fiche).
+**Ce que la campagne d'audit a coûté et rapporté (dispositif de remplacement de Codex) :**
+- **Phase découverte (4 agents)** : la fiche était juste sur le fond mais fausse sur presque
+  toutes ses références de ligne (+9 à +630), plus 8 erreurs de contenu et 7 pièges.
+- **Audit de spec Gemini** : NO-GO, 4 points — dont l'invalidation du raisonnement central du
+  chantier 9 (le garde-fou porté tel quel ne se serait jamais déclenché).
+- **2 audits adversariaux locaux** : **2 BLOQUANTS** (le trou de la barrière de synchro, qui
+  annulait la restauration quelques secondes après coup ; une garde d'entrée encore
+  contournable menant à l'écrasement de l'inventaire), 5 IMPORTANTS, et **4 tests réécrits
+  parce qu'ils ne prouvaient rien**.
+- **Audit du diff final Gemini** : GO, 0 correction — sa seule critique de test s'est révélée
+  **fausse à la vérification** (la mutation annoncée « verte » casse 4 tests).
 
 **Rappel : la campagne « Restauration & Refonte » est close côté restauration** — les
 LOTS 015/013/014 sont de la **refonte**. L'oracle `foodapp-v5-Joel.html` reste la référence
-de non-régression, mais ce lot assume **trois écarts délibérés** au-dessus de lui, tous
-décidés par Joel : suppression du bouton JSON, toasts chiffrés, coches dans le fichier de
-sauvegarde.
+de non-régression, mais ce lot assume **QUATRE écarts délibérés** au-dessus de lui : les
+trois décidés par Joel (suppression du bouton JSON, toasts chiffrés, coches dans le fichier
+de sauvegarde) plus le regroupement par rayon de la liste de courses, déclaré à l'audit.
+
+**Arbitrage §G tranché par Joel** : le chemin « Importer uniquement le stock » purge
+désormais les coches devenues sans objet — écart de périmètre autorisé et tracé.
 
 ## Lots précédents — Version 5.7 (2026-07-30)
 
@@ -88,7 +98,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011 + 012** — ✅ **PUBLIÉS en Version 5.7 le 2026-07-30** — campagne de restauration
   achevée
-- **015** Réglages fiables et cohérents — 🔵 **EN COURS** depuis le 2026-07-30 (V5.8)
+- **015** Réglages fiables et cohérents — 🟢 **A PUBLIER** (terminé le 2026-07-30, V5.8)
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (refonte)
   (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 
@@ -123,9 +133,10 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-**LOT 015 ouvert, phase découverte faite, fiche corrigée.** En attente de deux décisions de
-Joel avant la première ligne de code : la **stratégie d'audit** (Codex n'a plus de budget de
-jetons — il reste Gemini et NotebookLM) et l'**arbitrage du §G** (les coches fantômes du
-chemin « Importer uniquement le stock »).
+**LOT 015 terminé, validé, en attente du FEU VERT de Joel pour la mise en ligne en 5.8.**
+Rien n'a été poussé : `main` est toujours en 5.7. Au feu vert : bump `APP_VERSION`,
+`python scripts/sync_version.py`, fiche en `[CLOTURE]`, SHIP_LOG, puis `git merge --no-ff`.
+Ensuite : **LOT 013 — Filet de tests UI**, dont le premier geste est de poser des `id` sur
+les cartes de Réglages (point de passage retenu à l'audit final).
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.

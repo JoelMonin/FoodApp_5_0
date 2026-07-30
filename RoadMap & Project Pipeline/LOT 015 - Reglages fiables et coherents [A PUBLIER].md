@@ -1,6 +1,6 @@
 # LOT 015 — Réglages fiables et cohérents — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-07-30, s'exécute après le LOT 012 et AVANT le LOT 013
+> **Statut :** 🟢 A PUBLIER — ouvert ET terminé le 2026-07-30, en attente du feu vert de Joel
 > **Branche :** `feat/lot15-reglages-fiables` (créée depuis `main` en 5.7)
 > **Niveau d'audit : DUR** — le lot touche les sauvegardes, les restaurations et des
 > risques de données incohérentes (zones sensibles : `src/state.js`, chemins d'export/import)
@@ -939,6 +939,50 @@ réarmement du champ fichier.
 
 ---
 
+## Audit du diff final — Gemini 3.6 Flash, 2026-07-30 : **GO, 0 correction**
+
+Quatrième et dernier passage (spec Gemini → sous-lots → 2 audits adversariaux locaux →
+celui-ci). Même méthode : 15 questions fermées avec citation littérale imposée + 3 ouvertes
+bornées. **Chaque réponse a été contrôlée sur pièce**, y compris les GO.
+
+**Confirmations obtenues :** le correctif de la barrière de quiescence ne perd aucune
+opération légitime (Q1, Q3) ; les trois formats de sauvegarde réels — LOT 015, 5.7 en ligne
+et monolithe — passent tous la nouvelle garde d'entrée (Q4) ; les valeurs par défaut du
+remplacement total correspondent aux libellés affichés (Q6) ; les neutralisations posées
+avant `applyExternalState` survivent bien à la réassignation de `state` (Q8, Q9) ; aucun
+ingrédient de `DEFAULT_DB` n'est écarté à tort de la copie (Q11) ; les acquis des LOTS 007
+et 008 sont intacts (Q14, Q15) ; **aucun cinquième écart non déclaré à l'oracle** (Q13) ;
+**aucun scénario de perte de données** (O1).
+
+**Deux réponses vérifiées de près, aucune ne demandant de correction :**
+- **Q7 — les deux chemins ne produisent PAS la même forme d'`aiConfig`.** Exact au pied de
+  la lettre : `extractSyncedState` sort `models` et `apiKey` par déstructuration avant
+  d'appliquer les défauts, là où la restauration fusionne l'objet du fichier tel quel.
+  **Sans conséquence, vérifié** : `sanitizeGlobalState` réécrit `models` de façon
+  inconditionnelle (`src/state.js:211`) et `applyExternalState` réinjecte la clé locale
+  (`src/state.js:248`). L'état final est identique par les deux chemins.
+- **Q2 — un clic « Cloud Sync » émis pendant une restauration peut être absorbé.** Exact, et
+  c'est le compromis assumé du correctif, déjà écrit dans le commentaire du code : la
+  fenêtre dure quelques millisecondes, et la restauration déclenche de toute façon son
+  propre envoi.
+
+🔴 **UNE RÉPONSE FAUSSE, réfutée par l'expérience — O2.** Gemini désigne le test du repli de
+copie comme le moins probant, en affirmant que remplacer
+`copied = document.execCommand('copy') === true` par `copied = true` le laisserait vert.
+**Vérifié en appliquant réellement la mutation : elle casse QUATRE tests**, dont celui,
+écrit exprès, qui vérifie qu'un `execCommand` renvoyant `false` est traité comme un échec.
+Gemini a jugé un test isolément sans lire les autres du même fichier — précisément la
+faiblesse contre laquelle la méthode des questions fermées avait été bâtie. **Aucune action.**
+
+**O3 — point de passage vers le LOT 013, retenu :** aucun bouton de la page Réglages ne
+porte d'`id`, ce qui rendra les sélecteurs du filet de tests UI fragiles aux changements de
+libellé. **Volontairement PAS corrigé ici** : ajouter des `id` après la clôture des audits
+serait une modification non auditée, pour un bénéfice qui appartient au lot suivant. Les
+tests de ce lot ciblent les boutons par leur `onclick`, qui est stable. À traiter en tête du
+LOT 013.
+
+---
+
 ## Plan de test
 
 ⚠️ **Contrainte d'environnement mesurée le 2026-07-30 :** sous jsdom, `navigator.clipboard`
@@ -1012,19 +1056,20 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
       de `sanitizeGlobalState` ; le Set reste la seule représentation *(sous-lot C)*
 - [x] **Ajouté par l'audit Gemini (Q12)** : un article libre sans `name` exploitable est
       **ignoré** à la copie — la chaîne « undefined » n'apparaît jamais dans le texte copié
-- [ ] Manuels (Joel) : vérification navigateur de CHAQUE carte de Réglages — le résultat
-      correspond au titre et au sous-titre
+- [x] Manuels (Joel) : vérification navigateur de CHAQUE carte de Réglages — **fait le
+      2026-07-30, « ça a l'air ok »**
 
 ## Critères d'acceptation
 
 - [x] Suppression sèche du bouton « Données techniques (JSON) » appliquée (arbitrage
       Joel du 2026-07-30) et retouches UX du chantier 8 en place
 - [x] Validation unifiée verte + build OK — **448/448 Vitest, 13/13 verrous, build OK**
-- [ ] **Audit DUR** selon le dispositif tranché en tête de fiche (Gemini sur le plan puis
-      sur le diff final + agents adversariaux locaux par étape) — ~~/ultra-audit~~ remplacé
+- [x] **Audit DUR** selon le dispositif tranché en tête de fiche — **4 passages** : spec
+      Gemini (NO-GO, 4 points), 2 audits adversariaux locaux (2 BLOQUANTS, 5 IMPORTANTS,
+      4 tests réécrits), diff final Gemini (GO, 0 correction)
 - [x] Le chemin « Importer uniquement le stock » ne laisse plus de coche fantôme (§G,
       écart au périmètre initial autorisé par Joel le 2026-07-30)
-- [ ] Chaque carte de Réglages vérifiée en navigateur par Joel
+- [x] Chaque carte de Réglages vérifiée en navigateur par Joel (2026-07-30)
 
 ## Traçabilité
 

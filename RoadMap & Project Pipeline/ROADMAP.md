@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BEN%20COURS%5D.md) | Réglages fiables et cohérents — s'exécute AVANT le 013 (V5.8) | **EN COURS** | `feat/lot15-reglages-fiables` |
+| [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BA%20PUBLIER%5D.md) | Réglages fiables et cohérents — terminé et validé, attend le feu vert (V5.8) | **A PUBLIER** | `feat/lot15-reglages-fiables` |
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
 
