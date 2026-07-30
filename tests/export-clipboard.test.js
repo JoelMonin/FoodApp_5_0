@@ -96,6 +96,30 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
 
             expect(copied()).toContain('🔸 Tomate');
         });
+
+        it('un ingrédient SANS NOM est ignoré, et le toast ne le compte pas — l\'assainissement '
+           + 'garantit la catégorie et l\'emoji, jamais le nom : la copie affichait '
+           + '« 🥩 undefined » en annonçant « 1 ingrédient »', async () => {
+            state.ingredients = [
+                ing({ id: 'a', name: undefined, emoji: '🥩', inStock: true }),
+                ing({ id: 'b', name: '   ', inStock: true }),
+                ing({ id: 'c', name: 'Tomate', inStock: true })
+            ];
+
+            await window.exportClipboard('simple');
+
+            expect(copied()).not.toContain('undefined');
+            expect(toasts()).toContain('Stock copié (1 ingrédient)');
+        });
+
+        it('si AUCUN ingrédient n\'a de nom, le garde-fou se déclenche : rien n\'est copié', async () => {
+            state.ingredients = [ing({ name: undefined, inStock: true })];
+
+            await window.exportClipboard('simple');
+
+            expect(writeText).not.toHaveBeenCalled();
+            expect(toasts()).toContain('Votre stock est vide — rien à copier');
+        });
     });
 
     // ─────────────────────────────────────────────────────────────────
@@ -133,16 +157,21 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             expect(copied()).not.toContain('✅ 🍅');
         });
 
-        it('groupe réellement par rubrique', async () => {
+        it('groupe réellement : deux ingrédients d\'une même catégorie partagent UN SEUL '
+           + 'en-tête — vérifier la simple présence des libellés laisserait passer un '
+           + 'en-tête répété par ingrédient', async () => {
             state.ingredients = [
                 ing({ id: 'a', name: 'Tomate', category: 'Légumes', inStock: true }),
-                ing({ id: 'b', name: 'Pomme', category: 'Fruits', emoji: '🍎', inStock: true })
+                ing({ id: 'b', name: 'Carotte', category: 'Légumes', emoji: '🥕', inStock: true }),
+                ing({ id: 'c', name: 'Pomme', category: 'Fruits', emoji: '🍎', inStock: true })
             ];
 
             await window.exportClipboard('categorized');
 
-            expect(copied()).toContain('LÉGUMES');
-            expect(copied()).toContain('FRUITS');
+            expect(copied().match(/LÉGUMES/g)).toHaveLength(1);
+            expect(copied().match(/FRUITS/g)).toHaveLength(1);
+            // Les deux légumes se suivent sous leur unique en-tête.
+            expect(copied()).toMatch(/LÉGUMES ---\n🍅 Tomate\n🥕 Carotte/);
         });
     });
 
@@ -215,6 +244,21 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             expect(copied()).not.toContain('undefined');
             expect(copied()).toContain('porc haché');
             expect(copied().match(/☐ 🥩/g)).toHaveLength(1);
+        });
+
+        it('un `customCartItems` d\'un TYPE aberrant ne fait pas planter la copie en silence '
+           + '— Firebase renvoie parfois un tableau creux sous forme d\'objet', async () => {
+            state.ingredients = [ing({ inCart: true })];
+
+            for (const valeurAberrante of [{ 0: { name: 'porc' } }, 'porc haché', 42, null]) {
+                writeText.mockClear();
+                state.customCartItems = valeurAberrante;
+
+                await expect(window.exportClipboard('cart')).resolves.toBeUndefined();
+
+                expect(copied()).toContain('Tomate');
+                expect(copied()).not.toContain('undefined');
+            }
         });
 
         it('des articles libres SEULS suffisent à produire une liste — le panier peut être vide', async () => {
@@ -318,6 +362,31 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             await window.exportClipboard('simple');
 
             expect(document.querySelectorAll('textarea')).toHaveLength(0);
+        });
+
+        it('le nettoyage a lieu MÊME si execCommand LÈVE — sans quoi un <textarea> invisible '
+           + 'restait dans la page jusqu\'au rechargement', async () => {
+            removeClipboard();
+            document.execCommand = vi.fn(() => { throw new Error('interdit'); });
+            state.ingredients = [ing({ inStock: true })];
+
+            await window.exportClipboard('simple');
+
+            expect(document.querySelectorAll('textarea')).toHaveLength(0);
+            expect(toasts()).toContain('Erreur lors de la copie');
+        });
+
+        it('le repli REND le focus au champ que l\'utilisateur était en train de remplir', async () => {
+            removeClipboard();
+            document.execCommand = vi.fn(() => true);
+            document.body.innerHTML = '<input id="saisie-en-cours">';
+            const champ = document.getElementById('saisie-en-cours');
+            champ.focus();
+            state.ingredients = [ing({ inStock: true })];
+
+            await window.exportClipboard('simple');
+
+            expect(document.activeElement).toBe(champ);
         });
 
         it('execCommand qui échoue SILENCIEUSEMENT (retour false) est traité comme un échec '

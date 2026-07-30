@@ -727,8 +727,7 @@ Tout tient dans `exportClipboard` (`js/app.js:1536-1585`) et dans la carte à su
 **Preuve :** `tests/export-clipboard.test.js` (neuf), avec son propre stub de
 `navigator.clipboard` et de `document.execCommand`.
 
-✅ **FAIT le 2026-07-30 — 27 tests, validation unifiée verte (383/383 Vitest, 13/13
-verrous).** Décisions prises à l'exécution, toutes traçées :
+✅ **FAIT le 2026-07-30 — 35 tests** (27 au premier jet, durcis après l'audit adversarial). Décisions prises à l'exécution, toutes traçées :
 - **Le garde-fou porte sur la source** : `buildClipboardText(type)` renvoie l'en-tête, le
   corps et le **compte de la source** séparément ; `exportClipboard` sort avant toute
   écriture si le compte est nul. Un type inconnu renvoie `null` → « Rien à copier ».
@@ -800,8 +799,7 @@ Le cœur du risque, donc en dernier. Ordre interne :
 **Preuve :** `tests/backup-restore.test.js` (neuf), avec faux `FileReader`, faux Firebase
 et `__resetSyncEngineForTests`.
 
-✅ **FAIT le 2026-07-30 — 28 tests. Validation unifiée verte : 430/430 Vitest, 13/13
-verrous, build de production OK.**
+✅ **FAIT le 2026-07-30 — 39 tests** (28 au premier jet, durcis après l'audit adversarial).
 
 Décisions et points de mise en œuvre, tous traçés :
 - **SSOT du périmètre du fichier** : `BACKUP_STATE_KEYS` (`src/constants.js`) sert **à la
@@ -863,6 +861,81 @@ barrière du sous-lot C (P6). O2 (divergence de `customCartItems` entre deux app
 O3 (restauration hors ligne puis reconnexion) décrivent des comportements **du moteur de
 synchro du LOT 007**, antérieurs à ce lot et non aggravés par lui → **versés au backlog**,
 hors périmètre (les élargir ici ferait dériver un lot déjà plus lourd que prévu).
+
+---
+
+## Audit adversarial local — 2026-07-30 : **2 BLOQUANTS**, tous corrigés
+
+Le niveau DUR est porté par ces agents (dispositif tranché par Joel). Deux auditeurs
+adversariaux indépendants, l'un sur la copie, l'autre sur la perte de données et la
+synchro, avec pour consigne de **démolir** le code plutôt que de le valider. Chaque finding
+a été **revérifié sur pièce** avant correction.
+
+### 🔴 BLOQUANT 1 — la barrière de quiescence avait un trou (`js/app.js`, moteur LOT 007)
+
+**Le durcissement principal du lot ne fonctionnait pas.** `awaitSyncQuiescence()` était bien
+appelé, mais à la levée de la barrière le moteur relançait **synchroniquement** l'opération
+mise en file *pendant* l'attente (retour du réseau, retour sur l'app, pull des 60 s), alors
+que la reprise du chemin explicite n'est qu'une **microtâche**. L'envoi construisait donc son
+document (`performSyncSend`, l.293-294, synchrone) avec l'état **d'avant la restauration**,
+puis le pull qui suivait réappliquait ce vieux document par-dessus — **sans** déclencher le
+garde-fou d'empreinte, celle-ci étant prise après coup.
+
+**Conséquence réelle :** la restauration de Joel était **annulée sous ses yeux** quelques
+secondes après le toast « Import réussi ! », sans le moindre message, et rien ne partait au
+cloud. Exactement l'incident que le chantier 5 prétendait fermer.
+
+**Correction :** une opération mise en file avant que le chemin explicite ait écrit est
+**périmée par construction** — elle n'est plus relancée. Le chemin explicite planifie son
+propre envoi via `saveState`, rien n'est perdu. Le comportement normal du moteur (pas de
+barrière en attente) est inchangé et **verrouillé par un second test**.
+
+### 🔴 BLOQUANT 2 — la garde d'entrée laissait encore passer de quoi tout détruire
+
+`Array.isArray(...) && length > 0` ne teste que le **contenant**. Un fichier
+`{"ingredients": ["Tomate","Oignon"]}` — une liste écrite à la main, ou générée par un
+assistant à qui on demande « fais-moi une sauvegarde FoodApp » — franchissait la garde, était
+filtré à vide par `sanitizeGlobalState`, qui **reconstruisait alors les 297 ingrédients par
+défaut** et les poussait au cloud. `[{}]` passait aussi, remplaçant tout l'inventaire par un
+ingrédient fantôme.
+
+**Correction :** signature minimale exigée d'un vrai ingrédient — un `id` ET un nom non
+vides (`n` de l'ère monolithe accepté). Les entrées incomplètes d'un fichier par ailleurs
+valide sont écartées ; si aucune ne tient, le fichier est refusé.
+
+### Cinq IMPORTANTS, également corrigés
+
+| Défaut | Correction |
+|---|---|
+| Un fichier sans réglages IA **effaçait** régimes, exclusions et nombre de personnes — puis poussait cet effacement au cloud. Portée **sanitaire** (exclusions alimentaires) | `aiConfig` est complété par les valeurs par défaut, comme le fait déjà le chemin cloud |
+| « ⚠️ REMPLACE TOUT » était **faux** : une clé absente du fichier était conservée depuis l'état local, produisant un état hybride que ni le fichier ni l'appareil n'avaient eu | Remplacement **vraiment** total : clé absente → valeur par défaut, jamais la valeur locale. Règle déjà tranchée pour le cloud |
+| `customCartItems` d'un type aberrant (objet — la forme d'un tableau creux renvoyée par Firebase — ou chaîne) faisait **planter la copie en silence total** : le `.map` levait hors du `try` | Filtrage par type et par élément, via un helper partagé |
+| Un ingrédient **sans nom** produisait « 🥩 undefined » dans le texte copié, avec un toast annonçant « 1 ingrédient » : **le compte mentait** | La règle « jamais `undefined` » s'applique aux DEUX sources, et le compte suit |
+| Le §G ne purgeait que la branche « article retrouvé » ; la branche d'**ajout** conserve l'id quand il commence par `custom_`, donc une coche fantôme pouvait le faire réapparaître déjà coché | Purge dans les deux branches |
+
+### Quatre tests qui ne prouvaient rien, réécrits
+
+Les auditeurs devaient nommer, pour chaque test suspect, **la mutation du code de production
+qui l'aurait laissé vert**. Quatre ont été pris en défaut :
+
+- le **périmètre du fichier** était comparé à la constante qui le construit : retirer
+  `favorites` de la liste blanche laissait le test vert et cessait de sauvegarder les
+  recettes de Joel → liste **littérale** + aller-retour complet des données durables ;
+- le test de la **barrière** ne prouvait que l'ordre d'appel : retirer le mot `await` le
+  laissait vert → promesse levée à la main, avec assertion que l'état est **intact** tant
+  qu'elle est en attente. C'est ce trou qui avait laissé passer le BLOQUANT 1 ;
+- « groupe réellement par rubrique » n'assurait que la présence des libellés : un en-tête
+  répété par ingrédient passait → comptage des en-têtes + ordre exact ;
+- « ne peut plus se ré-exporter indéfiniment » était garanti par la liste blanche, pas par
+  l'élagage : supprimer l'élagage le laissait vert → cycle complet restauration → export.
+
+Ajouté aussi : nettoyage du `<textarea>` de repli **quand `execCommand` lève** (le test ne
+couvrait que le succès), et restitution du **focus** après le repli — l'oracle effaçait la
+saisie en cours de l'utilisateur sans explication.
+
+**Les deux corrections les plus risquées ont été prouvées en retirant temporairement le
+correctif**, attendu écrit d'avance et résultat conforme : la course de synchro et le
+réarmement du champ fichier.
 
 ---
 
@@ -946,7 +1019,7 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
 
 - [x] Suppression sèche du bouton « Données techniques (JSON) » appliquée (arbitrage
       Joel du 2026-07-30) et retouches UX du chantier 8 en place
-- [x] Validation unifiée verte + build OK — **430/430 Vitest, 13/13 verrous, build OK**
+- [x] Validation unifiée verte + build OK — **448/448 Vitest, 13/13 verrous, build OK**
 - [ ] **Audit DUR** selon le dispositif tranché en tête de fiche (Gemini sur le plan puis
       sur le diff final + agents adversariaux locaux par étape) — ~~/ultra-audit~~ remplacé
 - [x] Le chemin « Importer uniquement le stock » ne laisse plus de coche fantôme (§G,

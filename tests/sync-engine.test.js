@@ -569,4 +569,69 @@ describe('Moteur de synchro — LOT 007', () => {
       expect(document.getElementById('info-network').textContent).toBe('🌐 Connecté');
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // LOT 015 — trou de la barrière de quiescence, trouvé à l'audit adversarial.
+  //
+  // La barrière promet à un chemin explicite (remise à zéro, restauration de fichier)
+  // qu'il pourra écrire sans qu'un envoi du moteur ne le double. Elle vide bien la file
+  // à son appel — mais une opération pouvait être remise en file APRÈS, pendant l'attente
+  // (retour du réseau, retour sur l'app, pull périodique). À la levée, le `finally`
+  // relançait cette opération de façon SYNCHRONE, alors que la reprise du chemin explicite
+  // n'est qu'une microtâche : l'envoi construisait donc son document avec l'état d'AVANT,
+  // et le pull qui suivait réappliquait ce vieux document par-dessus la restauration.
+  // ─────────────────────────────────────────────────────────────────────
+  describe('Barrière de quiescence — priorité au chemin explicite (LOT 015)', () => {
+    it('une opération mise en file PENDANT l\'attente n\'est PAS relancée à la levée : '
+       + 'elle porterait l\'état d\'avant le chemin explicite', async () => {
+      state.ingredients = [makeIngredient({ id: 'avant' })];
+      saveState(); // lève le drapeau « en attente »
+      expect(isSyncPending()).toBe(true);
+
+      // Un envoi part et reste en vol (le PUT ne se résout pas tout de suite).
+      let terminerLePut;
+      fetch.mockImplementationOnce(() => new Promise(resolve => {
+        terminerLePut = () => resolve({ ok: true, status: 200, statusText: 'OK' });
+      }));
+      const envoiEnVol = requestSyncOp('send');
+      await Promise.resolve();
+
+      // Le chemin explicite demande la quiescence et ATTEND.
+      let barriereLevee = false;
+      const attente = syncEngineBarrier().then(() => { barriereLevee = true; });
+
+      // Pendant l'attente : retour du réseau / de l'app → une opération est mise en file.
+      requestSyncOp('pull');
+
+      const putsAvant = putCalls().length;
+      terminerLePut();
+      await envoiEnVol;
+      await attente;
+
+      expect(barriereLevee).toBe(true);
+      // Aucun nouvel envoi n'a été construit derrière le dos du chemin explicite.
+      expect(putCalls().length).toBe(putsAvant);
+      expect(getCalls().length).toBe(0);
+    });
+
+    it('sans barrière en attente, une opération mise en file EST bien relancée '
+       + '— le comportement normal du moteur n\'est pas cassé', async () => {
+      state.ingredients = [makeIngredient({ id: 'a' })];
+
+      let terminerLePut;
+      fetch.mockImplementationOnce(() => new Promise(resolve => {
+        terminerLePut = () => resolve({ ok: true, status: 200, statusText: 'OK' });
+      }));
+      const envoiEnVol = requestSyncOp('send');
+      await Promise.resolve();
+
+      requestSyncOp('pull');
+
+      terminerLePut();
+      await envoiEnVol;
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(getCalls().length).toBeGreaterThan(0);
+    });
+  });
 });

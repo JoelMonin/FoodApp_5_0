@@ -267,8 +267,20 @@ async function requestSyncOp(op) {
         _syncInFlight = false;
         const queued = _syncQueuedOp;
         _syncQueuedOp = null;
+        const attendaitLaQuiescence = _syncIdleWaiters.length > 0;
         while (_syncIdleWaiters.length) _syncIdleWaiters.shift()();
-        if (queued) requestSyncOp(queued);
+        // LOT 015 (audit adversarial du 2026-07-30) — TROU DE LA BARRIERE DE QUIESCENCE.
+        // `resolve()` ci-dessus ne fait que PROGRAMMER la reprise du chemin explicite
+        // (reset, restauration de fichier) en microtache, alors que `requestSyncOp` demarre
+        // SYNCHRONIQUEMENT et construit son document des ses premieres lignes
+        // (`performSyncSend`, l.293-294). Une operation mise en attente PENDANT la barriere
+        // partait donc AVANT que le chemin explicite ait ecrit, avec l'etat d'AVANT — puis
+        // le pull qui la suit reappliquait ce vieux document par-dessus la restauration,
+        // sans declencher le garde-fou d'empreinte (celle-ci etant prise apres coup).
+        // Une operation demandee avant que le chemin explicite ecrive est PERIMEE par
+        // construction : on ne la relance pas. Le chemin explicite planifie son propre
+        // envoi via `saveState`, rien n'est perdu.
+        if (queued && !attendaitLaQuiescence) requestSyncOp(queued);
     }
 }
 
@@ -1540,14 +1552,24 @@ function groupByCategory(ingredients) {
 const FREE_ITEMS_SECTION = '[ ARTICLES LIBRES ]';
 
 /**
- * Nom affichable d'un article libre, ou null s'il n'en a pas (LOT 015, audit Gemini Q12).
- * `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js:153 ne
- * garantit que l'existence du tableau) : un objet venu du cloud ou d'un vieux fichier peut
- * arriver sans `name`. Un tel article est ignore, jamais rendu en « undefined ».
+ * Nom affichable d'un article, ou null s'il n'en a pas (LOT 015, audit Gemini Q12 puis
+ * audit adversarial). Vaut pour les DEUX sources :
+ *  - `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js ne
+ *    garantit que l'existence du tableau) ;
+ *  - `state.ingredients` l'est, mais `sanitizeGlobalState` garantit `category` et `emoji`,
+ *    PAS `name` (il ne recopie que l'ancien champ court `n`). Un ingredient venu du cloud
+ *    sans nom produisait « 🥩 undefined » dans le texte copie, avec un toast annoncant
+ *    « 1 ingredient » : le compte mentait.
+ * Un article sans nom exploitable est ignore, jamais rendu.
  */
-function freeCartItemName(item) {
+function itemDisplayName(item) {
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
     return name || null;
+}
+
+/** Ne garde que les elements reellement affichables, dans l'ordre. */
+function copyableItems(source) {
+    return (Array.isArray(source) ? source : []).filter(i => itemDisplayName(i));
 }
 
 const clipboardCount = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
@@ -1569,7 +1591,7 @@ function buildClipboardText(type) {
     // Chantier 1 : le bouton promet le STOCK. Il copiait la liste de courses
     // (oracle foodapp-v5-Joel.html l.6466-6468 : `inStock`, confirme).
     if (type === 'simple') {
-        const items = state.ingredients.filter(i => i.inStock);
+        const items = copyableItems(state.ingredients).filter(i => i.inStock);
         return {
             count: items.length,
             emptyMessage: 'Votre stock est vide — rien à copier',
@@ -1584,7 +1606,7 @@ function buildClipboardText(type) {
     // Le marqueur de statut est RETIRE : la source etant restreinte a `inStock`, il
     // vaudrait toujours « ✅ » -- information morte (arbitrage tranche, audit Gemini Q2).
     if (type === 'categorized') {
-        const items = state.ingredients.filter(i => i.inStock);
+        const items = copyableItems(state.ingredients).filter(i => i.inStock);
         const sections = groupByCategory(items).map(([cat, catItems]) =>
             `--- ${getCategoryEmoji(cat)} ${clipboardSectionLabel(cat)} ---\n` +
             catItems.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
@@ -1603,10 +1625,13 @@ function buildClipboardText(type) {
     // groupByCategory : son tri par defaut (l.1533) placerait `[` avant les categories
     // accentuees, donc un simple choix de nom ne suffirait pas a la mettre en fin.
     if (type === 'cart') {
-        const items = state.ingredients.filter(i => i.inCart);
-        const freeItems = (state.customCartItems || [])
-            .map(item => ({ name: freeCartItemName(item), emoji: item?.emoji || '🔸' }))
-            .filter(item => item.name);
+        const items = copyableItems(state.ingredients).filter(i => i.inCart);
+        // `copyableItems` protege aussi du TYPE : `customCartItems` arrivait parfois en
+        // objet (forme d'un tableau creux renvoyee par Firebase) ou en chaine, et le `.map`
+        // levait alors une exception HORS du try/catch -- le bouton ne faisait plus rien,
+        // sans le moindre message (audit adversarial du 2026-07-30).
+        const freeItems = copyableItems(state.customCartItems)
+            .map(item => ({ name: itemDisplayName(item), emoji: item.emoji || '🔸' }));
         const sections = groupByCategory(items).map(([cat, catItems]) =>
             `[ ${clipboardSectionLabel(cat)} ]\n` +
             catItems.map(i => `☐ ${i.emoji || '🔸'} ${i.name}`).join('\n')
@@ -1649,22 +1674,30 @@ async function writeToClipboard(text) {
         console.error('Erreur copie:', err);
     }
 
-    if (typeof document.execCommand !== 'function') return false;
+    if (typeof document.execCommand !== 'function' || !document.body) return false;
 
+    // Le repli vole forcement le focus (`select()` est indispensable a execCommand) :
+    // on le REND a l'element actif, sinon un clic sur « Copier » effacait la saisie en
+    // cours de l'utilisateur sans explication (l'oracle avait ce defaut, l.6485).
+    const focusPrecedent = document.activeElement;
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.setAttribute('readonly', '');
     ta.style.position = 'fixed';
     ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
     let copied = false;
     try {
+        document.body.appendChild(ta);
+        ta.select();
         copied = document.execCommand('copy') === true;
     } catch (err) {
         console.error('Erreur copie (repli):', err);
+    } finally {
+        // `finally` : le textarea ne doit JAMAIS rester orphelin dans la page, meme si
+        // `appendChild`, `select()` ou `execCommand` levent.
+        ta.remove();
+        if (focusPrecedent && typeof focusPrecedent.focus === 'function') focusPrecedent.focus();
     }
-    document.body.removeChild(ta);
     return copied;
 }
 

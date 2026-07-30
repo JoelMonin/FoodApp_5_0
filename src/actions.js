@@ -242,25 +242,54 @@ export function importJSON(file) {
     try {
       const data = JSON.parse(e.target.result);
 
-      if (!Array.isArray(data?.ingredients) || data.ingredients.length === 0) {
+      // Un TABLEAU non vide ne suffit pas : `["Tomate","Oignon"]` franchissait la garde,
+      // était filtré à vide par `sanitizeGlobalState`, qui **reconstruisait alors les ~297
+      // ingrédients par défaut**, envoyés au cloud dans la foulée — la destruction même que
+      // cette garde doit empêcher (audit adversarial du 2026-07-30). Et `[{}]` passait
+      // aussi, remplaçant l'inventaire de Joel par un seul ingrédient fantôme.
+      //
+      // Signature minimale d'un vrai ingrédient : un identifiant ET un nom, tous deux non
+      // vides. `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que
+      // `sanitizeGlobalState` recopie vers `name` — on l'accepte donc aussi.
+      const estUnIngredientPlausible = (i) => {
+        if (!i || typeof i !== 'object') return false;
+        const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
+        return texteNonVide(i.id) && (texteNonVide(i.name) || texteNonVide(i.n));
+      };
+      const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
+        .filter(estUnIngredientPlausible);
+      if (ingredientsDuFichier.length === 0) {
         toast('Format non reconnu', 'error');
         return;
       }
 
       await awaitSyncQuiescence();
 
-      const cartIds = new Set(data.ingredients.filter(i => i && i.inCart).map(i => i.id));
+      const cartIds = new Set(ingredientsDuFichier.filter(i => i.inCart).map(i => i.id));
       const checkedFromFile = Array.isArray(data.shoppingChecked) ? data.shoppingChecked : [];
       replaceShoppingChecked(checkedFromFile.filter(id => cartIds.has(id)));
 
       resetScreenState({ resetView: true });
+      // Les suggestions IA sont des DONNÉES calculées sur l'inventaire précédent : les
+      // garder après un remplacement total ferait proposer des recettes bâties sur un
+      // stock qui n'existe plus (même raisonnement qu'à la remise à zéro, l.139-140).
+      state.aiSuggestions = null;
+      state.currentSuggestionIdx = null;
 
-      // Périmètre EXPLICITE : un ancien fichier contient aussi la vue, la recherche et les
-      // filtres — ils sont simplement ignorés, jamais réappliqués.
-      const patch = {};
-      BACKUP_STATE_KEYS.forEach(key => {
-        if (data[key] !== undefined) patch[key] = data[key];
-      });
+      // REMPLACEMENT TOTAL, conformément au libellé du bouton. Une clé ABSENTE du fichier
+      // retombe sur sa valeur par défaut, JAMAIS sur la valeur locale : c'est la règle déjà
+      // tranchée pour le cloud (`src/services/firebase.js`), et sans elle un fichier ancien
+      // laissait survivre des données d'aujourd'hui, produisant un état hybride que ni le
+      // fichier ni l'appareil n'avaient jamais eu.
+      const patch = { ingredients: ingredientsDuFichier };
+      BACKUP_STATE_KEYS.filter(key => key !== 'ingredients' && key !== 'aiConfig')
+        .forEach(key => {
+          patch[key] = Array.isArray(data[key]) ? data[key] : [];
+        });
+      // Forme TOUJOURS complète, comme `extractSyncedState` : un fichier sans réglages (ou
+      // aux réglages partiels) ne doit pas laisser `ppl`, `exclusions` ou les régimes
+      // à `undefined`. La clé API locale est réinjectée juste après par applyExternalState.
+      patch.aiConfig = { ...defaultAiConfig(), ...(data.aiConfig || {}) };
 
       // Restauration totale : passe par le point d'entrée unique des données
       // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
@@ -315,6 +344,11 @@ export function importStockOnly(file) {
             ? jsonIng.id
             : 'custom_restore_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
           state.ingredients.push({ ...jsonIng, id: newId });
+          // LOT 015, §G — même purge que la branche ci-dessus. Cette branche CONSERVE l'id
+          // quand il commence par `custom_` : un id ré-inséré hors panier pouvait donc
+          // retrouver une coche fantôme déjà présente dans le Set (venue du cloud), et
+          // l'article réapparaissait « déjà coché » le jour où il revenait aux courses.
+          if (!jsonIng.inCart) shoppingChecked.delete(newId);
           addedCount++;
         }
       });

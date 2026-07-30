@@ -135,8 +135,14 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
 
             const fichier = fichierExporte();
 
-            expect(Object.keys(fichier).sort())
-                .toEqual([...BACKUP_STATE_KEYS, 'exportedAt', 'shoppingChecked'].sort());
+            // Liste LITTÉRALE, volontairement pas dérivée de `BACKUP_STATE_KEYS` : comparer
+            // le fichier à la constante qui le construit ne peut pas échouer — retirer
+            // « favorites » de la constante aurait laissé ce test vert tout en cessant de
+            // sauvegarder les recettes de Joel.
+            expect(Object.keys(fichier).sort()).toEqual([
+                'aiConfig', 'customCartItems', 'exportedAt', 'extraIngredients',
+                'favorites', 'ingredients', 'shoppingChecked'
+            ]);
         });
 
         it('la sauvegarde est horodatée — l\'oracle l\'avait (l.6490), l\'app l\'avait perdu', () => {
@@ -259,15 +265,17 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             expect('shoppingChecked' in state).toBe(false);
         });
 
-        it('l\'état pollué ne peut donc plus se ré-exporter indéfiniment', () => {
+        it('l\'élagage survit à un cycle complet : une clé orpheline entrée par une '
+           + 'restauration ne réapparaît pas dans la sauvegarde suivante', async () => {
             state.ingredients = [ing({ id: 'a', inCart: true })];
+            // Simule l'état d'un appareil resté sur une version antérieure, qui avait
+            // absorbé le champ du fichier dans son état.
             state.shoppingChecked = ['orpheline'];
-            shoppingChecked.add('a');
 
-            sanitizeGlobalState();
-            const fichier = fichierExporte();
+            await restaurer({ ingredients: [ing({ id: 'a', inCart: true })], shoppingChecked: ['a'] });
 
-            expect(fichier.shoppingChecked).toEqual(['a']);
+            expect('shoppingChecked' in state).toBe(false);
+            expect(fichierExporte().shoppingChecked).toEqual(['a']);
         });
     });
 
@@ -309,6 +317,58 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             expect(toasts()).toContain('Format non reconnu');
         });
 
+        it('un tableau non vide d\'éléments NON-OBJETS est refusé : `["Tomate","Oignon"]` '
+           + 'franchissait la garde, était filtré à vide, puis reconstruisait les 297 par '
+           + 'défaut et les envoyait au cloud — la destruction même que la garde doit empêcher', async () => {
+            const planificateur = vi.fn();
+            registerSyncScheduler(planificateur);
+            state.ingredients = [ing({ id: 'personnel' })];
+
+            await restaurer({ ingredients: ['Tomate', 'Oignon', 'Farine'] });
+
+            expect(state.ingredients).toHaveLength(1);
+            expect(state.ingredients[0].id).toBe('personnel');
+            expect(state.ingredients.length).not.toBe(DEFAULT_DB.length);
+            expect(planificateur).not.toHaveBeenCalled();
+            expect(toasts()).toContain('Format non reconnu');
+        });
+
+        it('un inventaire d\'éléments vides (`[{}]`) est refusé lui aussi : il aurait remplacé '
+           + 'tout l\'inventaire de Joel par un seul ingrédient fantôme', async () => {
+            state.ingredients = [ing({ id: 'personnel' })];
+
+            await restaurer({ ingredients: [{}, null, { inStock: true }] });
+
+            expect(state.ingredients[0].id).toBe('personnel');
+            expect(toasts()).toContain('Format non reconnu');
+        });
+
+        it('les entrées incomplètes d\'un fichier PAR AILLEURS valide sont écartées, '
+           + 'pas importées comme des lignes fantômes', async () => {
+            await restaurer({
+                ingredients: [{}, ing({ id: 'vrai', name: 'Tomate' }), { id: 'sans_nom' }]
+            });
+
+            expect(state.ingredients.map(i => i.id)).toEqual(['vrai']);
+        });
+
+        it('une vieille sauvegarde de l\'ère monolithe, qui nommait le champ « n », est '
+           + 'toujours acceptée', async () => {
+            await restaurer({ ingredients: [{ id: 'ancien', n: 'Tomate', inStock: true }] });
+
+            expect(state.ingredients).toHaveLength(1);
+            expect(state.ingredients[0].name).toBe('Tomate');
+        });
+
+        it('les coches ne sont PAS vidées par un fichier refusé', async () => {
+            state.ingredients = [ing({ id: 'a', inCart: true })];
+            shoppingChecked.add('a');
+
+            await restaurer({ ingredients: ['Tomate'] });
+
+            expect(shoppingChecked.has('a')).toBe(true);
+        });
+
         it('un fichier sans inventaire du tout est refusé', async () => {
             await restaurer({ favorites: [{ id: 'f1' }] });
 
@@ -327,18 +387,24 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
     // Chantier 5 — l'articulation avec la synchro (le risque principal)
     // ─────────────────────────────────────────────────────────────────
     describe('chantier 5 — articulation avec la synchro cloud', () => {
-        it('la restauration ATTEND la fin d\'un envoi déjà en vol avant d\'écrire quoi que ce soit '
-           + '— sans quoi cet envoi pouvait aboutir après et réécraser l\'ancien état', async () => {
+        it('la restauration ATTEND VRAIMENT la fin d\'un envoi en vol : tant que la barrière '
+           + 'n\'est pas levée, RIEN n\'est écrit — retirer le mot `await` du code laissait '
+           + 'passer la version précédente de ce test', async () => {
             state.ingredients = [ing({ id: 'ancien' })];
-            let inventaireAuMomentDeLaBarriere = null;
-            registerSyncBarrier(() => {
-                inventaireAuMomentDeLaBarriere = state.ingredients.map(i => i.id);
-                return Promise.resolve();
-            });
+            let leverLaBarriere;
+            registerSyncBarrier(() => new Promise(resolve => { leverLaBarriere = resolve; }));
 
-            await restaurer({ ingredients: [ing({ id: 'restaure' })] });
+            contenuFichier = JSON.stringify({ ingredients: [ing({ id: 'restaure' })] });
+            importJSON({});
+            await Promise.resolve();
+            await Promise.resolve();
 
-            expect(inventaireAuMomentDeLaBarriere).toEqual(['ancien']);
+            // La barrière est TOUJOURS en attente : l'état ne doit pas avoir bougé d'un pouce.
+            expect(state.ingredients.map(i => i.id)).toEqual(['ancien']);
+
+            leverLaBarriere();
+            await lectureEnCours;
+
             expect(state.ingredients.map(i => i.id)).toEqual(['restaure']);
         });
 
@@ -371,12 +437,76 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             expect(state.aiConfig.apiKey).toBe('MA-CLE-LOCALE');
         });
 
-        it('un fichier PARTIEL laisse intactes les données qu\'il ne contient pas', async () => {
-            state.favorites = [{ id: 'fav_garde' }];
+        it('« REMPLACE TOUT » est VRAI : une clé absente du fichier retombe sur sa valeur '
+           + 'par défaut, jamais sur la valeur locale — sinon la restauration produisait un '
+           + 'état hybride que ni le fichier ni l\'appareil n\'avaient eu', async () => {
+            state.favorites = [{ id: 'fav_du_jour' }];
+            state.extraIngredients = [{ id: 'extra_du_jour' }];
+            state.customCartItems = [{ id: 'libre_du_jour', name: 'piles' }];
 
             await restaurer({ ingredients: [ing()] });
 
-            expect(state.favorites).toEqual([{ id: 'fav_garde' }]);
+            expect(state.favorites).toEqual([]);
+            expect(state.extraIngredients).toEqual([]);
+            expect(state.customCartItems).toEqual([]);
+        });
+
+        it('une clé de type ABERRANT dans le fichier ne contamine pas l\'état : '
+           + '`favorites: null` casserait l\'écran Favoris et viderait le cloud', async () => {
+            await restaurer({ ingredients: [ing()], favorites: null, customCartItems: 'nimporte quoi' });
+
+            expect(state.favorites).toEqual([]);
+            expect(state.customCartItems).toEqual([]);
+        });
+
+        it('un fichier SANS réglages IA ne laisse pas les préférences à « undefined » — '
+           + 'les exclusions alimentaires ont une portée sanitaire', async () => {
+            state.aiConfig = aiConfig({ apiKey: 'MA-CLE', ppl: '6', exclusions: 'arachide' });
+
+            await restaurer({ ingredients: [ing()] });
+
+            expect(state.aiConfig.apiKey).toBe('MA-CLE');
+            expect(state.aiConfig.ppl).toBeDefined();
+            expect(state.aiConfig.exclusions).toBeDefined();
+            expect(state.aiConfig.diet).toEqual([]);
+        });
+
+        it('un fichier aux réglages PARTIELS est complété par les valeurs par défaut, '
+           + 'comme le fait déjà le chemin cloud', async () => {
+            await restaurer({ ingredients: [ing()], aiConfig: { ppl: '8' } });
+
+            expect(state.aiConfig.ppl).toBe('8');
+            expect(state.aiConfig.creativity).toBe(50);
+            expect(state.aiConfig.meal).toBe('indifferent');
+        });
+
+        it('les suggestions IA de la session précédente ne survivent pas : elles ont été '
+           + 'calculées sur un inventaire qui n\'existe plus', async () => {
+            state.aiSuggestions = [{ name: 'Tarte aux pommes' }];
+            state.currentSuggestionIdx = 0;
+
+            await restaurer({ ingredients: [ing()] });
+
+            expect(state.aiSuggestions).toBeNull();
+            expect(state.currentSuggestionIdx).toBeNull();
+        });
+
+        it('aller-retour complet des données durables — sans quoi retirer une clé de la '
+           + 'liste blanche passerait inaperçu', async () => {
+            state.ingredients = [ing({ id: 'a', inStock: true })];
+            state.favorites = [{ id: 'f1', name: 'Tarte' }];
+            state.extraIngredients = [{ id: 'e1', name: 'Curry' }];
+            state.customCartItems = [{ id: 'c1', name: 'piles', emoji: '🔋' }];
+            state.aiConfig = aiConfig({ ppl: '5' });
+
+            const fichier = fichierExporte();
+            Object.assign(state, { favorites: [], extraIngredients: [], customCartItems: [] });
+            await restaurer(fichier);
+
+            expect(state.favorites).toEqual([{ id: 'f1', name: 'Tarte' }]);
+            expect(state.extraIngredients).toEqual([{ id: 'e1', name: 'Curry' }]);
+            expect(state.customCartItems).toEqual([{ id: 'c1', name: 'piles', emoji: '🔋' }]);
+            expect(state.aiConfig.ppl).toBe('5');
         });
     });
 
@@ -393,6 +523,21 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
 
             expect(state.ingredients[0].inCart).toBe(false);
             expect(shoppingChecked.has('a')).toBe(false);
+        });
+
+        it('la branche d\'AJOUT d\'un ingrédient inconnu purge aussi : elle CONSERVE l\'id '
+           + 'quand il commence par « custom_ », donc une coche fantôme venue du cloud '
+           + 'pouvait le faire réapparaître déjà coché', () => {
+            state.ingredients = [];
+            shoppingChecked.add('custom_123');
+            contenuFichier = JSON.stringify({
+                ingredients: [{ id: 'custom_123', name: 'Sirop maison', inCart: false, inStock: true }]
+            });
+
+            importStockOnly({});
+
+            expect(state.ingredients.map(i => i.id)).toContain('custom_123');
+            expect(shoppingChecked.has('custom_123')).toBe(false);
         });
 
         it('un article qui RESTE à acheter garde sa coche (pas de purge aveugle)', () => {
