@@ -56,6 +56,7 @@
 - `tests/ai-cards-rich.test.js` : Cartes de résultats IA complètes (LOT 011 — numéro, méta, pitch, tags colorés (max 6, priorité stock avant nom exact), boutons ⭐/🛍 rendus seulement si leur handler est fourni).
 - `tests/favorites-rich.test.js` : Favoris riches (LOT 011 — carte dédiée distincte des cartes IA, date stockée et affichée, état vide avec CTA, « Sauvegarder tel quel » restauré pour un texte collé sans transformation IA).
 - `tests/recipe-detail-rich.test.js` : Écran de détail complet (LOT 011 — cas `r.content` (favori texte brut jamais vide), pastilles et « État des stocks » sans limite, Nutri-Score visuel, étapes cochables sans persistance, non-régression des 4 acquis 009/010).
+- `tests/ai-generation-comfort.test.js` : Confort de génération (LOT 011 — textes d'attente animés avec minuteur garanti coupé, scroll auto sur mobile, remise à zéro de « Coller une recette » à l'ouverture, verrouillage + aperçu après transformation IA réussie).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).

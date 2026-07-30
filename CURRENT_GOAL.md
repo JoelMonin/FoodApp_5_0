@@ -27,7 +27,7 @@ cuisiner.
 | 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ✅ codé (11B) — 4 acquis 009/010 vérifiés par test (sauf 🖨️/⛶, à vérifier à la main) |
 | 3 | Prompts et appels IA re-blindés (+ effort IA adapté par tâche, demande Joel du 2026-07-30) | ✅ codé (11A) |
 | 4 | Mode 🎲 « recette aléatoire » complet | ✅ codé (11A) |
-| 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ⬜ à faire (11B) |
+| 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ✅ codé (11B) — les 7 chantiers du lot sont maintenant tous codés |
 | 6 | Récupération d'URL propre (Jina Reader + titre auto) | ✅ codé (11A) |
 | 7 | Favoris riches (vignette, tags, boutons, date de sauvegarde) | ✅ codé (11B) — inclut la restauration de « Sauvegarder tel quel » (arbitrage A1) |
 

@@ -564,7 +564,8 @@ export {
     savePastedRecipe,
     savePastedRecipeAndList,
     buildIngredientTags,
-    transformRecipeAI
+    transformRecipeAI,
+    generateSuggestions
 };
 
 function renderCurrentView() {
@@ -787,6 +788,10 @@ function resetFilters() {
     renderPantry();
 }
 
+// Textes d'attente animés pendant la génération (LOT 011, chantier 5 ; oracle
+// l.5052-5058, littéraux exacts).
+const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
+
 async function generateSuggestions() {
   if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
   const apiKey = state.aiConfig.apiKey;
@@ -799,6 +804,15 @@ async function generateSuggestions() {
   btn.disabled = true;
   btn.classList.add('loading');
 
+  // Rotation toutes les 2,5 s dans l'attribut lu par le CSS (`content: attr(data-loading-text)`,
+  // déjà câblé). `clearInterval` garanti dans le `finally`, quel que soit le chemin de sortie.
+  let loadingTextIdx = 0;
+  btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[0]);
+  const loadingInterval = setInterval(() => {
+    loadingTextIdx = (loadingTextIdx + 1) % AI_LOADING_TEXTS.length;
+    btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[loadingTextIdx]);
+  }, 2500);
+
   try {
     const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients, {
       // LOT 011 : si l'API rejette le niveau d'effort demande et que le repli reussit quand
@@ -808,9 +822,17 @@ async function generateSuggestions() {
     state.aiSuggestions = recipes;
     // renderAIResults(recipes); // No need, saveState() will trigger auto-render
     saveState();
+
+    // Scroll auto vers les résultats sur mobile (LOT 011, chantier 5 ; oracle l.5068-5072).
+    setTimeout(() => {
+      if (window.innerWidth < 768) {
+        document.getElementById('ai-results-col')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   } catch (e) {
     toast('Erreur IA : ' + e.message, 'error');
   } finally {
+    clearInterval(loadingInterval);
     _generationInFlight = false;
     btn.disabled = false;
     btn.classList.remove('loading');
@@ -1540,6 +1562,23 @@ function openModal(id) {
         // recette d'avant, silencieusement.
         _lastTransformedRecipe = null;
         setPasteSaveButtonsEnabled(false);
+        // LOT 011, chantier 5 (oracle openPasteModal, l.5932-5942) : le LOT 006 ne
+        // purgeait que _lastTransformedRecipe — titre/contenu/URL survivaient d'une
+        // ouverture à l'autre, et le textarea restait verrouillé si la dernière session
+        // avait transformé une recette.
+        const titleInput = document.getElementById('paste-title');
+        const contentInput = document.getElementById('paste-content');
+        const urlInput = document.getElementById('paste-url');
+        if (titleInput) titleInput.value = '';
+        if (contentInput) {
+            contentInput.value = '';
+            contentInput.disabled = false;
+        }
+        if (urlInput) urlInput.value = '';
+        const aiBtn = document.getElementById('paste-ai-btn');
+        if (aiBtn) aiBtn.style.display = '';
+        const saveBtn = document.getElementById('paste-save-btn');
+        if (saveBtn) saveBtn.textContent = 'Sauvegarder tel quel';
     }
 
     if (id === 'modal-api-config') {
@@ -2175,9 +2214,16 @@ async function transformRecipeAI() {
         const recipe = await transformRecipeFromText(title, content, stockItems, state.aiConfig.apiKey, model, {
             onThinkingFallback: () => toast('Recette transformée sans le mode réflexion approfondie (temporairement indisponible).')
         });
-        document.getElementById('paste-title').value = recipe.name;
-        // Re-render preview or just store it
         _lastTransformedRecipe = recipe;
+        document.getElementById('paste-title').value = recipe.name;
+        // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche
+        // un aperçu — après transformation, c'est la recette structurée qui sera
+        // sauvegardée, plus le texte brut, qui n'a donc plus de raison d'être modifiable.
+        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + (recipe.description || '');
+        document.getElementById('paste-content').disabled = true;
+        document.getElementById('paste-ai-btn').style.display = 'none';
+        document.getElementById('paste-save-btn').textContent = 'Sauvegarder en favoris';
+        document.getElementById('paste-list-btn').style.display = '';
         setPasteSaveButtonsEnabled(true);
         toast('Recette structurée !');
     } catch (e) {

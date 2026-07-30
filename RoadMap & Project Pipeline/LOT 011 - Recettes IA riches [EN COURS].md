@@ -569,6 +569,31 @@ MAIN par Joel en navigateur, comme prévu par le plan de test de la fiche.
 
 **Validation :** 299/299 Vitest (+17), 13/13 Pytest, build OK.
 
+## 17. SOUS-LOT 11B — CHANTIER 5 (2026-07-30) : confort de génération — DERNIER CHANTIER DU LOT
+
+Restauré, oracle exact :
+- **Textes d'attente animés** (`generateSuggestions`) : rotation 2,5 s dans
+  `data-loading-text` (CSS déjà câblé, jamais alimenté), `clearInterval` garanti dans le
+  `finally` — testé y compris sur le chemin d'échec.
+- **Scroll auto mobile** (`<768px`) vers `#ai-results-col` après une génération réussie.
+- **Remise à zéro complète de « Coller une recette »** à l'ouverture (`openModal`) :
+  le LOT 006 ne purgeait que `_lastTransformedRecipe` ; titre/contenu/URL et le
+  verrouillage du textarea survivaient d'une ouverture à l'autre.
+- **Verrouillage + aperçu après transformation IA réussie** (`transformRecipeAI`) :
+  textarea désactivé, aperçu à la place du texte source, bouton « Transformer » masqué,
+  bouton de sauvegarde renommé, bouton « + Liste » révélé.
+
+**Tests ajoutés :** `tests/ai-generation-comfort.test.js` (12) — dont un test dont
+l'hypothèse initiale était fausse (mock réseau résolu instantanément, le minuteur n'avait
+jamais l'occasion de tourner) : corrigé en retenant volontairement la réponse simulée,
+comme le ferait un vrai appel de plusieurs secondes.
+
+**Validation finale des 7 chantiers du LOT 011 :** 311/311 Vitest, 13/13 Pytest, build OK.
+
+**Les 7 chantiers de la spec sont maintenant tous codés et testés.** Reste : audit du
+sous-lot 11B, puis clôture de lot (fiches, ROADMAP, CURRENT_GOAL, SHIP_LOG, checklist de
+campagne) avant de demander le feu vert de publication à Joel.
+
 ## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
 
 **Fait :**
