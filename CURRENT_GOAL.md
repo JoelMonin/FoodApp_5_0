@@ -9,24 +9,33 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 009 — Boutons morts rebranchés** (démarré le 2026-07-30, signal de Joel « on
-attaque le lot 09 »). Branche `feat/lot9-boutons-morts` ouverte depuis `main`
-(Version 5.5 en production). Niveau d'audit : Standard.
+**LOT 010 — Règles métier retrouvées** (démarré le 2026-07-30, signal de Joel « on démarre
+le lot 10 »). Branche `feat/lot10-regles-metier`, ouverte **depuis `feat/lot9-boutons-morts`**
+(et non depuis `main`) : le LOT 009 n'est pas encore publié et les deux lots visent la même
+**version 5.6** — les chaîner évite un conflit de fusion et permet de publier la 5.6 d'un bloc.
+Niveau d'audit : **Standard**, avec relecture ciblée du chantier 1 (il touche le prompt IA).
 
 | Chantier | Casse | Statut |
 |---|---|---|
-| 1. Icône d'ingrédient (emoji picker) | C1 | ✅ Codé + testé |
-| 2. Plein écran recette | C6 | ✅ Codé + testé |
-| 3. Bouton imprimer + swipe-to-close | C7 | ✅ Codé + testé |
-| 4. Panneau Informations Système (3 champs restants) | C8 | ✅ Codé + testé |
+| 1. Filtre « Type de cuisine » réellement transmis à l'IA | C5 | ⬜ À faire |
+| 2. Plafond « max 6 épinglés » + libellé UI corrigé | C9 | ⬜ À faire |
+| 3. Zone « Ingrédients imposés » complète + sous-titre vivant | C10 | ⬜ À faire |
+| 4. Tri alphabétique de l'inventaire | C11 | ⬜ À faire |
+| 5. Quantités recalculées selon le nombre de personnes | C12 | ⬜ À faire |
+| 6. Menu « Moteur Tâches Complexes » supprimé (arbitrage tranché) | — | ⬜ À faire |
 
-**Prêt à publier, publication reportée par choix de Joel (2026-07-30)** : audit Standard
-Codex GO (2 passages : NO-GO puis GO après correction de 2 CRITIQUE + durcissement) et
-vérification navigateur de Joel faites. 112/112 tests, 13/13 Pytest, build OK. Joel a
-confirmé les commits mais a explicitement dit « pas pour déjà publier en 5.6 » — le lot
-reste sur `feat/lot9-boutons-morts` (statut `[A PUBLIER]`), **aucun merge vers `main` tant
-qu'il ne redonne pas le feu vert au moment même** (VERROU PRODUCTION — une confirmation
-passée ne vaut pas pour la suivante). Détail complet : fiche LOT 009 §13-§14.
+**Phase découverte faite le 2026-07-30** (étape bloquante, avant toute ligne de code) :
+24 ressources réutilisables recensées, 6 groupes de manques, et **10 citations de lignes
+périmées corrigées dans la fiche**. Détail : fiche LOT 010 §7.
+
+## Lot précédent — en attente de publication
+
+**LOT 009 — Boutons morts rebranchés** : ✅ terminé, audit Standard Codex GO, vérifié au
+navigateur par Joel, 112/112 tests. Statut `[A PUBLIER]` sur `feat/lot9-boutons-morts`.
+**Publication reportée par choix explicite de Joel le 2026-07-30** (« ok pour commit, mais
+pas pour déjà publier en 5.6 »). **Aucun merge vers `main` tant qu'il ne redonne pas le feu
+vert au moment même** (VERROU PRODUCTION — une confirmation passée ne vaut pas pour la
+suivante). Le LOT 010 s'empile dessus : les deux partiront ensemble en 5.6.
 
 **Rappel synchro (LOT 007 en production)** : point de vigilance à l'usage — les
 tests à deux appareils du §6.2 ont été levés par décision de Joel ; au moindre
@@ -38,8 +47,9 @@ comportement étrange, la fiche LOT 007 (§6.2) sert de grille de diagnostic.
   `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
 - **007** Synchro collaborative — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30** (audit Dur
   double GO ; tests réels levés par Joel, constat à l'usage)
-- **009 → 012** Restaurations (boutons, règles métier, IA riche, confort) — PLANIFIÉS,
-  fiches détaillées prêtes à confier à un exécutant
+- **009** Boutons morts rebranchés — ✅ terminé, `[A PUBLIER]` (publication reportée par Joel)
+- **010** Règles métier retrouvées — 🔵 **EN COURS**
+- **011 → 012** Restaurations (IA riche, confort) — PLANIFIÉS, fiches détaillées prêtes
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
 - **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29** (feu vert de Joel) — la
   campagne part d'une base en ligne saine
@@ -59,7 +69,7 @@ comportement étrange, la fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-Version 5.5 en ligne. **Prochain chantier : LOT 009 — Boutons morts rebranchés**
-(icône d'ingrédient C1, plein écran C6, imprimer C7, panneau système C8 restant) —
-ouvrir `feat/lot9-boutons-morts` sur signal de Joel (« on attaque le lot 9 »).
-Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.
+Version 5.5 en ligne. **En cours : LOT 010 — Règles métier retrouvées** (6 chantiers
+ci-dessus), empilé sur le LOT 009 non publié. Ensuite : LOT 011 — Recettes IA riches.
+Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
+et deux lots attendent désormais ce feu vert (009 + 010 = version 5.6).
