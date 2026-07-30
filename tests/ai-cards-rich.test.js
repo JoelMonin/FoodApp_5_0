@@ -76,8 +76,10 @@ describe('LOT 011 / chantier 1 — cartes de résultats IA complètes', () => {
     });
 
     it('correspondance approximative : orange, avec préfixe 📌 si épinglé', () => {
-        state.ingredients = [{ id: 'i1', name: 'Pommes golden', inStock: true, pinned: true }];
-        const r = recette({ ingredients: [{ n: 'Pomme' }] }); // pas de statut IA : l'inventaire tranche
+        // « Tomate » ⊂ « Tomate cerise » (mot-à-mot, LOT 011 post-audit — areSimilar
+        // compare des mots entiers, plus des fragments de texte : cf. tests/helpers.test.js).
+        state.ingredients = [{ id: 'i1', name: 'Tomate cerise', inStock: true, pinned: true }];
+        const r = recette({ ingredients: [{ n: 'Tomate' }] }); // pas de statut IA : l'inventaire tranche
         const tags = buildIngredientTags(r.ingredients, 'card');
 
         expect(tags[0].cls).toBe('orange');

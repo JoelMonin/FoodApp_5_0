@@ -625,6 +625,47 @@ campagne), puis feu vert de publication de Joel. Les deux acquis sans filet auto
 (🖨️ imprimer, ⛶ plein écran) restent à vérifier à la main par Joel en navigateur avant
 publication, comme prévu par le plan de test de la fiche.
 
+## 19. CORRECTIF HORS-PLAN — `areSimilar` (2026-07-30, trouvé par Joël en test réel)
+
+En testant le sélecteur de liste de courses (chantier 1/D3), Joël a repéré des
+correspondances absurdes : « Eau » présenté comme déjà en stock via « **Agn-EAU**
+(brochettes) », « Oeuf » via « B-**OEUF** (steak) ». **Cause racine, confirmée contre
+l'oracle** (`foodapp-v5-Joel.html` l.6383-6414) : la fonction `areSimilar`
+(`src/utils/helpers.js`) comparait des **fragments de texte bruts**
+(`n1.includes(n2)`) — « eau » se trouve être un sous-texte de « agn**eau** » par pure
+coïncidence orthographique, sans aucun rapport avec le sens. L'oracle, lui, compare des
+**mots entiers** (aucun mot de l'un est un fragment de l'autre, il doit être un ÉLÉMENT
+de la liste de mots) — une régression de la migration, jamais rattrapée, antérieure à ce
+lot mais découverte en le testant.
+
+**Second cas relevé par Joël (« Ail » / « Ail en poudre »), vérifié : PAS un bug.**
+L'oracle fait déjà ce rapprochement volontairement (tous les mots du plus court se
+retrouvent dans le plus long). Confirmé, non touché.
+
+**Arbitrage Joël (2026-07-30) :** corriger maintenant, dans ce lot, plutôt que de
+reporter — la fonction est partagée par plusieurs écrans (détection de doublons à
+l'ajout, correspondance stock IA, fusion à l'import), pas seulement la liste de courses.
+
+**Correctif :** `areSimilar` porte désormais l'algorithme exact de l'oracle (mots
+entiers, puis mot principal + majorité des mots en commun, puis repli flou réservé aux
+chaînes de plus de 3 caractères). **`normalizeString` n'a PAS été touchée** — la
+correction du bug ne nécessitait que le changement de comparaison dans `areSimilar`
+elle-même, une vérification précise l'a confirmé avant de coder (blast radius minimal).
+
+**Aucun test n'existait avant pour `areSimilar`** malgré son usage massif — expliquant
+pourquoi cette régression a survécu invisible depuis la migration. 8 tests ajoutés à
+`tests/helpers.test.js` (fichier générique existant, pas de nouveau fichier) : les deux
+cas exacts de Joël, le cas « Ail » confirmé non-bug, le cas documenté par l'oracle lui-même
+(« Persil frais » ≠ « Thon frais »), le repli flou sur pluriels/fautes de frappe, les cas
+vides.
+
+**Effet de bord attendu et corrigé :** un test du chantier 1 (`tests/ai-cards-rich.test.js`)
+s'appuyait sur l'ANCIEN comportement bogué (« Pomme » ≈ « Pommes golden » par fragment de
+texte) pour vérifier la couleur orange — corrigé avec une paire de données qui matche
+réellement mot-à-mot (« Tomate » ⊂ « Tomate cerise »), sans changer ce qui est testé.
+
+**Validation :** 324/324 Vitest (+8, -0), 13/13 Pytest, build OK.
+
 ## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
 
 **Fait :**
