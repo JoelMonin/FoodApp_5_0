@@ -9,10 +9,8 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 015 — Réglages fiables et cohérents** — 🟢 **TERMINÉ, EN ATTENTE DU FEU VERT DE JOEL.**
-Ouvert et achevé le 2026-07-30, branche `feat/lot15-reglages-fiables` (depuis `main` en 5.7).
-Niveau d'audit **DUR** tenu en 4 passages. Version visée : **5.8**.
-Métriques : **448/448 Vitest, 13/13 verrous, build OK**, vérification navigateur de Joel faite.
+Aucun — **Version 5.8 publiée le 2026-07-30** (LOT 015, feu vert explicite de Joel après
+vérification navigateur). Prochain chantier à ouvrir : **LOT 013 — Filet de tests UI**.
 
 **But en une phrase :** chaque bouton de la page Réglages doit faire exactement ce que son
 titre annonce — aujourd'hui « Copier mon stock » copie la liste de courses, « Données
@@ -54,6 +52,14 @@ de sauvegarde) plus le regroupement par rayon de la liste de courses, déclaré 
 
 **Arbitrage §G tranché par Joel** : le chemin « Importer uniquement le stock » purge
 désormais les coches devenues sans objet — écart de périmètre autorisé et tracé.
+
+## Lot tout juste publié — Version 5.8 (2026-07-30)
+
+- **LOT 015 — Réglages fiables et cohérents** : les 10 chantiers faits et testés. La zone
+  n'avait AUCUN test avant ce lot ; elle en compte désormais 91. Deux défauts BLOQUANTS
+  trouvés par les agents adversariaux locaux, dont un trou dans la barrière de quiescence
+  du LOT 007 qui annulait une restauration quelques secondes après le message de succès.
+  Quatre écarts assumés au-dessus de l'oracle, tous tracés.
 
 ## Lots précédents — Version 5.7 (2026-07-30)
 
@@ -98,7 +104,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011 + 012** — ✅ **PUBLIÉS en Version 5.7 le 2026-07-30** — campagne de restauration
   achevée
-- **015** Réglages fiables et cohérents — 🟢 **A PUBLIER** (terminé le 2026-07-30, V5.8)
+- **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (refonte)
   (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
 
@@ -126,6 +132,20 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **`buildEmojiEditSuggestions(seed, category)`** (`js/app.js`, LOT 009 étendue au LOT 012) :
   le 2ᵉ paramètre est optionnel, réservé aux appelants hors édition d'ingrédient (ex.
   `cycleEmoji`) — ne jamais dupliquer une table d'emojis à côté.
+- **`BACKUP_STATE_KEYS`** (`src/constants.js`, LOT 015) : SSOT du périmètre du fichier de
+  sauvegarde, utilisée à l'export ET à la restauration. Ne jamais y ajouter un champ
+  d'écran ; les coches n'y sont pas (elles entrent par `replaceShoppingChecked`).
+- **`resetScreenState({ resetView })`** (`src/state.js`, LOT 015) : SSOT de la neutralisation
+  recherche/filtres/vue, partagée par `loadState` (sans la vue) et la restauration (avec).
+  La règle n'existait que dans `loadState` — c'est ce qui causait l'écran cassé au retour.
+- **La barrière de quiescence a la PRIORITÉ sur la file du moteur** (`js/app.js`,
+  `requestSyncOp`, LOT 015) : une opération mise en file pendant qu'un chemin explicite
+  attend est périmée et n'est PAS relancée. Sans cette règle, elle partait avec l'état
+  d'avant et annulait la restauration. Ne pas « restaurer » l'ancien comportement en
+  croyant réparer une synchro manquante.
+- **Un garde-fou « rien à copier » doit porter sur la SOURCE, jamais sur le texte final**
+  (leçon LOT 015) : les formats composent leur en-tête avant de regarder les données, donc
+  un test sur le texte ne se déclenche jamais.
 - **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
   medium — préféré à `/ultra-audit` et à Codex Sol. Discipline confirmée sur toute la
   campagne : spec ET diff final systématiquement audités avant clôture, même au niveau
@@ -133,10 +153,13 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-**LOT 015 terminé, validé, en attente du FEU VERT de Joel pour la mise en ligne en 5.8.**
-Rien n'a été poussé : `main` est toujours en 5.7. Au feu vert : bump `APP_VERSION`,
-`python scripts/sync_version.py`, fiche en `[CLOTURE]`, SHIP_LOG, puis `git merge --no-ff`.
-Ensuite : **LOT 013 — Filet de tests UI**, dont le premier geste est de poser des `id` sur
-les cartes de Réglages (point de passage retenu à l'audit final).
+**Version 5.8 en ligne.** Prochain chantier : **LOT 013 — Filet de tests UI** — ouvrir sur
+signal de Joel (`/new-lot 013 filet-tests-ui`), après phase découverte obligatoire.
+⚠️ **Premier geste du LOT 013** : poser des `id` sur les cartes de Réglages — aucune n'en
+porte, ce qui rendrait les sélecteurs du filet fragiles aux changements de libellé (point
+de passage retenu à l'audit final du LOT 015, volontairement non corrigé là-bas pour ne
+pas glisser une modification non auditée après la clôture).
+Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
+une confirmation passée ne vaut pas pour la suivante.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.

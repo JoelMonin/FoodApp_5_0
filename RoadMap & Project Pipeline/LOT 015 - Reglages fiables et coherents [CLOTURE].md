@@ -1,6 +1,6 @@
 # LOT 015 — Réglages fiables et cohérents — SPÉCIFICATION
 
-> **Statut :** 🟢 A PUBLIER — ouvert ET terminé le 2026-07-30, en attente du feu vert de Joel
+> **Statut :** ✅ CLOTURE — publié en **Version 5.8** le 2026-07-30 (feu vert explicite de Joel)
 > **Branche :** `feat/lot15-reglages-fiables` (créée depuis `main` en 5.7)
 > **Niveau d'audit : DUR** — le lot touche les sauvegardes, les restaurations et des
 > risques de données incohérentes (zones sensibles : `src/state.js`, chemins d'export/import)
