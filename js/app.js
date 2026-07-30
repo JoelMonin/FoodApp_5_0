@@ -267,8 +267,20 @@ async function requestSyncOp(op) {
         _syncInFlight = false;
         const queued = _syncQueuedOp;
         _syncQueuedOp = null;
+        const attendaitLaQuiescence = _syncIdleWaiters.length > 0;
         while (_syncIdleWaiters.length) _syncIdleWaiters.shift()();
-        if (queued) requestSyncOp(queued);
+        // LOT 015 (audit adversarial du 2026-07-30) — TROU DE LA BARRIERE DE QUIESCENCE.
+        // `resolve()` ci-dessus ne fait que PROGRAMMER la reprise du chemin explicite
+        // (reset, restauration de fichier) en microtache, alors que `requestSyncOp` demarre
+        // SYNCHRONIQUEMENT et construit son document des ses premieres lignes
+        // (`performSyncSend`, l.293-294). Une operation mise en attente PENDANT la barriere
+        // partait donc AVANT que le chemin explicite ait ecrit, avec l'etat d'AVANT — puis
+        // le pull qui la suit reappliquait ce vieux document par-dessus la restauration,
+        // sans declencher le garde-fou d'empreinte (celle-ci etant prise apres coup).
+        // Une operation demandee avant que le chemin explicite ecrive est PERIMEE par
+        // construction : on ne la relance pas. Le chemin explicite planifie son propre
+        // envoi via `saveState`, rien n'est perdu.
+        if (queued && !attendaitLaQuiescence) requestSyncOp(queued);
     }
 }
 
@@ -1533,55 +1545,185 @@ function groupByCategory(ingredients) {
     return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
 }
 
-async function exportClipboard(type) {
-    let text = '';
+// LOT 015, chantier 3 : rubrique des articles libres de la liste de courses.
+// Nom volontairement NON collidable avec une vraie categorie -- `Autres` en est une
+// (src/data.js:32) ET le repli impose a tout ingredient sans categorie (src/state.js:173),
+// donc y verser les articles libres les melangerait a de vrais ingredients.
+const FREE_ITEMS_SECTION = '[ ARTICLES LIBRES ]';
+
+/**
+ * Nom affichable d'un article, ou null s'il n'en a pas (LOT 015, audit Gemini Q12 puis
+ * audit adversarial). Vaut pour les DEUX sources :
+ *  - `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js ne
+ *    garantit que l'existence du tableau) ;
+ *  - `state.ingredients` l'est, mais `sanitizeGlobalState` garantit `category` et `emoji`,
+ *    PAS `name` (il ne recopie que l'ancien champ court `n`). Un ingredient venu du cloud
+ *    sans nom produisait « 🥩 undefined » dans le texte copie, avec un toast annoncant
+ *    « 1 ingredient » : le compte mentait.
+ * Un article sans nom exploitable est ignore, jamais rendu.
+ */
+function itemDisplayName(item) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    return name || null;
+}
+
+/** Ne garde que les elements reellement affichables, dans l'ordre. */
+function copyableItems(source) {
+    return (Array.isArray(source) ? source : []).filter(i => itemDisplayName(i));
+}
+
+const clipboardCount = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+// Les sources de rubrique viennent toujours de state.ingredients (categorie garantie par
+// sanitizeGlobalState) ; le repli reste par prudence, car cat.toUpperCase() planterait
+// SILENCIEUSEMENT -- l'appel est hors du try/catch de la copie.
+const clipboardSectionLabel = (cat) => String(cat || 'Autres').toUpperCase();
+
+/**
+ * Compose le texte d'un format de partage, ou null si le format est inconnu.
+ *
+ * Renvoie l'en-tete et le corps SEPAREMENT, et le nombre d'elements de la SOURCE : c'est
+ * ce qui permet au garde-fou « rien a copier » de porter sur les donnees et non sur le
+ * texte final (LOT 015, chantier 9 + audit Gemini Q1).
+ */
+function buildClipboardText(type) {
     const date = new Date().toLocaleDateString('fr-FR');
 
+    // Chantier 1 : le bouton promet le STOCK. Il copiait la liste de courses
+    // (oracle foodapp-v5-Joel.html l.6466-6468 : `inStock`, confirme).
     if (type === 'simple') {
-        text = `🛒 LISTE DE COURSES (${date})\n\n`;
-        const items = state.ingredients.filter(i => i.inCart);
-        if (items.length === 0) { text += "(Vide)"; }
-        else {
-            items.forEach(i => {
-                text += `${i.emoji || '🔸'} ${i.name}\n`;
-            });
-        }
-    } else if (type === 'full') {
-        text = `🍱 INVENTAIRE COMPLET (${date})\n\n`;
-        state.ingredients.forEach(i => {
-            const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-            text += `${status} ${i.emoji || '🔸'} ${i.name} [${i.category}]\n`;
-        });
-    } else if (type === 'categorized') {
-        text = `📦 INVENTAIRE PAR RAYON (${date})\n\n`;
-        for (const [cat, items] of groupByCategory(state.ingredients)) {
-            text += `\n--- ${cat.toUpperCase()} ---\n`;
-            items.forEach(i => {
-                const status = i.inStock ? '✅' : (i.inCart ? '🛒' : '⚪');
-                text += `${status} ${i.emoji || '🔸'} ${i.name}\n`;
-            });
-        }
-    } else if (type === 'cart') {
-        text = `🛒 LISTE DE COURSES (${date})\n\n`;
-        const items = state.ingredients.filter(i => i.inCart);
-        if (items.length === 0) { text += "(Vide)"; }
-        else {
-            for (const [cat, catItems] of groupByCategory(items)) {
-                text += `\n[ ${cat.toUpperCase()} ]\n`;
-                catItems.forEach(i => {
-                    text += `☐ ${i.emoji || '🔸'} ${i.name}\n`;
-                });
-            }
-        }
+        const items = copyableItems(state.ingredients).filter(i => i.inStock);
+        return {
+            count: items.length,
+            emptyMessage: 'Votre stock est vide — rien à copier',
+            successMessage: `Stock copié (${clipboardCount(items.length, 'ingrédient')})`,
+            header: `✅ MON STOCK (${date})\n\n`,
+            body: items.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
+        };
     }
 
+    // Chantier 2 : le partage par rayons emportait TOUT l'inventaire, absents compris
+    // (oracle l.6469-6475 : `inStock` seul, avec l'emoji de rubrique).
+    // Le marqueur de statut est RETIRE : la source etant restreinte a `inStock`, il
+    // vaudrait toujours « ✅ » -- information morte (arbitrage tranche, audit Gemini Q2).
+    if (type === 'categorized') {
+        const items = copyableItems(state.ingredients).filter(i => i.inStock);
+        const sections = groupByCategory(items).map(([cat, catItems]) =>
+            `--- ${getCategoryEmoji(cat)} ${clipboardSectionLabel(cat)} ---\n` +
+            catItems.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
+        );
+        return {
+            count: items.length,
+            emptyMessage: 'Votre stock est vide — rien à copier',
+            successMessage: `Stock copié par rayon (${clipboardCount(items.length, 'ingrédient')})`,
+            header: `📦 MON STOCK PAR RAYON (${date})\n\n`,
+            body: sections.join('\n\n')
+        };
+    }
+
+    // Chantier 3 : la liste de courses ignorait les articles libres (oracle l.6476-6479 :
+    // les deux sources). La rubrique dediee est concatenee APRES la boucle, jamais via
+    // groupByCategory : son tri par defaut (l.1533) placerait `[` avant les categories
+    // accentuees, donc un simple choix de nom ne suffirait pas a la mettre en fin.
+    if (type === 'cart') {
+        const items = copyableItems(state.ingredients).filter(i => i.inCart);
+        // `copyableItems` protege aussi du TYPE : `customCartItems` arrivait parfois en
+        // objet (forme d'un tableau creux renvoyee par Firebase) ou en chaine, et le `.map`
+        // levait alors une exception HORS du try/catch -- le bouton ne faisait plus rien,
+        // sans le moindre message (audit adversarial du 2026-07-30).
+        const freeItems = copyableItems(state.customCartItems)
+            .map(item => ({ name: itemDisplayName(item), emoji: item.emoji || '🔸' }));
+        const sections = groupByCategory(items).map(([cat, catItems]) =>
+            `[ ${clipboardSectionLabel(cat)} ]\n` +
+            catItems.map(i => `☐ ${i.emoji || '🔸'} ${i.name}`).join('\n')
+        );
+        if (freeItems.length) {
+            sections.push(
+                `${FREE_ITEMS_SECTION}\n` +
+                freeItems.map(i => `☐ ${i.emoji} ${i.name}`).join('\n')
+            );
+        }
+        const total = items.length + freeItems.length;
+        return {
+            count: total,
+            emptyMessage: 'Votre liste de courses est vide — rien à copier',
+            successMessage: `Liste de courses copiée (${clipboardCount(total, 'article')})`,
+            header: `🛒 LISTE DE COURSES (${date})\n\n`,
+            body: sections.join('\n\n')
+        };
+    }
+
+    // Chantier 4 : le format 'full' a ete SUPPRIME (arbitrage de Joel du 2026-07-30).
+    // Un type inconnu ne copie plus une chaine vide en annoncant un succes.
+    return null;
+}
+
+/**
+ * Ecrit dans le presse-papiers, avec le repli de l'oracle (l.6484-6486) DURCI.
+ * L'oracle appelait document.execCommand sans garde d'existence et sans lire son retour
+ * (il vaut `false` en cas d'echec silencieux) : le porter tel quel reproduirait un bug,
+ * sous jsdom comme sur un vieux navigateur.
+ * @returns {Promise<boolean>} vrai si le texte est reellement parti.
+ */
+async function writeToClipboard(text) {
     try {
-        await navigator.clipboard.writeText(text);
-        toast('Copié dans le presse-papiers !');
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
     } catch (err) {
         console.error('Erreur copie:', err);
-        toast('Erreur lors de la copie', 'error');
     }
+
+    if (typeof document.execCommand !== 'function' || !document.body) return false;
+
+    // Le repli vole forcement le focus (`select()` est indispensable a execCommand) :
+    // on le REND a l'element actif, sinon un clic sur « Copier » effacait la saisie en
+    // cours de l'utilisateur sans explication (l'oracle avait ce defaut, l.6485).
+    const focusPrecedent = document.activeElement;
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    let copied = false;
+    try {
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy') === true;
+    } catch (err) {
+        console.error('Erreur copie (repli):', err);
+    } finally {
+        // `finally` : le textarea ne doit JAMAIS rester orphelin dans la page, meme si
+        // `appendChild`, `select()` ou `execCommand` levent.
+        ta.remove();
+        if (focusPrecedent && typeof focusPrecedent.focus === 'function') focusPrecedent.focus();
+    }
+    return copied;
+}
+
+/**
+ * LOT 015, chantiers 1-4 et 9 — copie d'un format de partage.
+ *
+ * GARDE-FOU « rien a copier » : il porte sur la SOURCE, jamais sur le texte final.
+ * L'oracle testait `if (!text)` (l.6483) parce que chez lui le texte restait vide sans
+ * donnees. Ici, chaque format ecrivait son en-tete AVANT de regarder les donnees : le meme
+ * test ne se serait JAMAIS declenche (audit Gemini du 2026-07-30, Q1). D'ou la separation
+ * en-tete / corps / compte de buildClipboardText.
+ */
+async function exportClipboard(type) {
+    const built = buildClipboardText(type);
+    if (!built) {
+        toast('Rien à copier', 'error');
+        return;
+    }
+    if (built.count === 0) {
+        toast(built.emptyMessage, 'error');
+        return;
+    }
+
+    const copied = await writeToClipboard(built.header + built.body);
+    if (copied) toast(built.successMessage);
+    else toast('Erreur lors de la copie', 'error');
 }
 
 function updateSystemInfo() {
@@ -2430,9 +2572,16 @@ function printRecipe() {
     window.print();
 }
 
+// LOT 015, chantier 5 : le champ fichier doit etre REARME apres chaque tentative, sinon
+// resselectionner LE MEME fichier ne declenche plus rien (l'evenement `change` n'est pas
+// emis si la valeur ne change pas). `restoreJSON` ne le faisait pas, contrairement a son
+// voisin. Le rearmement est pose HORS du `if (file)` pour couvrir aussi l'annulation, et
+// il est sur immediatement : la lecture est deja lancee sur l'objet `File`. C'est ce que
+// faisait l'oracle (`foodapp-v5-Joel.html` l.6514 et l.6561).
 function restoreJSON(event) {
     const file = event.target.files[0];
     if (file) Actions.importJSON(file);
+    event.target.value = '';
 }
 
 function importStockOnly(event) {

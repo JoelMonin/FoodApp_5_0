@@ -1,12 +1,55 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.7.0
+- **Version actuelle** : 5.8.0
 - **Dernière mise à jour** : 30/07/2026
-- **Statut** : Version 5.7 publiée (LOTS 011 + 012) — check-list de campagne « Restauration
-  & Refonte » entièrement close (§1-§4), prochain chantier LOT 015
+- **Statut** : Version 5.8 publiée (LOT 015) — la page Réglages est fiable de bout en bout.
+  Prochain chantier : LOT 013 (filet de tests UI), puis LOT 014 (refonte SSOT) pour clore
+  la campagne « Restauration & Refonte »
 
 ## Historique des modifications
+- [x] [VERSION 5.8 - OnLine] 30/07/2026 : Publication du lot 015
+    - Lot 015 — Réglages fiables et cohérents : chaque bouton de la page fait désormais
+      exactement ce que son titre annonce. « Copier mon stock » copiait la liste de
+      courses sous un en-tête « LISTE DE COURSES » ; « Partager par rayons » emportait
+      tout l'inventaire, produits absents compris ; « Copier ma liste de courses »
+      oubliait les articles libres — dont un article réellement présent chez Joel,
+      invisible dans l'app depuis la migration. Le bouton « Données techniques (JSON) »,
+      qui ne produisait pas de JSON, a été supprimé (arbitrage de Joel)
+    - Deux comportements perdus à la migration, restaurés depuis l'oracle : le garde-fou
+      « rien à copier » (une liste vide ne se copie plus en annonçant un succès) et le
+      repli de copie pour les navigateurs refusant le presse-papiers moderne — ce dernier
+      durci par rapport à l'oracle, qui ne vérifiait ni l'existence de la fonction ni son
+      résultat
+    - Le fichier de sauvegarde a désormais un périmètre explicite et un horodatage : il
+      emportait la vue en cours, la recherche et les filtres, si bien qu'une sauvegarde
+      prise pendant qu'un filtre était actif rouvrait l'app filtrée ou vide. Les coches de
+      la liste de courses font l'aller-retour, filtrées à l'arrivée, et ne polluent jamais
+      l'état (avec un filet qui répare un état déjà pollué par une version antérieure)
+    - Textes des cartes rendus honnêtes, sans redesign : sections « Partager » et
+      « Sauvegarde », clé API annoncée exclue du fichier, paire Restaurer / Importer-stock
+      enfin distincte (constat d'usage de Joel), « Mise à zéro » ne prétend plus effacer
+      la clé API — le code la conserve
+    - Défauts trouvés en cours de route et corrigés : la restauration ne se sérialisait
+      pas avec un envoi cloud déjà en vol ; la garde d'entrée acceptait un inventaire vide,
+      une chaîne, puis une liste de simples noms — chacun menant à la reconstruction des
+      297 ingrédients par défaut et à leur envoi au cloud ; un fichier sans réglages IA
+      effaçait les exclusions alimentaires ; « REMPLACE TOUT » était faux ; « Importer
+      uniquement le stock » laissait des coches fantômes (écart de périmètre tranché par
+      Joel)
+    - Audits (Codex hors budget de jetons — dispositif de remplacement tranché par Joel) :
+      phase découverte à 4 agents (fiche fausse sur presque toutes ses références de ligne,
+      8 erreurs de fond, 7 pièges) ; audit de spec Gemini NO-GO sur 4 points, dont
+      l'invalidation du raisonnement central d'un chantier ; 2 audits adversariaux locaux
+      → 2 BLOQUANTS, 5 IMPORTANTS et 4 tests réécrits parce qu'ils ne prouvaient rien ;
+      audit du diff final Gemini GO, sa seule critique de test réfutée à la vérification
+    - Le trou de la barrière de quiescence du LOT 007 (le plus grave) annulait la
+      restauration quelques secondes après le message de succès, sans aucun avertissement,
+      et laissait le cloud sur l'ancien état
+    - Zone qui n'avait AUCUN test : +91 tests (copie, textes des cartes, sauvegarde et
+      restauration, moteur de synchro)
+    - Métriques : 448/448 Vitest + 13/13 Pytest verts, build OK, vérification navigateur
+      de Joel faite
 - [x] [VERSION 5.7 - OnLine] 30/07/2026 : Publication des lots 011 + 012
     - Lot 011 — Recettes IA riches : cartes de résultats complètes (méta, pitch, tags
       d'ingrédients colorés selon le stock, boutons directs), détail de recette riche

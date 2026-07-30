@@ -1,6 +1,6 @@
 // SSOT du numéro de version. Pour changer la version partout :
 // modifier UNIQUEMENT cette ligne puis lancer `python scripts/sync_version.py`.
-export const APP_VERSION = '5.7.0';
+export const APP_VERSION = '5.8.0';
 
 // SSOT des modeles IA par role metier. Ne JAMAIS ecrire un nom de modele ailleurs.
 // REASONING : recettes, nutrition, transformation de texte (qualite avant tout).
@@ -17,6 +17,23 @@ export const AI_ROLES = {
 // règle, les messages et le libellé affiché : ne jamais réécrire un 6 en dur.
 export const MAX_PINNED_INGREDIENTS = 6;
 export const MAX_EXTRA_INGREDIENTS = 6;
+
+// SSOT du PÉRIMÈTRE DU FICHIER DE SAUVEGARDE (LOT 015, chantier 10a).
+// L'export sérialisait `state` en ENTIER : partaient donc dans le fichier la vue courante,
+// la recherche, les filtres et les suggestions IA. Restaurer une sauvegarde faite pendant
+// qu'un filtre était actif rouvrait l'app filtrée ou vide, et changeait d'écran tout seul.
+// L'oracle avait une liste blanche (`foodapp-v5-Joel.html` l.6490) ; la migration l'a perdue.
+//
+// Les coches de courses ne figurent PAS ici : elles vivent hors de `state` (Set séparé,
+// `shoppingChecked`) et entrent par `replaceShoppingChecked`, jamais par le `spread` de
+// `setState` — sans quoi elles créeraient un doublon dans l'état (violation SSOT §6).
+export const BACKUP_STATE_KEYS = [
+  'ingredients',
+  'favorites',
+  'extraIngredients',
+  'customCartItems',
+  'aiConfig'
+];
 
 export const FB_USER = 'FoodApp_V5_Joel';
 export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebasedatabase.app';

@@ -1,9 +1,9 @@
-import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig, awaitSyncQuiescence } from './state.js';
+import { state, saveState, shoppingChecked, sanitizeGlobalState, applyExternalState, defaultAiConfig, awaitSyncQuiescence, replaceShoppingChecked, resetScreenState } from './state.js';
 import { generateId, normalizeString, areSimilar } from './utils/helpers.js';
 import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
-import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS } from './constants.js';
+import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS } from './constants.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -180,13 +180,30 @@ export function saveApiKey(key) {
   saveState();
 }
 
+/**
+ * Télécharge une sauvegarde (LOT 015, chantier 10a).
+ *
+ * PÉRIMÈTRE EXPLICITE (`BACKUP_STATE_KEYS`) : l'export sérialisait `state` en entier,
+ * emportant la vue, la recherche, les filtres et les suggestions IA. Restaurer un tel
+ * fichier rouvrait l'app filtrée ou vide et changeait d'écran tout seul.
+ *
+ * Les coches de courses sont ajoutées EXPLICITEMENT : elles vivent hors de `state`.
+ * ⚠️ Écart assumé à l'oracle — le monolithe ne les sauvegardait pas non plus (elles
+ * étaient un Set séparé chez lui aussi, jamais relu à l'import). C'est une décision
+ * produit de Joel, pas une restauration.
+ */
 export function exportJSON() {
+  const stateToExport = {};
+  BACKUP_STATE_KEYS.forEach(key => {
+    if (state[key] !== undefined) stateToExport[key] = JSON.parse(JSON.stringify(state[key]));
+  });
   // Même principe que syncPush (src/services/firebase.js) : la clé API ne quitte
   // jamais l'appareil (LOT 008, chantier 2 — casse C3a).
-  const stateToExport = JSON.parse(JSON.stringify(state));
   if (stateToExport.aiConfig) {
     stateToExport.aiConfig.apiKey = '';
   }
+  stateToExport.shoppingChecked = Array.from(shoppingChecked);
+  stateToExport.exportedAt = new Date().toISOString(); // l'oracle l'avait (l.6490), l'app l'avait perdu
   const data = JSON.stringify(stateToExport, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -198,19 +215,86 @@ export function exportJSON() {
   toast('💾 Export téléchargé');
 }
 
+/**
+ * Restaure une sauvegarde — REMPLACEMENT TOTAL (LOT 015, chantiers 5 et 10).
+ *
+ * Quatre durcissements, tous issus de l'audit de la fiche puis de l'audit de spec :
+ *  1. GARDE D'ENTRÉE (10d) : `if (data.ingredients)` acceptait `[]` **et une chaîne**.
+ *     Avec `"ingredients": "abc"`, `sanitizeGlobalState` faisait `Object.values()` →
+ *     `['a','b','c']` → filtré à vide → **reconstruction des 297 par défaut** → envoi au
+ *     cloud. On exige donc un tableau NON VIDE.
+ *  2. BARRIÈRE DE SYNCHRO (P6) : `importJSON` ne se sérialisait pas avec le moteur,
+ *     contrairement à `resetAllData`. Un envoi parti AVANT le clic pouvait aboutir APRÈS
+ *     la restauration et y réécraser l'ancien état — l'incident déjà corrigé au LOT 008
+ *     sur le chemin du reset. D'où le `reader.onload` asynchrone.
+ *  3. COCHES (10b/10c) : extraites AVANT et posées par `replaceShoppingChecked`, jamais
+ *     par le `spread` de `setState` (qui en ferait un doublon dans `state`). Elles sont
+ *     posées AVANT `applyExternalState` pour que l'état et les coches partent dans le
+ *     MÊME document cloud — motif copié du chemin de pull (`js/app.js:407-409`). Elles
+ *     sont FILTRÉES : seuls les ids réellement « à acheter » du fichier entrent, sinon on
+ *     réintroduirait des ids fantômes invisibles à l'écran mais poussés au cloud (LOT 008,
+ *     chantier 7).
+ *  4. ÉCRAN NEUTRALISÉ (10a) : recherche, filtres et vue, sur le modèle de `loadState`.
+ */
 export function importJSON(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.ingredients) {
-        // Restauration totale : passe par le point d'entrée unique des données
-        // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
-        applyExternalState(data);
-        toast('Import réussi !');
-      } else {
+
+      // Un TABLEAU non vide ne suffit pas : `["Tomate","Oignon"]` franchissait la garde,
+      // était filtré à vide par `sanitizeGlobalState`, qui **reconstruisait alors les ~297
+      // ingrédients par défaut**, envoyés au cloud dans la foulée — la destruction même que
+      // cette garde doit empêcher (audit adversarial du 2026-07-30). Et `[{}]` passait
+      // aussi, remplaçant l'inventaire de Joel par un seul ingrédient fantôme.
+      //
+      // Signature minimale d'un vrai ingrédient : un identifiant ET un nom, tous deux non
+      // vides. `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que
+      // `sanitizeGlobalState` recopie vers `name` — on l'accepte donc aussi.
+      const estUnIngredientPlausible = (i) => {
+        if (!i || typeof i !== 'object') return false;
+        const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
+        return texteNonVide(i.id) && (texteNonVide(i.name) || texteNonVide(i.n));
+      };
+      const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
+        .filter(estUnIngredientPlausible);
+      if (ingredientsDuFichier.length === 0) {
         toast('Format non reconnu', 'error');
+        return;
       }
+
+      await awaitSyncQuiescence();
+
+      const cartIds = new Set(ingredientsDuFichier.filter(i => i.inCart).map(i => i.id));
+      const checkedFromFile = Array.isArray(data.shoppingChecked) ? data.shoppingChecked : [];
+      replaceShoppingChecked(checkedFromFile.filter(id => cartIds.has(id)));
+
+      resetScreenState({ resetView: true });
+      // Les suggestions IA sont des DONNÉES calculées sur l'inventaire précédent : les
+      // garder après un remplacement total ferait proposer des recettes bâties sur un
+      // stock qui n'existe plus (même raisonnement qu'à la remise à zéro, l.139-140).
+      state.aiSuggestions = null;
+      state.currentSuggestionIdx = null;
+
+      // REMPLACEMENT TOTAL, conformément au libellé du bouton. Une clé ABSENTE du fichier
+      // retombe sur sa valeur par défaut, JAMAIS sur la valeur locale : c'est la règle déjà
+      // tranchée pour le cloud (`src/services/firebase.js`), et sans elle un fichier ancien
+      // laissait survivre des données d'aujourd'hui, produisant un état hybride que ni le
+      // fichier ni l'appareil n'avaient jamais eu.
+      const patch = { ingredients: ingredientsDuFichier };
+      BACKUP_STATE_KEYS.filter(key => key !== 'ingredients' && key !== 'aiConfig')
+        .forEach(key => {
+          patch[key] = Array.isArray(data[key]) ? data[key] : [];
+        });
+      // Forme TOUJOURS complète, comme `extractSyncedState` : un fichier sans réglages (ou
+      // aux réglages partiels) ne doit pas laisser `ppl`, `exclusions` ou les régimes
+      // à `undefined`. La clé API locale est réinjectée juste après par applyExternalState.
+      patch.aiConfig = { ...defaultAiConfig(), ...(data.aiConfig || {}) };
+
+      // Restauration totale : passe par le point d'entrée unique des données
+      // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
+      applyExternalState(patch);
+      toast('Import réussi !');
     } catch (err) {
       toast('Erreur lors de l\'import : ' + err.message, 'error');
     }
@@ -248,18 +332,32 @@ export function importStockOnly(file) {
           target.inCart = !!jsonIng.inCart;
           target.pinned = !!jsonIng.pinned;
           target.frozen = !!jsonIng.frozen;
+          // LOT 015, §G — ÉCART DE PÉRIMÈTRE autorisé par Joel le 2026-07-30.
+          // Ce chemin repassait un article à « plus à acheter » SANS purger le Set des
+          // coches : l'id y restait, invisible à l'écran (`src/ui/shopping.js:42`) mais
+          // poussé au cloud (`src/services/firebase.js:61`). C'est la porte que le
+          // chantier 10c ferme sur la restauration totale, restée ouverte juste à côté.
+          if (!target.inCart) shoppingChecked.delete(target.id);
           updatedCount++;
         } else {
           const newId = jsonIng.id && jsonIng.id.startsWith('custom_')
             ? jsonIng.id
             : 'custom_restore_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
           state.ingredients.push({ ...jsonIng, id: newId });
+          // LOT 015, §G — même purge que la branche ci-dessus. Cette branche CONSERVE l'id
+          // quand il commence par `custom_` : un id ré-inséré hors panier pouvait donc
+          // retrouver une coche fantôme déjà présente dans le Set (venue du cloud), et
+          // l'article réapparaissait « déjà coché » le jour où il revenait aux courses.
+          if (!jsonIng.inCart) shoppingChecked.delete(newId);
           addedCount++;
         }
       });
 
       saveState();
-      toast(`📥 Restauration : ${updatedCount} mis à jour, ${addedCount} ajoutés`);
+      // LOT 015, chantier 8 : le mot « Restauration » entretenait la confusion avec le
+      // bouton d'a cote (« Restaurer une sauvegarde »), qui remplace TOUT. Ici c'est une
+      // fusion douce -- le libelle doit le dire.
+      toast(`🔄 Stock fusionné : ${updatedCount} mis à jour, ${addedCount} ajoutés`);
     } catch (err) {
       toast('Format JSON invalide', 'error');
     }
