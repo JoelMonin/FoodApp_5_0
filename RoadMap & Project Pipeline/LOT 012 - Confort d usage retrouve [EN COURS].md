@@ -92,6 +92,16 @@ et le pré-cochage ; il manque l'édition :
   l'oracle même. Ne pas la « restaurer » comme un comportement perdu.
 - Seul test existant touchant la zone : `tests/ai-ingredient-fidelity.test.js` (filet emoji
   IA du LOT 010, ne couvre ni l'édition ni `cycleEmoji`) — plan de test à écrire de zéro.
+- **Défaut hors-plan trouvé et corrigé pendant l'implémentation** (par le nouveau test de
+  non-régression du pré-cochage, exigé par les Pièges connus de cette zone) : la case à
+  cocher de chaque ligne s'affichait TOUJOURS visuellement cochée, même pour un article déjà
+  en stock (`checked` passé à `h()` via `setAttribute`, qui rend un booléen HTML « présent »
+  dès que la valeur existe, même `false`) — défaut du LOT 006, jamais testé jusqu'ici,
+  invisible car la couleur de la ligne (pilotée séparément par la classe CSS) restait
+  correcte. Un seul point d'appel dans toute la base (`checked` n'est utilisé nulle part
+  ailleurs comme prop de `h()`) : corrigé localement par affectation directe de la propriété
+  IDL, `h()` lui-même non touché (blast radius réel, pas un cas hypothétique — pas de raison
+  de le réécrire pour un unique appelant).
 
 ### B. Clavier et gestes
 

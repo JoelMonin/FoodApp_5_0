@@ -565,7 +565,10 @@ export {
     savePastedRecipeAndList,
     buildIngredientTags,
     transformRecipeAI,
-    generateSuggestions
+    generateSuggestions,
+    // LOT 012 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    cycleEmoji,
+    confirmRecipeToCart
 };
 
 function renderCurrentView() {
@@ -1217,25 +1220,44 @@ function openEnhancedCartPicker(recipe) {
             // signalee visuellement, car la deduction peut se tromper.
             const softMatch = !!it.matchedName && !it.isExact;
 
-            const labelChildren = [h('div', {}, [it.emoji + ' ', it.name])];
+            // Edition par ligne (LOT 012, zone A) : pas de <label> autour du contenu
+            // (contrairement à l'ancien rendu) — fidèle à la structure de l'oracle, et
+            // ça évite tout risque de double-déclenchement de la case au clic sur les
+            // champs édités désormais imbriqués. Seule la case à cocher coche/décoche.
+            const contentChildren = [
+                h('input', { class: 'picker-name-inp', id: `pick-name-${idx}` , value: it.name }),
+                h('div', { class: 'picker-cat-label' }, it.category)
+            ];
             if (it.matchedName) {
-                labelChildren.push(h('div', { class: 'picker-match-info' },
+                contentChildren.push(h('div', { class: 'picker-match-info' },
                     it.isMissing
                         ? `Correspond à « ${it.matchedName} », pas en stock`
                         : `Déjà en stock : « ${it.matchedName} »`));
             }
+            contentChildren.push(h('input', { type: 'hidden', id: `pick-cat-${idx}`, value: it.category }));
+
+            // `h()` pose les props via setAttribute : pour un booleen HTML comme "checked",
+            // la seule PRESENCE de l'attribut coche la case, meme passe `false` (defaut
+            // preexistant du LOT 006, trouve par les tests de non-regression de ce chantier
+            // — un seul point d'appel dans toute la base, corrige ici). Affectation directe
+            // de la propriete IDL pour un rendu initial fidele a `it.isMissing`.
+            const checkboxEl = h('input', {
+                id: `pick-${idx}`,
+                type: 'checkbox',
+                onchange: () => updatePickerRow(idx)
+            });
+            checkboxEl.checked = checked;
 
             return h('div', {
                 class: `picker-item ${checked ? 'checked' : ''} ${softMatch ? 'soft-match' : ''}`,
                 id: `pitem-${idx}`
             }, [
-                h('input', {
-                    type: 'checkbox',
-                    checked,
-                    id: `pick-${idx}`,
-                    onchange: () => updatePickerRow(idx)
-                }),
-                h('label', { for: `pick-${idx}`, style: { cursor: 'pointer', flex: 1, marginLeft: '8px' } }, labelChildren),
+                checkboxEl,
+                h('div', { class: 'picker-emoji-wrap' }, [
+                    h('input', { class: 'picker-emoji-inp', id: `pick-emoji-${idx}`, value: it.emoji, readonly: true }),
+                    h('button', { class: 'picker-magic-btn', title: "Changer l'émoji", onclick: () => cycleEmoji(idx) }, '🎲')
+                ]),
+                h('div', { class: 'picker-content' }, contentChildren),
                 it.isMissing ? null : h('span', { class: 'picker-badge' }, 'En stock')
             ].filter(Boolean));
         }));
@@ -1253,20 +1275,31 @@ function confirmRecipeToCart() {
     if (!list) return;
     const checks = list.querySelectorAll('input[type="checkbox"]');
     checks.forEach((chk, i) => {
-        if (chk.checked) {
-            const it = _currentPickerData[i];
-            const existing = state.ingredients.find(ing => areSimilar(ing.name, it.name));
-            if (existing) {
-                existing.inCart = true;
-                existing.shoppingSource = _currentPickerRecipeName;
-            } else {
-                const id = generateId('ing');
-                state.ingredients.push({ 
-                    ...it, id, 
-                    inStock: false, inCart: true, 
-                    shoppingSource: _currentPickerRecipeName 
-                });
-            }
+        if (!chk.checked) return;
+        const original = _currentPickerData[i];
+        const nameInp = document.getElementById(`pick-name-${i}`);
+        const emojiInp = document.getElementById(`pick-emoji-${i}`);
+        const catInp = document.getElementById(`pick-cat-${i}`);
+        // Lit les valeurs EDITEES (LOT 012, zone A) plutot que l'original. Distinction
+        // (audit Codex) entre "input absent" (repli defensif sur l'original, ne devrait
+        // pas arriver) et "nom vide par un input present" (Joel a efface le champ :
+        // refus propre de cette ligne, jamais de repli silencieux sur l'ancien nom).
+        if (nameInp && !nameInp.value.trim()) return;
+        const name = nameInp ? nameInp.value.trim() : original.name;
+        const emoji = (emojiInp ? emojiInp.value.trim() : '') || original.emoji;
+        const category = catInp ? catInp.value : original.category;
+
+        const existing = state.ingredients.find(ing => areSimilar(ing.name, name));
+        if (existing) {
+            existing.inCart = true;
+            existing.shoppingSource = _currentPickerRecipeName;
+        } else {
+            const id = generateId('ing');
+            state.ingredients.push({
+                name, category, emoji, id,
+                inStock: false, inCart: true,
+                shoppingSource: _currentPickerRecipeName
+            });
         }
     });
     saveState();
@@ -1648,15 +1681,42 @@ const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', 
  * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
  * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
  * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
+ *
+ * `category` (LOT 012, zone A) : override optionnel de la source d'emoji de
+ * catégorie, pour les appelants qui n'éditent pas l'ingrédient en cours
+ * (`_currentEditingIngId`) — ex. `cycleEmoji` sur une ligne du sélecteur de
+ * recette. Omis, le comportement est strictement identique à avant (SSOT).
  */
-function buildEmojiEditSuggestions(seed) {
+function buildEmojiEditSuggestions(seed, category) {
     const s = (seed || '').toLowerCase();
     const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
     const fromMatches = matches.map(i => i.emoji);
-    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-    const categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    let categoryEmoji;
+    if (category) {
+        categoryEmoji = getCategoryEmoji(category);
+    } else {
+        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
+        categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
+    }
     const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
     return emojis.slice(0, 15);
+}
+
+/**
+ * Fait défiler l'émoji d'une ligne du sélecteur d'articles (LOT 012, zone A ;
+ * oracle `cycleEmoji`, cycle circulaire). Relit le NOM ÉDITÉ à chaque appel
+ * (pas `_currentPickerData[idx].name`) : une correction de nom faite avant de
+ * cliquer 🎲 influence les suggestions. Réutilise `buildEmojiEditSuggestions` —
+ * jamais de table d'emojis dupliquée (SSOT).
+ */
+function cycleEmoji(idx) {
+    const emojiInp = document.getElementById(`pick-emoji-${idx}`);
+    const nameInp = document.getElementById(`pick-name-${idx}`);
+    if (!emojiInp || !nameInp) return;
+    const category = _currentPickerData[idx]?.category;
+    const suggestions = buildEmojiEditSuggestions(nameInp.value, category);
+    const at = suggestions.indexOf(emojiInp.value);
+    emojiInp.value = suggestions[(at + 1) % suggestions.length];
 }
 
 function renderEmojiEditGrid(seed) {
