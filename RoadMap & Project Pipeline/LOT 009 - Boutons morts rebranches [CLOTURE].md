@@ -1,7 +1,8 @@
 # LOT 009 — Boutons morts rebranchés — SPÉCIFICATION
 
-> **Statut :** 🟢 A PUBLIER — implémenté, testé (112/112), audit Standard GO (Codex, §14),
-> vérification navigateur faite par Joel (§13) — en attente du feu vert de publication
+> **Statut :** ✅ CLÔTURÉ — publié en **Version 5.6** le 2026-07-30 (feu vert de Joel,
+> fusionné avec le LOT 010). Implémenté, testé (112/112 à la clôture), audit Standard GO
+> (Codex, §14), vérification navigateur faite par Joel (§13).
 > **Branche :** `feat/lot9-boutons-morts`
 > **Niveau d'audit : Standard** (interface, pas de zone sensible)
 > **Effort estimé :** ~1 journée

@@ -9,46 +9,25 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 010 — Règles métier retrouvées** (démarré le 2026-07-30, signal de Joel « on démarre
-le lot 10 »). Branche `feat/lot10-regles-metier`, ouverte **depuis `feat/lot9-boutons-morts`**
-(et non depuis `main`) : le LOT 009 n'est pas encore publié et les deux lots visent la même
-**version 5.6** — les chaîner évite un conflit de fusion et permet de publier la 5.6 d'un bloc.
-Niveau d'audit : **DUR** — relevé de Standard le 2026-07-30 sur constat de l'audit de spec
-(le lot modifie `src/state.js` et `src/ui/recipe.js`, zones sensibles de `DOCTRINE_PRODUIT.md`
-§3, ce qui impose une boucle d'audit par étape).
+Aucun — **Version 5.6 publiée le 2026-07-30** (feu vert de Joel). Prochain chantier à ouvrir :
+**LOT 011 — Recettes IA riches**.
 
-| Chantier | Casse | Statut |
-|---|---|---|
-| 1. Filtre « Type de cuisine » réellement transmis à l'IA | C5 | ⬜ À faire |
-| 2. Plafond « max 6 épinglés » + libellé UI corrigé | C9 | ⬜ À faire |
-| 3. Zone « Ingrédients imposés » complète + sous-titre vivant | C10 | ⬜ À faire |
-| 4. Tri alphabétique de l'inventaire | C11 | ⬜ À faire |
-| 5. Quantités recalculées selon le nombre de personnes | C12 | ⬜ À faire |
-| 6. Menu « Moteur Tâches Complexes » supprimé (arbitrage tranché) | — | ⬜ À faire |
+## Lots tout juste publiés — Version 5.6 (2026-07-30)
 
-**Phase découverte faite le 2026-07-30** (étape bloquante, avant toute ligne de code) :
-24 ressources réutilisables recensées, 6 groupes de manques, et **10 citations de lignes
-périmées corrigées dans la fiche**. Détail : fiche LOT 010 §7.
+- **LOT 010 — Règles métier retrouvées** : les 6 chantiers faits, audités (Codex spec + audit
+  interne + Gemini + Codex Terra, tous GO), 218/218 tests. Cuisine transmise à l'IA (SSOT
+  `cuisines`), plafond 6 épinglés restauré, zone imposée complète + sous-titre vivant,
+  inventaire trié, quantités recalculées (fractions gérées, corrige un bug de l'oracle),
+  menu de modèles remplacé par une info en lecture seule. Correctif hors-plan inclus : le
+  prompt IA avait perdu ses indications de format (unités/emoji), corrigé et vérifié par
+  Joel en navigateur.
+- **LOT 009 — Boutons morts rebranchés** : icône d'ingrédient, plein écran recette, imprimer
+  + swipe-to-close, panneau Informations Système. Audit Standard Codex GO, vérifié au
+  navigateur par Joel.
 
-**Audit de spec Codex fait le 2026-07-30, AVANT tout code** (à la demande de Joel) :
-**NO-GO levé** — 5 points bloquants + le niveau d'audit sous-évalué, tous recontrôlés contre
-le code réel puis intégrés en règles exactes dans la fiche. Détail : fiche LOT 010 §8.
-
-**Deux arbitrages tranchés par Joel le 2026-07-30 :**
-1. **SSOT strict** : `cuisines` est l'unique champ définitif ; l'ancien `cuisine` y est versé
-   puis supprimé partout (local, cloud, IA).
-2. **Fractions** : dépassement volontaire de l'oracle — prise en charge réelle des fractions
-   ASCII (`1/2`) et Unicode (`½`) dans le recalcul des quantités, sans dérive. Motif renforcé
-   par la contre-vérification : l'oracle **corrompt** `1/2` en `2/4`.
-
-## Lot précédent — en attente de publication
-
-**LOT 009 — Boutons morts rebranchés** : ✅ terminé, audit Standard Codex GO, vérifié au
-navigateur par Joel, 112/112 tests. Statut `[A PUBLIER]` sur `feat/lot9-boutons-morts`.
-**Publication reportée par choix explicite de Joel le 2026-07-30** (« ok pour commit, mais
-pas pour déjà publier en 5.6 »). **Aucun merge vers `main` tant qu'il ne redonne pas le feu
-vert au moment même** (VERROU PRODUCTION — une confirmation passée ne vaut pas pour la
-suivante). Le LOT 010 s'empile dessus : les deux partiront ensemble en 5.6.
+Les deux lots ont été chaînés sur une seule branche (`feat/lot10-regles-metier` ouverte
+depuis `feat/lot9-boutons-morts`) puis fusionnés ensemble dans `main` en un seul geste,
+exactement comme les LOTS 007+008 pour la version 5.5.
 
 **Rappel synchro (LOT 007 en production)** : point de vigilance à l'usage — les
 tests à deux appareils du §6.2 ont été levés par décision de Joel ; au moindre
@@ -56,16 +35,12 @@ comportement étrange, la fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## État des lots
 
-- **008** Données en sécurité — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30**.
-  `DEFAULT_DB` reconstruite depuis l'export réel de Joel (297 ingrédients, contre 66 avant).
-- **007** Synchro collaborative — ✅ **PUBLIÉ en Version 5.5 le 2026-07-30** (audit Dur
-  double GO ; tests réels levés par Joel, constat à l'usage)
-- **009** Boutons morts rebranchés — ✅ terminé, `[A PUBLIER]` (publication reportée par Joel)
-- **010** Règles métier retrouvées — 🔵 **EN COURS**
+- **007 + 008** — ✅ **PUBLIÉS en Version 5.5 le 2026-07-30**
+- **009 + 010** — ✅ **PUBLIÉS en Version 5.6 le 2026-07-30**
 - **011 → 012** Restaurations (IA riche, confort) — PLANIFIÉS, fiches détaillées prêtes
 - **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (V6.0)
-- **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29** (feu vert de Joel) — la
-  campagne part d'une base en ligne saine
+- **015** Réglages fiables et cohérents — PLANIFIÉ, s'exécute avant le 013
+- **005 + 006** — ✅ **PUBLIÉS en Version 5.4 le 2026-07-29**
 
 ## Vérités à ne pas perdre
 
@@ -77,12 +52,14 @@ comportement étrange, la fiche LOT 007 (§6.2) sert de grille de diagnostic.
   sélecteur intelligent, `applyCloudState`).
 - `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*` : CSS dormant que la
   campagne REBRANCHE — ne plus jamais les traiter en « CSS mort ».
-- Arbitrage « Moteur Tâches Complexes » TRANCHÉ (2026-07-29) : menu supprimé, remplacé par
-  une information en lecture seule dérivée de `AI_ROLES` (LOT 010 §6).
+- **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
+  medium — préféré à `/ultra-audit` et à Codex Sol, retenu après comparaison avec Gemini
+  (Terra a trouvé un défaut réel que Gemini avait manqué sur le chantier 3 du LOT 010).
 
 ## Prochaine étape
 
-Version 5.5 en ligne. **En cours : LOT 010 — Règles métier retrouvées** (6 chantiers
-ci-dessus), empilé sur le LOT 009 non publié. Ensuite : LOT 011 — Recettes IA riches.
+**Version 5.6 en ligne.** Prochain chantier de la campagne : **LOT 011 — Recettes IA
+riches** — ouvrir sur signal de Joel (`/new-lot 011 recettes-ia-riches`), après lecture
+de la fiche et phase découverte obligatoire.
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
-et deux lots attendent désormais ce feu vert (009 + 010 = version 5.6).
+une confirmation passée ne vaut pas pour la suivante.

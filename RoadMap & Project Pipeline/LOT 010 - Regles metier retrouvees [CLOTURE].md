@@ -1,10 +1,11 @@
 # LOT 010 — Règles métier retrouvées — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — démarré le 2026-07-30 (signal de Joel « on démarre le lot 10 »)
+> **Statut :** ✅ CLÔTURÉ — publié en **Version 5.6** le 2026-07-30 (feu vert de Joel,
+> fusionné avec le LOT 009). Démarré le 2026-07-30 (signal de Joel « on démarre le lot 10 »).
 > **Branche :** `feat/lot10-regles-metier`, ouverte **depuis `feat/lot9-boutons-morts`**
-> (le LOT 009 n'est pas encore fusionné — publication reportée par Joel — et les deux lots
-> visent la **même version 5.6** : les chaîner évite un conflit de fusion et permet de
-> publier la 5.6 d'un bloc quand Joel donnera son feu vert)
+> (le LOT 009 n'était pas encore fusionné — publication reportée par Joel — et les deux lots
+> visaient la **même version 5.6** : les chaîner a évité un conflit de fusion et a permis de
+> publier la 5.6 d'un bloc)
 > **Niveau d'audit : DUR** — relevé de `Standard` à `Dur` le 2026-07-30 sur constat de l'audit
 > de spec (Codex) : le lot modifie `src/state.js` et `src/ui/recipe.js`, deux **zones sensibles**
 > explicitement listées par `DOCTRINE_PRODUIT.md` §3, ce qui rend le niveau Dur obligatoire
