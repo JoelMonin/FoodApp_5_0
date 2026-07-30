@@ -193,8 +193,15 @@ rôle `FAST` (`gemini-3.5-flash-lite`, distinct de `REASONING`) est un choix dé
 qu'une note de mémoire avait figée par erreur) — non lié à l'incident. Si l'erreur devait
 redevenir systématique, c'est le premier endroit à vérifier.
 
-Le squelette HTML statique du modal recette (`index.html:109-136`, jamais visible — 3
-recherches convergentes confirmant zéro référence exécutable ailleurs) a été supprimé plutôt
-que réconcilié : `renderRecipeDetail` est la seule source du contenu (SSOT), option retenue
-par l'exécutant faute d'arbitrage explicite de Joel entre les deux options proposées par la
-fiche (« nettoyer OU faire correspondre »).
+## 14. AUDIT STANDARD — CODEX
+
+**Premier passage (2026-07-30) : NO-GO**, 2 findings CRITIQUE + 1 BÉNIN.
+
+| # | Finding | Gravité | Correction |
+|---|---|---|---|
+| 1 | Glissement : `currentY` jamais réinitialisé au démarrage d'un geste — un simple appui sans glisser après une fermeture réussie pouvait refermer la réouverture suivante | CRITIQUE | Reset de `currentY` dans `touchstart` + 5 tests (`tests/swipe-close.test.js`) verrouillant le scénario exact |
+| 2 | Grille locale d'icône : un ingrédient ne correspondant qu'à lui-même (ex. Banane) n'affichait qu'1 tuile — aucun vrai choix. Le socle générique de repli dupliquait en plus une table déjà existante (SSOT) | CRITIQUE | `buildEmojiEditSuggestions` complète toujours avec l'emoji de catégorie + le socle générique ; ce socle est désormais `GENERIC_EMOJI_FALLBACK`, une constante unique partagée avec `updateEmojiSuggestions` |
+| 3 | Règle CSS native `:fullscreen` visait encore l'ancienne classe `.modal` ; plafond `85vh` non levé en plein écran (les deux mécanismes) | BÉNIN | Sélecteur corrigé + `max-height` levé sur les deux mécanismes (classe et natif) |
+
+Commit de correction : `4559c4c`. 111/111 tests (104 précédents + 7 nouveaux), 13/13 Pytest,
+build OK. Renvoyé à Codex pour contre-vérification.
