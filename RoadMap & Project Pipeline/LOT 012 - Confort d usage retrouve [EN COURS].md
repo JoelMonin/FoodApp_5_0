@@ -62,7 +62,11 @@ et le pré-cochage ; il manque l'édition :
 - la validation (**`confirmRecipeToCart`, code actuel `js/app.js:1251-1275`** — citation
   `637+` de la fiche initiale périmée) lit aujourd'hui `_currentPickerData[i]` (valeurs
   D'ORIGINE) au lieu du DOM : c'est tout le trou à combler. Elle doit lire les inputs
-  `pick-name-*`/`pick-emoji-*` une fois qu'ils existent ;
+  `pick-name-*`/`pick-emoji-*` une fois qu'ils existent. **Nuance de l'audit Codex** : ne pas
+  confondre « input absent » (repli sur `_currentPickerData[i]`, cas défensif qui ne devrait
+  pas arriver) et « nom vidé volontairement par Joel » (l'input existe mais `.value` est
+  vide après `trim()` — dans ce cas, refuser proprement CETTE ligne, pas de repli silencieux
+  sur le nom d'origine qui ferait ajouter un article sous un nom que Joel vient d'effacer) ;
 - `cycleEmoji` : relit `pick-name-${idx}` à chaque clic (si Joel a corrigé le nom avant de
   cliquer 🎲, les suggestions se basent sur le nom corrigé) + liste de secours large (l.5819),
   cycle circulaire ;
@@ -124,17 +128,59 @@ La fonction gère en réalité **6 vues** (pantry/shopping/ai/favorites/export/a
   icônes mobiles (`#mh-icons`) et sous-titre mobile (`#mh-subtitle`, compteur contextuel)
   dynamiques (les deux existent en HTML mais sont 100 % figés, zéro JS ne les touche
   aujourd'hui) ; barres de recherche masquées hors inventaire ;
-- **`#topbar-add-btn` (`index.html:275`, le ＋ flottant vert)** : dans l'oracle c'est
-  `#fab-add`, `class="fab-btn hidden"`, affiché SEULEMENT sur la vue inventaire
-  (`classList.toggle('hidden', view !== 'pantry')`, oracle l.4505-4507). Côté migré il n'a
-  ni classe `hidden` ni bascule — **affiché en permanence sur toutes les vues, à corriger** ;
+
+  **Titres/sous-titres exacts (oracle l.4521-4532, table transcrite au mot près — corrigé
+  par l'audit Codex, l'actuel divergeait déjà : « Mes Courses » au lieu de « Liste de
+  courses », « Favoris » au lieu de « Recettes favorites », sous-titres IA/favoris absents) :**
+
+  | Vue | Titre | Sous-titre (fonction) |
+  |---|---|---|
+  | pantry | Inventaire | `N en stock` |
+  | shopping | Liste de courses | `N article(s)` |
+  | ai | Recettes IA | `basé sur N ingrédient(s) en stock` |
+  | favorites | Recettes favorites | `N recette(s)` |
+  | export | Réglages | *(vide)* |
+  | add | Ajouter un ingrédient | *(vide)* |
+
+  Note de portage : le pluriel oracle du sous-titre `ai` a un bug d'espace pour N=1
+  (`'ingrédient' + 'en stock'` → « ingrédienten stock », collé) — typo oracle, pas une
+  intention. **Corrigée silencieusement au portage** (espace ajouté), comme le code mort
+  `pick-strat-new` de la Zone A : un défaut mécanique de l'oracle n'est pas restauré tel quel ;
+
+  **Boutons d'action par vue (oracle l.4549-4563), classes CSS déjà toutes présentes,
+  aucune à créer :** pantry → `<button class="tb-btn-add">＋</button>` (CSS
+  `css/style.css:393-407`, jamais utilisée jusqu'ici) ; shopping → `.tb-btn` « 📋 Copier »
+  + `.tb-btn.terra` « 🗑️ Vider » ; ai → `.tb-icon-btn` ⚙️ ; favorites → `.tb-btn.primary`
+  « 📋 Coller une recette » ; export/add → vide (comportement actuel déjà correct par
+  accident, `actionEl.replaceChildren()`) ;
+- **Le vrai FAB de l'oracle est DÉJÀ restauré et correct, ne pas y toucher** : `#fab-add`
+  (`index.html:718`, `class="fab-btn hidden"`, CSS `.fab-btn` en `css/style.css:3056-3077`,
+  position `fixed` bas-droite) est DÉJÀ basculé correctement par
+  `document.getElementById('fab-add')?.classList.toggle('hidden', view !== 'pantry')`
+  (`js/app.js:591`, dans `renderCurrentView`). **Ma phase découverte initiale avait raté cet
+  élément** (elle n'avait grepé que `topbar-add-btn`) — trouvé par l'audit Codex du
+  2026-07-30 ;
+- **`#topbar-add-btn` (`index.html:275`) est un bouton EN TROP, sans équivalent oracle** :
+  round vert `36×36`, `position:relative` (pas un vrai FAB flottant, juste stylé pour y
+  ressembler), posé en sibling de `#top-action-btn` dans `.header-actions`, sans classe
+  `hidden` ni bascule — affiché en permanence sur toutes les vues aujourd'hui. Une fois
+  `#top-action-btn` restauré (branche pantry → `.tb-btn-add`, CSS déjà présent
+  `css/style.css:393-407`, jamais utilisé jusqu'ici), les deux boutons ＋ se retrouveraient
+  côte à côte dans le même `.header-actions` sur la vue inventaire — doublon visuel confirmé
+  par Codex. **Correction : retirer `#topbar-add-btn` du HTML** (aucune bascule à lui
+  ajouter, aucun rôle oracle à lui trouver — pur artefact de migration) ; laisser `#fab-add`
+  intact ;
 - retour automatique à l'inventaire ~500 ms après un ajout réussi (l.6458, dans
   `addIngredient`, confirmé) ;
 - compteur « Principal (N ingrédients) » de la barre latérale (`#sb-label-principal`,
   `index.html` L180, figé sur « Principal ») remis à jour ;
-- toasts de feedback sur stock/panier/suppression restaurés — `toast()` existe déjà
-  (`src/utils/dom.js:53-66`) mais `toggleStock`/`toggleCart`/`deleteIngredient`
-  (`src/actions.js`) ne l'appellent pas encore (seule `togglePin` le fait déjà) ;
+- **toasts de feedback — corrigé par l'audit Codex : PAS sur le stock.** L'oracle ne toaste
+  QUE sur panier et suppression (`toggleCart` l.4730, `deleteIngredient` l.4752) ;
+  `toggleStock` (l.4713-4722) n'a jamais toasté dans l'oracle, même en repli sur stock. La
+  fiche initiale disait « stock/panier/suppression » à tort. `toast()` existe déjà
+  (`src/utils/dom.js:53-66`) mais `toggleCart`/`deleteIngredient` (`src/actions.js`) ne
+  l'appellent pas encore (seule `togglePin` le fait déjà) — **ne pas ajouter de toast à
+  `toggleStock`** ;
 - remise à zéro de `shoppingSource` : **citation oracle corrigée** — l.4724-4751 de la fiche
   initiale est FAUSSE (cette plage couvre `toggleCart`/`togglePin`/`deleteIngredient`, aucun
   ne touche `shoppingSource`). Les VRAIS resets sont **l.4719** (dans `toggleStock`, l'article
@@ -196,6 +242,36 @@ les deux, ne pas « nettoyer » le doublon ici (candidat LOT 014).
   ne jamais faire un `innerHTML =` global sur `.mh-icons` sans réinjecter le balisage exact
   de `#sync-indicator-mobile`, sous peine de voyant réinitialisé ou mort silencieusement.
 
+## Audit de spec (2026-07-30)
+
+**Codex 5.6 Terra, niveau medium (auditeur par défaut) — VERDICT : GO, niveau Standard
+confirmé.** Aucun défaut critique ; 3 précisions « À CORRIGER · durcissement », toutes
+vérifiées contre le vrai code avant intégration (une s'est révélée plus importante que son
+libellé ne le laissait penser) et intégrées directement dans le §Périmètre ci-dessus :
+
+1. **FAB en double** — la plus significative. Le vrai FAB oracle (`#fab-add`) est en fait
+   **déjà restauré et déjà correct** dans le code actuel (`index.html:718` +
+   `js/app.js:591`) ; ma phase découverte l'avait raté (elle n'avait grepé que
+   `topbar-add-btn`, jamais `fab-add`). Le vrai correctif est de **retirer**
+   `#topbar-add-btn` (artefact de migration sans équivalent oracle), pas de lui ajouter une
+   bascule comme je le pensais avant l'audit.
+2. **Toasts** — l'oracle ne toaste jamais sur `toggleStock`, seulement panier/suppression ;
+   la fiche initiale (« stock/panier/suppression ») était imprécise.
+3. **Titres/sous-titres** — table exacte de l'oracle absente de la fiche initiale, alors que
+   le texte actuel divergeait déjà (« Mes Courses » vs « Liste de courses », etc.) : risque
+   réel de improvisation au moment d'écrire le code. Table transcrite mot pour mot.
+
+Confirmations utiles (pas de changement de plan, juste validées) : retrait du `<label>`
+(Zone A) sain et fidèle à l'oracle ; extension de `buildEmojiEditSuggestions` sûre si la
+signature à un seul argument reste inchangée ; retrait de `isMissing`/`matchedName`/`isExact`
+au push dans `state.ingredients` sain (aucun consommateur en aval, vérifié par grep) — avec
+la nuance « input absent vs vidé volontairement » ci-dessus ; les deux nouvelles lignes
+`shoppingSource` (l.4719/l.4826) confirmées ; la mise à jour chirurgicale de `.mh-icons`
+(plutôt que l'`innerHTML=` global de l'oracle) confirmée nécessaire — et sa raison profonde
+désormais comprise : le voyant de synchro de l'oracle est STATIQUE (jamais d'état
+thinking/error), celui du LOT 007 est dynamique. Porter le remplacement en bloc de l'oracle
+casserait un comportement que l'oracle lui-même n'a jamais eu à préserver.
+
 ## Plan de test
 
 - [ ] Unitaires : `cycleEmoji` (cycle circulaire, liste de secours, réutilise
@@ -204,11 +280,13 @@ les deux, ne pas « nettoyer » le doublon ici (candidat LOT 014).
       `shoppingSource` (stock retrouvé + retrait panier) ; **voyant de synchro
       (`#sync-indicator-mobile`) qui SURVIT à un changement de vue pendant un état
       `thinking`/`error`** — le point le plus à risque de la zone C, cf. §C ;
-      toasts stock/panier/suppression émis
+      toasts panier/suppression émis (PAS stock) ; titres/sous-titres = table oracle §C
+      au caractère près
 - [ ] Manuels (Joel, mobile ET bureau) : 🎲 change l'emoji ; nom corrigé conservé dans la
       liste ; Entrée partout ; filtres scrollables au doigt ; barre supérieure contextuelle
       sur les 6 vues (pantry/shopping/ai/favorites/export/add) ; retour auto après ajout ;
-      suppression de clé possible ; ＋ flottant visible seulement sur l'inventaire
+      suppression de clé possible ; ＋ flottant visible seulement sur l'inventaire ; **un
+      SEUL bouton ＋ visible sur l'inventaire** (pas de doublon `topbar-add-btn`/`fab-add`)
 
 ## Critères d'acceptation
 
