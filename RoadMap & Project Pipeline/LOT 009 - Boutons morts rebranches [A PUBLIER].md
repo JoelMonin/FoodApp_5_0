@@ -1,7 +1,7 @@
 # LOT 009 — Boutons morts rebranchés — SPÉCIFICATION
 
-> **Statut :** 🟡 EN COURS — implémentation terminée, en attente de l'audit Standard
-> et de la vérification navigateur de Joel (voir §13)
+> **Statut :** 🟢 A PUBLIER — implémenté, testé (112/112), audit Standard GO (Codex, §14),
+> vérification navigateur faite par Joel (§13) — en attente du feu vert de publication
 > **Branche :** `feat/lot9-boutons-morts`
 > **Niveau d'audit : Standard** (interface, pas de zone sensible)
 > **Effort estimé :** ~1 journée
@@ -109,26 +109,26 @@ d'origine) meurent avec lui.
 ## Plan de test
 
 - [x] Unitaires : construction des suggestions d'emoji (sources existantes, pas de table
-      dupliquée) ; `updateSystemInfo` remplit les 3 champs avec un state connu (jsdom) —
-      `tests/emoji-edit.test.js` (7 tests), `tests/system-info.test.js` (5 tests)
+      dupliquée) ; `updateSystemInfo` remplit les 3 champs avec un state connu (jsdom) ;
+      glissement pour fermer (scénarios exacts de l'audit Codex) — `tests/emoji-edit.test.js`
+      (9 tests), `tests/system-info.test.js` (5 tests), `tests/swipe-close.test.js` (6 tests)
 - [x] Manuels (Joel, navigateur, 2026-07-30) : icône changée avec succès (grille +
       recherche IA — un premier essai de recherche a affiché « Erreur recherche emoji »,
       un second essai a fonctionné, voir §13) ; plein écran « semble ok » ; imprimer
       « semble ok » ; panneau Informations Système entièrement renseigné (clé masquée
       ****k6nE, `FoodApp_V5_Joel`, `pantry_v5 (74.62 KB)`, réseau Connecté). Glissement
-      pour fermer non explicitement rapporté par Joel — non bloquant, mêmes chemins de
-      code que les 3 points validés
+      pour fermer non explicitement rapporté par Joel en navigateur — couvert depuis par
+      6 tests unitaires (dont les scénarios exacts trouvés par l'audit), non bloquant
 
 ## Critères d'acceptation
 
-- [x] Validation unifiée verte + build OK (104/104 Vitest, 13/13 Pytest, build OK)
+- [x] Validation unifiée verte + build OK (112/112 Vitest, 13/13 Pytest, build OK)
 - [x] Plus AUCUNE référence exécutable à `edit-emoji-input`, `system-storage`, ni à la classe
       fantôme `fullscreen` (3 recherches convergentes chacune, règle `CLAUDE.md` §5) — les
       seules occurrences restantes sont des commentaires explicatifs et les assertions
       négatives des tests eux-mêmes
-- [ ] Audit Standard sur le diff final — **à faire, voir §13**
-- [ ] Cocher C1, C6, C7, C8 dans `Backlog/BACKLOG - Regressions de la migration.md` — après
-      l'audit et la vérification navigateur, pas avant
+- [x] Audit Standard sur le diff final — Codex, 2 passages : NO-GO puis **GO** (§14)
+- [x] Cocher C1, C6, C7, C8 dans `Backlog/BACKLOG - Regressions de la migration.md`
 
 ## Traçabilité
 
@@ -205,3 +205,12 @@ redevenir systématique, c'est le premier endroit à vérifier.
 
 Commit de correction : `4559c4c`. 111/111 tests (104 précédents + 7 nouveaux), 13/13 Pytest,
 build OK. Renvoyé à Codex pour contre-vérification.
+
+**Contre-vérification (2026-07-30) : GO.** Les deux CRITIQUE formellement levées (preuves
+citées ligne par ligne sur le code corrigé et les tests). Le BÉNIN confirmé résolu. Une
+réserve non bloquante supplémentaire (« ne rouvre pas l'audit ») : aucun `touchcancel` ne
+remettait l'affichage en place si le geste était interrompu par le système — corrigé par
+prudence (1 test de plus, 112/112 au total). Codex a aussi signalé que ce fichier et
+`CURRENT_GOAL.md` restaient à resynchroniser à la clôture — fait dans la foulée.
+
+**Verdict final : GO. Niveau Standard confirmé.**

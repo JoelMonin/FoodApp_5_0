@@ -20,10 +20,10 @@ attaque le lot 09 »). Branche `feat/lot9-boutons-morts` ouverte depuis `main`
 | 3. Bouton imprimer + swipe-to-close | C7 | ✅ Codé + testé |
 | 4. Panneau Informations Système (3 champs restants) | C8 | ✅ Codé + testé |
 
-**Reste avant clôture** : audit Standard sur le diff final (Codex ou Gemini, au choix
-de Joel) + vérification navigateur manuelle de Joel (§Plan de test de la fiche) — cette
-session n'a pas d'outil de navigateur réel, seul un test de fumée HTTP a été fait.
-Détail complet : fiche LOT 009 §13.
+**Prêt à publier** : audit Standard Codex GO (2 passages : NO-GO puis GO après correction
+de 2 CRITIQUE + durcissement) et vérification navigateur de Joel faites. 112/112 tests,
+13/13 Pytest, build OK. Reste uniquement le feu vert explicite de Joel pour merger dans
+`main` (VERROU PRODUCTION). Détail complet : fiche LOT 009 §13-§14.
 
 **Rappel synchro (LOT 007 en production)** : point de vigilance à l'usage — les
 tests à deux appareils du §6.2 ont été levés par décision de Joel ; au moindre

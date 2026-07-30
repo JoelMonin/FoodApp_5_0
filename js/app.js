@@ -1970,6 +1970,18 @@ function initSwipeToClose(modalId) {
         modal.style.transform = '';
         overlay.style.backgroundColor = '';
     });
+
+    // Durcissement (contre-vérification Codex, LOT 009) : un geste interrompu par le
+    // système (appel entrant, geste OS concurrent...) ne doit ni fermer le modal ni le
+    // laisser visuellement décalé — même remise en place que touchend, sans décision
+    // de fermeture.
+    overlay.addEventListener('touchcancel', () => {
+        if (!isSwiping || !modal) return;
+        isSwiping = false;
+        modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        modal.style.transform = '';
+        overlay.style.backgroundColor = '';
+    });
 }
 
 function initKeyboardShortcuts() {

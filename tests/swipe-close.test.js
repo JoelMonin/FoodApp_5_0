@@ -84,4 +84,22 @@ describe('Glissement pour fermer (LOT 009, casse C7)', () => {
     overlay.dispatchEvent(touchEvent('touchend', 300));
     expect(overlay.classList.contains('open')).toBe(true);
   });
+
+  it('un geste interrompu par le système (touchcancel) ne ferme pas et remet l\'affichage ' +
+     'en place — sans quoi le geste SUIVANT resterait affecté (durcissement, contre-vérif. Codex)', () => {
+    overlay.dispatchEvent(touchEvent('touchstart', 50));
+    overlay.dispatchEvent(touchEvent('touchmove', 250)); // glissement en cours (diff 200)
+    const content = overlay.querySelector('.modal-content');
+    expect(content.style.transform).not.toBe('');
+
+    overlay.dispatchEvent(new Event('touchcancel', { bubbles: true }));
+
+    expect(overlay.classList.contains('open')).toBe(true); // pas fermé
+    expect(content.style.transform).toBe(''); // remis en place visuellement
+
+    // Le geste SUIVANT doit repartir de zéro, pas hériter de l'état interrompu.
+    overlay.dispatchEvent(touchEvent('touchstart', 55));
+    overlay.dispatchEvent(touchEvent('touchend', 55));
+    expect(overlay.classList.contains('open')).toBe(true);
+  });
 });
