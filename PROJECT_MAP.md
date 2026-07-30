@@ -49,6 +49,7 @@
 - `tests/imposed-zone.test.js` : Zone « Ingrédients imposés » + sous-titre vivant (LOT 010 — épinglés et extras affichés ensemble, rafraîchissement après action, état vivant jamais figé).
 - `tests/pantry-sort.test.js` : Tri alphabétique de l'inventaire (LOT 010 — tri français avec accents, appliqué après filtrage, identifiant jamais recalculé depuis la position, export presse-papier non affecté).
 - `tests/recipe-scaling.test.js` : Quantités recalculées selon le nombre de personnes (LOT 010 — `scaleQty` pure : nombres, unités collées/séparées ml/kg/g/cl, fractions ASCII et Unicode sans dérive ; intégration écran recette : bornes 1-20, aucune mutation de la recette d'origine, réinitialisation à l'ouverture).
+- `tests/ai-ingredient-fidelity.test.js` : Filet de sécurité emoji ingrédient de la liste de courses (LOT 010 — une unité renvoyée par erreur dans le champ emoji par l'IA ne s'affiche jamais à l'écran, retombe sur la déduction automatique).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).

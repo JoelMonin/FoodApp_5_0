@@ -531,7 +531,8 @@ export {
     openRecipeDetail,
     analyzeNutrition,
     changePplScale,
-    renderRecipeModal
+    renderRecipeModal,
+    openEnhancedCartPicker
 };
 
 function renderCurrentView() {
@@ -1066,12 +1067,17 @@ function openEnhancedCartPicker(recipe) {
         const name = i.n || i.name;
         const category = i.c || i.category || 'Autres';
         const status = matchIngredientToStock(i);
+        // Filet de sécurité (LOT 010, casse C12) : un prompt IA sans indication de
+        // format a pu, par le passé, faire dériver du texte (une unité comme "g") dans
+        // ce champ au lieu d'un emoji. `\p{Emoji_Presentation}` rejette les lettres et
+        // chiffres nus — ne garder l'emoji de l'IA que s'il en est vraiment un.
+        const aiEmoji = i.e && /\p{Emoji_Presentation}/u.test(i.e) ? i.e : null;
         return {
             name,
             category,
-            // Emoji : celui de l'IA, sinon celui de la base d'ingredients,
+            // Emoji : celui de l'IA (validé), sinon celui de la base d'ingredients,
             // sinon celui de la categorie.
-            emoji: i.e || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
+            emoji: aiEmoji || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
             isMissing: !status.inStock,
             matchedName: status.matchedName,
             isExact: status.isExact

@@ -94,8 +94,12 @@ MATÉRIEL : ${equipStr} | RÉGIMES : ${dietStr} | EXCLUSIONS : ${aiConfig.exclus
 TEMPS : ${timeStr} | DIFF : ${diffStr}
 STOCK DISPONIBLE : ${stockList}
 
+RÈGLES DE DONNÉES : quantités jamais vides ; "q" contient TOUJOURS la quantité ET
+l'unité ensemble (ex: "200 g", "2 pièces"), jamais l'un sans l'autre ; "e" contient
+UN SEUL emoji, jamais du texte.
+
 Format JSON uniquement:
-[{"name":"...","description":"...","time":"...","difficulty":"...","people":${aiConfig.ppl},"cuisine":"...","ingredients":[{"n":"...","q":"...","e":"...","c":"...","s":"stock|pinned|missing"}],"steps":["..."]}]`;
+[{"name":"...","description":"...","time":"...","difficulty":"...","people":${aiConfig.ppl},"cuisine":"...","ingredients":[{"n":"[NOM]","q":"[QUANTITÉ+UNITÉ]","e":"[1 EMOJI]","c":"[CATÉGORIE]","s":"stock|pinned|missing"}],"steps":["..."]}]`;
 
   const model = aiConfig.models?.recipeGeneration || AI_ROLES.REASONING;
   
