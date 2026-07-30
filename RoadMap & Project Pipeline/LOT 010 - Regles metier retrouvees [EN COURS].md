@@ -417,6 +417,23 @@ de mise à l'échelle de l'oracle ne se contente pas d'ignorer les fractions, el
   raison de budget de tokens, cf. décision de Joel du 2026-07-30) : **GO sans réserve**.
   Lignes citées vérifiées à un ou deux près, conclusion confirmée indépendamment par l'audit
   précédent (le sélecteur `.chip` générique ne capte plus les nouvelles puces).
+- Chantiers 4-6 + correctif unités/emoji (`79d8135..HEAD`, périmètre `f51eea2..c8f74d2`)
+  — audité par **Codex Terra** (niveau medium, retenu comme auditeur par défaut après
+  comparaison avec Gemini au chantier 3) : **GO**, deux durcissements non bloquants,
+  tous deux vérifiés puis traités avant clôture :
+  1. **Filtre emoji trop permissif** (`js/app.js`, chantier 5) — `.test()` cherchait un
+     emoji n'importe où dans la chaîne au lieu de vérifier la chaîne entière : une valeur
+     mixte comme `"g🐟"` passait le filtre avec la lettre toujours collée devant l'emoji.
+     **Corrigé** : correspondance ancrée sur la chaîne entière (`^...+$`), qui accepte en
+     plus les emojis à présentation texte par défaut explicitement forcés (`❤️`), rejetés
+     à tort par le premier filtre. 2 tests ajoutés reproduisant les deux cas.
+  2. **Nutrition + échelle non exercée par un test** — comportement vérifié par lecture de
+     code seulement. **2 tests ajoutés** qui déclenchent réellement `analyzeNutrition`
+     après un changement d'échelle et vérifient la préservation de l'échelle affichée et
+     l'usage du nombre de personnes d'origine dans la requête IA.
+  Tous les autres points (tri après filtrage sans mutation, priorité de la fraction ASCII
+  dans `scaleQty`, absence de dérive cumulée, aucune mutation de la recette, 3 recherches
+  convergentes du chantier 6, SSOT du bloc informatif) : confirmés sans réserve.
 
 **Arbitrages de Joel (2026-07-30) :**
 1. **SSOT strict** — `cuisines` est l'unique champ définitif ; l'ancien `cuisine` est versé

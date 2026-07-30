@@ -1072,9 +1072,15 @@ function openEnhancedCartPicker(recipe) {
         const status = matchIngredientToStock(i);
         // Filet de sécurité (LOT 010, casse C12) : un prompt IA sans indication de
         // format a pu, par le passé, faire dériver du texte (une unité comme "g") dans
-        // ce champ au lieu d'un emoji. `\p{Emoji_Presentation}` rejette les lettres et
-        // chiffres nus — ne garder l'emoji de l'IA que s'il en est vraiment un.
-        const aiEmoji = i.e && /\p{Emoji_Presentation}/u.test(i.e) ? i.e : null;
+        // ce champ au lieu d'un emoji. Durci après audit Codex Terra du 2026-07-30 :
+        // `.test()` cherche n'importe où dans la chaîne, une valeur mixte ("g🐟") passait
+        // donc le filtre avec la lettre toujours collée devant l'emoji — la correspondance
+        // est désormais ancrée sur la chaîne ENTIÈRE. `\p{Emoji}️` (sélecteur de
+        // variante 16, écrit en échappement explicite pour rester lisible) couvre en
+        // plus les emojis à présentation texte par défaut, explicitement forcés en
+        // emoji, sans quoi ils étaient rejetés à tort.
+        const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+        const aiEmoji = i.e && AI_EMOJI_ONLY.test(i.e.trim()) ? i.e : null;
         return {
             name,
             category,

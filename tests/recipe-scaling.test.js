@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { scaleQty } from '../src/utils/helpers.js';
 import { state } from '../src/state.js';
 import { openRecipeDetail, changePplScale, analyzeNutrition } from '../js/app.js';
@@ -249,5 +249,52 @@ describe('LOT 010 / C12 — intégration écran recette', () => {
         document.querySelectorAll('.scale-btn')[1].click();
 
         expect(document.getElementById('modal-recipe-detail').textContent).toContain('450 g');
+    });
+
+    // Durcissement demandé par l'audit Codex Terra (2026-07-30) : la préservation de
+    // l'échelle par `analyzeNutrition` était vérifiée par lecture de code, jamais
+    // exercée par un test qui déclenche réellement l'analyse.
+    it('une analyse nutritionnelle déclenchée APRÈS un changement d\'échelle conserve ' +
+       'l\'échelle choisie — elle ne doit jamais la remettre à sa valeur d\'origine', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({
+                candidates: [{ content: { parts: [{ text: '{"score":"A","kcal":450,"tags":["Sain"]}' }] } }]
+            })
+        }));
+        state.aiConfig = { apiKey: 'MOCK_KEY', models: {} };
+        const r = recette();
+        state.aiSuggestions = [r];
+        openRecipeDetail(0, 'ai');
+        document.querySelectorAll('.scale-btn')[1].click(); // 2 → 3 pers.
+        expect(document.getElementById('rd-ppl-count').textContent).toBe('3');
+
+        await analyzeNutrition(r, 'ai', null);
+
+        expect(document.getElementById('rd-ppl-count').textContent).toBe('3');
+        expect(document.getElementById('modal-recipe-detail').textContent).toContain('450 g');
+        vi.unstubAllGlobals();
+    });
+
+    it('la requête d\'analyse nutritionnelle utilise le nombre de personnes D\'ORIGINE, ' +
+       'jamais l\'échelle en cours — la portion analysée ne doit pas varier avec l\'affichage', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({
+                candidates: [{ content: { parts: [{ text: '{"score":"A","kcal":450,"tags":["Sain"]}' }] } }]
+            })
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        state.aiConfig = { apiKey: 'MOCK_KEY', models: {} };
+        const r = recette();
+        state.aiSuggestions = [r];
+        openRecipeDetail(0, 'ai');
+        document.querySelectorAll('.scale-btn')[1].click(); // 2 → 3 pers.
+
+        await analyzeNutrition(r, 'ai', null);
+
+        const body = fetchMock.mock.calls[0][1].body;
+        expect(body).toContain('pour 2 pers');
+        vi.unstubAllGlobals();
     });
 });

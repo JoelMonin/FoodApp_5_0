@@ -71,4 +71,23 @@ describe('LOT 010 / C12 — filet de sécurité emoji ingrédient', () => {
         // Pas de crash, un emoji quelconque est rendu (déduit par autoEmoji/catégorie).
         expect(document.getElementById('modal-recipe-cart-list').textContent).toContain('Tomate');
     });
+
+    // Durcissement post-audit Codex Terra (2026-07-30) : le premier filet vérifiait
+    // seulement qu'un emoji apparaissait QUELQUE PART dans la chaîne (`.test()` sans
+    // ancrage), pas que la chaîne entière EN ÉTAIT un.
+    it('une valeur MIXTE ("g🐟") est rejetée en bloc — le premier filet la laissait ' +
+       'passer avec la lettre toujours collée devant l\'emoji', () => {
+        openEnhancedCartPicker(recette([{ n: 'Saumon (fumé)', q: '200', e: 'g🐟', c: 'Poissons' }]));
+
+        const texte = document.getElementById('modal-recipe-cart-list').textContent;
+        expect(texte).not.toContain('g🐟');
+        expect(texte).toContain('Saumon (fumé)');
+    });
+
+    it('un emoji à présentation texte par défaut, explicitement forcé en emoji (❤️), ' +
+       'est accepté — le premier filet le rejetait à tort', () => {
+        openEnhancedCartPicker(recette([{ n: 'Bonbon coeur', q: '1', e: '❤️', c: 'Autres' }]));
+
+        expect(document.getElementById('modal-recipe-cart-list').textContent).toContain('❤️');
+    });
 });
