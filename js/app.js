@@ -532,7 +532,10 @@ export {
     analyzeNutrition,
     changePplScale,
     renderRecipeModal,
-    openEnhancedCartPicker
+    openEnhancedCartPicker,
+    renderAiModelsInfo,
+    saveApiKey,
+    openModal
 };
 
 function renderCurrentView() {
@@ -1378,11 +1381,21 @@ function openModal(id) {
     if (id === 'modal-api-config') {
         const keyInput = document.getElementById('api-key-input');
         if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
-        const modelSelect = document.getElementById('api-model-complex');
-        if (modelSelect && state.aiConfig?.models?.recipeGeneration) {
-            modelSelect.value = state.aiConfig.models.recipeGeneration;
-        }
+        renderAiModelsInfo();
     }
+}
+
+/**
+ * Bloc d'information en lecture seule sur les modèles IA (LOT 010, arbitrage §6).
+ * Dérivé de la SSOT (`state.aiConfig.models`, toujours réalignée sur `AI_ROLES` par
+ * `sanitizeGlobalState`) — aucun nom de modèle n'est jamais écrit en dur ici.
+ */
+function renderAiModelsInfo() {
+    const el = document.getElementById('api-models-info');
+    if (!el) return;
+    const models = state.aiConfig?.models || {};
+    el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
+        `Catégories et emojis : ${models.categorySuggest}`;
 }
 function closeModal(id) {
     const el = document.getElementById(id);
@@ -1982,15 +1995,6 @@ function saveApiKey() {
     const key = document.getElementById('api-key-input')?.value?.trim();
     if (!key) { toast('Clé API requise', 'error'); return; }
     state.aiConfig.apiKey = key;
-
-    // Save model selection if present
-    const modelSelect = document.getElementById('api-model-complex');
-    if (modelSelect?.value) {
-        if (!state.aiConfig.models) state.aiConfig.models = {};
-        state.aiConfig.models.recipeGeneration = modelSelect.value;
-        state.aiConfig.models.nutrition = modelSelect.value;
-        state.aiConfig.models.smartPaste = modelSelect.value;
-    }
 
     saveState();
     updateApiStatus();
