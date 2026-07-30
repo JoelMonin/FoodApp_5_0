@@ -6,7 +6,8 @@ import {
   applyExternalState,
   registerSyncScheduler,
   registerSyncBarrier,
-  replaceShoppingChecked
+  replaceShoppingChecked,
+  defaultAiConfig
 } from '../src/state.js';
 import { h, toast } from '../src/utils/dom.js';
 import {
@@ -535,7 +536,10 @@ export {
     openEnhancedCartPicker,
     renderAiModelsInfo,
     saveApiKey,
-    openModal
+    openModal,
+    // LOT 011 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
+    generateRandomWithStock,
+    fetchRecipeFromUrl
 };
 
 function renderCurrentView() {
@@ -769,7 +773,11 @@ async function generateSuggestions() {
   btn.classList.add('loading');
 
   try {
-    const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients);
+    const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients, {
+      // LOT 011 : si l'API rejette le niveau d'effort demande et que le repli reussit quand
+      // meme, Joel doit le savoir au moment meme (demande explicite) — jamais silencieux.
+      onThinkingFallback: () => toast('Recettes générées sans le mode réflexion approfondie (temporairement indisponible).')
+    });
     state.aiSuggestions = recipes;
     // renderAIResults(recipes); // No need, saveState() will trigger auto-render
     saveState();
@@ -1927,40 +1935,84 @@ function removeExtraIngredient(id) {
 function generateRandomWithStock() {
     const stock = state.ingredients.filter(i => i.inStock);
     if (stock.length === 0) { toast('Stock vide', 'error'); return; }
-    generateSuggestions();
+
+    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097), MAIS apiKey et
+    // models sont preserves : l'oracle les stockait ailleurs, les reinitialiser ici
+    // viderait la cle API de Joel a chaque tirage. `cuisines` (pluriel, SSOT du LOT 010)
+    // est bien cible — l'oracle videait un champ fantome `cuisine` qui ne servait a rien.
+    const savedCreativity = state.aiConfig.creativity;
+    state.aiConfig = {
+        ...defaultAiConfig(),
+        apiKey: state.aiConfig.apiKey,
+        models: state.aiConfig.models,
+        ppl: state.aiConfig.ppl || '2',
+        creativity: Math.floor(Math.random() * 21) + 80 // 80-100
+    };
+    restoreAIConfig();
+
+    return generateSuggestions().finally(() => {
+        // Le boost de creativite est ponctuel (acquis LOT 008) : seule la valeur
+        // sauvegardee du curseur est restauree apres coup. Les autres filtres, eux,
+        // restent reinitialises — comme dans l'oracle.
+        state.aiConfig.creativity = savedCreativity;
+        restoreAIConfig();
+        saveState(false);
+    });
 }
 
 async function fetchRecipeFromUrl() {
-    const url = document.getElementById('paste-url')?.value;
-    if (!url) return;
+    const urlInput = document.getElementById('paste-url');
+    const url = (urlInput?.value || '').trim();
+    if (!url) { toast('Veuillez entrer une adresse URL', 'error'); return; }
+    if (!url.startsWith('http')) { toast('L\'adresse doit commencer par http:// ou https://', 'error'); return; }
+
     const btn = document.getElementById('paste-fetch-btn');
     btn.disabled = true;
-    btn.textContent = 'Chargement...';
+    btn.textContent = 'Lecture...';
+
+    // Delai d'expiration : sans lui, un service tiers bloque laisserait le bouton
+    // en "Lecture..." indefiniment (durcissement post-audit, LOT 011 §10-D).
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        const content = data.contents;
-        document.getElementById('paste-content').value = content;
+        // Jina Reader (l.5944-5974 de l'oracle) : contourne le CORS et extrait le texte
+        // principal. Arbitrage Joel (LOT 011 §9 Q2) : AUCUN repli sur un autre service —
+        // remplace l'ancien allorigins, ne le garde pas en secours.
+        const res = await fetch(`https://r.jina.ai/${url}`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Impossible de lire la page');
+        const text = await res.text();
+        if (!text || !text.trim()) throw new Error('Page vide');
+
+        document.getElementById('paste-content').value = text;
+        const mainTitle = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+        if (mainTitle) document.getElementById('paste-title').value = mainTitle;
+
         toast('Page lue ! Cliquez sur Transformer avec l\'IA.');
     } catch (e) {
-        toast('Erreur lecture URL. Essayez le copier-coller.', 'error');
+        toast('Erreur de lecture. Vérifiez l\'URL ou copiez le texte manuellement.', 'error');
     } finally {
+        clearTimeout(timeoutId);
         btn.disabled = false;
         btn.textContent = '🌍 Lire la page';
     }
 }
 
 async function transformRecipeAI() {
+    const title = document.getElementById('paste-title')?.value || '';
     const content = document.getElementById('paste-content')?.value;
     if (!content) return;
     if (!state.aiConfig.apiKey) { toast('Clé API requise', 'error'); openModal('modal-api-config'); return; }
-    
+
     const btn = document.getElementById('paste-ai-btn');
     btn.disabled = true;
     btn.textContent = 'Transformation...';
     try {
-        const recipe = await transformRecipeFromText(content, state.aiConfig.apiKey);
+        const stockItems = state.ingredients.filter(i => i.inStock);
+        const model = state.aiConfig.models?.smartPaste || AI_ROLES.REASONING;
+        const recipe = await transformRecipeFromText(title, content, stockItems, state.aiConfig.apiKey, model, {
+            onThinkingFallback: () => toast('Recette transformée sans le mode réflexion approfondie (temporairement indisponible).')
+        });
         document.getElementById('paste-title').value = recipe.name;
         // Re-render preview or just store it
         _lastTransformedRecipe = recipe;

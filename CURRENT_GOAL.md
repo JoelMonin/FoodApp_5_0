@@ -23,21 +23,26 @@ cuisiner.
 
 | # | Chantier | État |
 |---|---|---|
-| 1 | Cartes de résultats IA complètes (méta, pitch, tags stock colorés, boutons directs) | ⬜ à faire |
-| 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ⬜ à faire |
-| 3 | Prompts et appels IA re-blindés (+ effort IA adapté par tâche, demande Joel du 2026-07-30) | ⬜ à faire |
-| 4 | Mode 🎲 « recette aléatoire » complet | ⬜ à faire |
-| 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ⬜ à faire |
-| 6 | Récupération d'URL propre (Jina Reader + titre auto) | ⬜ à faire |
-| 7 | Favoris riches (vignette, tags, boutons, date de sauvegarde) | ⬜ à faire |
+| 1 | Cartes de résultats IA complètes (méta, pitch, tags stock colorés, boutons directs) | ⬜ à faire (11B) |
+| 2 | Détail de recette complet (pastilles, états stocks, Nutri-Score, étapes cochables, favori texte brut) | ⬜ à faire (11B) |
+| 3 | Prompts et appels IA re-blindés (+ effort IA adapté par tâche, demande Joel du 2026-07-30) | ✅ codé (11A) |
+| 4 | Mode 🎲 « recette aléatoire » complet | ✅ codé (11A) |
+| 5 | Confort de génération (textes animés, scroll mobile, verrouillage du collage, champs vidés) | ⬜ à faire (11B) |
+| 6 | Récupération d'URL propre (Jina Reader + titre auto) | ✅ codé (11A) |
+| 7 | Favoris riches (vignette, tags, boutons, date de sauvegarde) | ⬜ à faire (11B) |
 
 **Étapes de gouvernance :**
 - [x] Fiche lue, branche créée
-- [ ] Phase découverte (3 explorateurs : ancrages oracle, chaîne IA, rendu/favoris)
-- [ ] Plan d'attaque réutilisant explicitement les ressources trouvées
-- [ ] Audit de spec AVANT code (comme au LOT 010, qui avait évité 5 pièges bloquants)
-- [ ] Implémentation par chantier + audits d'étape
-- [ ] Validation unifiée verte + build OK
+- [x] Phase découverte (3 explorateurs : ancrages oracle, chaîne IA, rendu/favoris)
+- [x] Audit de spec AVANT code — duel Gemini + Codex Terra, tous deux NO-GO, 8 points
+      intégrés après contre-vérification, 2 défauts trouvés en plus (créativité inopérante,
+      conflit prompt/tests), 6 arbitrages tranchés par Joel
+- [x] **Sous-lot 11A (moteur : chantiers 3, 4, 6) codé et validé** — 251/251 Vitest,
+      13/13 Pytest, build OK
+- [ ] Audit du sous-lot 11A
+- [ ] Sous-lot 11B (rendu : chantiers 1, 2, 5, 7) — c'est là que les 4 acquis 009/010
+      doivent être rejoués
+- [ ] Validation unifiée finale + build OK
 - [ ] Feu vert explicite de Joel pour la publication
 
 ### Critères d'acceptation qui ne se négocient pas

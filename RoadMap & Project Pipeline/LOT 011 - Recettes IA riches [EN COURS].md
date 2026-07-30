@@ -495,9 +495,57 @@ elle-même que ni l'un ni l'autre n'avait vus.
 **Ordre d'exécution retenu** (les deux auditeurs convergeaient) : sous-lots sur la MÊME
 branche, avec un audit à la fin de chacun.
 - **11A — moteur** : chantiers 3, 4, 6 (services + flux d'appel, validés par tests unitaires
-  sans risque d'altérer l'affichage).
+  sans risque d'altérer l'affichage). **✅ CODÉ le 2026-07-30**, voir §13.
 - **11B — rendu** : chantiers 1, 2, 5, 7 (DOM, CSS dormant, favoris) — c'est là que les
   4 acquis des LOTS 009/010 doivent être rejoués impitoyablement.
+
+## 13. SOUS-LOT 11A — IMPLÉMENTATION (2026-07-30)
+
+**Fait :**
+- `callAI` (`src/services/gemini.js`) : options `safetySettings`, `thinkingLevel`
+  (`generationConfig.thinkingConfig`), repli automatique sur un 400 mentionnant
+  `thinkingConfig`/`thinkingLevel` (un seul essai supplémentaire, callback
+  `onThinkingFallback` déclenché UNIQUEMENT si ce second essai réussit).
+- `generateRecipes` : prompt fusionné (§10-B), `RECIPE_SAFETY_SETTINGS` module-level,
+  `thinkingLevel: 'high'`, créativité traduite en consigne texte par paliers
+  (`creativityInstruction`, alignée sur les libellés déjà affichés au-dessus du curseur :
+  Classique / Équilibrée / Très créatif). `temperature` n'est plus calculée depuis la
+  créativité (confirmé ignorée par Gemini 3.x, §10-A) ; `callAI` garde son défaut de 0.1.
+- `transformRecipeFromText` : nouvelle signature `(title, content, stockItems, apiKey,
+  model, options)`, prompt complet restauré + consigne nombre de personnes (Q1) +
+  `thinkingLevel: 'high'` (même palier que la génération, même modèle `REASONING`).
+- `generateRandomWithStock` : remplacement complet de `state.aiConfig` (comme l'oracle),
+  MAIS `apiKey`/`models` explicitement préservés (§8.4 D1 étendu — l'oracle les stockait
+  ailleurs, les vider aurait effacé la clé de Joel à chaque tirage) ; `cuisines` ciblé,
+  pas le `cuisine` fantôme ; `ppl` conservé ; créativité 80-100 appliquée UNIQUEMENT pour
+  cette génération puis restaurée après coup (`finally`) — la fonction retourne désormais
+  sa promesse (aucun changement de comportement UI, juste testable).
+- `fetchRecipeFromUrl` : Jina Reader exclusif (arbitrage Q2 — allorigins supprimé, pas
+  gardé en secours), validations URL vide / sans http restaurées, délai d'expiration 10 s
+  (`AbortController`, durcissement §10-D), réponse vide traitée comme un échec, extraction
+  de titre restaurée, message d'erreur littéral de l'oracle.
+- `transformRecipeAI` (appelant) : transmet désormais le titre saisi et le stock ; modèle
+  lu depuis `state.aiConfig.models.smartPaste` (jamais en dur).
+- Toasts de repli branchés sur `generateSuggestions` et `transformRecipeAI` (demande Joel
+  du 2026-07-30, jamais silencieux).
+
+**Tests ajoutés :** 10 dans `tests/gemini.test.js` (protections re-blindées : RÈGLE D'OR,
+guillemets simples, safetySettings, thinkingLevel, absence topK/topP, 3 paliers de
+créativité, repli 400 réussi + callback, 400 non lié non rejoué) + 7 dans le même fichier
+pour `transformRecipeFromText` + `tests/ai-random-mode.test.js` (8 tests) +
+`tests/ai-url-fetch.test.js` (9 tests, dont le délai d'expiration via minuteurs simulés).
+
+**Validation :** 251/251 Vitest (218 + 33 nouveaux), 13/13 Pytest, build OK. Recherche
+`gemini-` hors `constants.js` : uniquement tests et le commentaire connu de `state.js:217`.
+Recherche `allorigins`/`thinkingBudget` dans le code : uniquement des commentaires
+expliquant leur suppression — aucun appel restant.
+
+**Écart non prévu par la fiche, tranché pendant le codage :** `generateRandomWithStock`
+mutait `state.aiConfig` par remplacement complet, à l'identique de l'oracle — mais l'oracle
+ne restaure JAMAIS rien après coup (les filtres et la créativité restent boostés tant que
+l'utilisateur ne les retouche pas manuellement). Le §12-A2 n'exigeait explicitement que la
+créativité soit ponctuelle ; extension logique et minimale au même mécanisme de restauration
+`finally`, cohérente avec l'esprit de la règle, pas une nouvelle question posée à Joel.
 
 ## 11. ARBITRAGES REMONTÉS À JOEL PAR L'AUDIT — TRANCHÉS le 2026-07-30
 

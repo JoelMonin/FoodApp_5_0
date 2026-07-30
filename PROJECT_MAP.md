@@ -51,6 +51,8 @@
 - `tests/recipe-scaling.test.js` : Quantités recalculées selon le nombre de personnes (LOT 010 — `scaleQty` pure : nombres, unités collées/séparées ml/kg/g/cl, fractions ASCII et Unicode sans dérive ; intégration écran recette : bornes 1-20, aucune mutation de la recette d'origine, réinitialisation à l'ouverture).
 - `tests/ai-ingredient-fidelity.test.js` : Filet de sécurité emoji ingrédient de la liste de courses (LOT 010 — une unité renvoyée par erreur dans le champ emoji par l'IA ne s'affiche jamais à l'écran, retombe sur la déduction automatique).
 - `tests/ai-models-info.test.js` : Menu « Moteur Tâches Complexes » supprimé (LOT 010 — remplacé par une information en lecture seule dérivée de la SSOT, aucun nom de modèle en dur, sauvegarde de la clé API non régressée).
+- `tests/ai-random-mode.test.js` : Mode 🎲 aléatoire (LOT 011 — filtres réinitialisés dont `cuisines`, `ppl`/clé API/modèles jamais touchés, créativité 80-100 ponctuelle traduite en consigne texte, restaurée après coup).
+- `tests/ai-url-fetch.test.js` : Récupération d'URL de recette (LOT 011 — Jina Reader sans repli sur allorigins, validations d'URL, délai d'expiration 10 s, extraction de titre, réponse vide traitée comme un échec).
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).
