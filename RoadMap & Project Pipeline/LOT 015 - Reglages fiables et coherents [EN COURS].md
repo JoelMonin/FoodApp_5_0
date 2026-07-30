@@ -301,6 +301,15 @@ donnée réelle**. La conclusion du chantier ne change pas, sa justification si.
 JAMAIS ces objets** (`src/state.js:153` se contente de garantir que le tableau existe) —
 donc pas de `name` garanti, pas d'emoji garanti non plus.
 
+🔴 **RÈGLE MANQUANTE, ajoutée après l'audit Gemini (Q12).** La fiche constatait l'absence de
+garantie sans dire quoi en faire — un objet venu du cloud ou d'un vieux fichier, dépourvu de
+`name`, produirait la ligne littérale « undefined » dans la liste copiée par Joel.
+**Règle retenue : un article libre sans nom exploitable (`name` absent, non-chaîne, ou vide
+après nettoyage) est IGNORÉ à la copie** — jamais rendu, jamais remplacé par un texte de
+substitution. L'emoji, lui, retombe sur le repli existant (`i.emoji || '🔸'`). Et si le
+filtrage vide entièrement les deux sources, le garde-fou « rien à copier » du chantier 9
+s'applique normalement.
+
 **Conséquences à assumer dans ce lot :**
 - le test ne peut PAS passer par l'interface (aucun parcours ne crée d'article libre) :
   il injecte la donnée directement dans l'état, comme le fait déjà `tests/sync-scope.test.js` ;
@@ -419,6 +428,12 @@ explicitement, c'est ce qui justifie le niveau d'audit DUR :**
   Un envoi parti avant le clic peut donc aboutir **après** la restauration et réécrire
   l'ancien état dans le cloud — c'est exactement l'incident déjà corrigé au LOT 008 sur le
   chemin du reset. **La barrière doit être posée sur le chemin de restauration.**
+  ⚠️ **Précision de l'audit Gemini (Q6) :** la barrière est transposable, mais **pas son
+  environnement** — `resetAllData` se termine par un rechargement de page, ce qui masque
+  beaucoup d'états intermédiaires ; la restauration de fichier, elle, continue de vivre.
+  Conséquence pratique : le rappel `reader.onload` de `importJSON` (`src/actions.js:203`)
+  est aujourd'hui **synchrone** et devra devenir asynchrone pour pouvoir attendre la
+  barrière. Ce détail change la forme du code, pas la règle.
 
 **Attendu :**
 - définir un aller-retour cohérent pour `shoppingChecked` : la sauvegarde emporte les
@@ -505,14 +520,29 @@ Absentes du brief initial — trouvées en relisant `exportClipboard` du monolit
 - **Le garde-fou « rien à copier » a été perdu.** Le monolithe sortait AVANT toute copie
   quand le texte était vide : `if (!text) { toast('Rien à copier', 'error'); return; }`
   (l.6483, citation exacte). Aujourd'hui, un stock vide copie quand même un en-tête suivi de
-  « (Vide) » et affiche un toast de succès. **C'est la cause racine des « états vides
-  malhonnêtes »** des chantiers 1-3 : restaurer ce garde-fou les règle tous d'un coup — une
-  seule correction, pas quatre (SSOT).
-  ⚠️ **Découverte P1 — il y a un CINQUIÈME cas, absent du brief** : `exportClipboard` n'a
-  **aucune branche `else`** (`js/app.js:1576`). Un type inconnu laisse `text = ''`, écrit une
-  chaîne vide dans le presse-papiers **et affiche le toast de succès**. Le garde-fou le
-  couvre par construction — mais il doit être **testé explicitement**, sinon rien ne prouve
-  qu'il est fermé.
+  « (Vide) » et affiche un toast de succès.
+
+  🔴 **CORRECTION MAJEURE — AUDIT GEMINI DU 2026-07-30 (Q1), vérifiée sur pièce.**
+  La fiche affirmait : « restaurer ce garde-fou les règle tous d'un coup — une seule
+  correction, pas quatre (SSOT) ». **C'EST FAUX, et le porter tel quel ne corrigerait
+  RIEN.** Chez l'oracle, `text` reste vide quand il n'y a pas de données, donc `if (!text)`
+  se déclenche. Dans l'app modulaire, **chaque branche commence par écrire un en-tête** :
+  `js/app.js:1541`, `1550`, `1556`, `1565` assignent `🛒 LISTE DE COURSES (date)` ou
+  `📦 INVENTAIRE PAR RAYON (date)` **avant** de regarder les données. `text` n'est donc
+  **jamais** vide pour un type connu, et le garde-fou porté à l'identique ne se
+  déclencherait **que** pour un type inconnu.
+
+  → **Règle retenue : le garde-fou teste la SOURCE, pas le texte final.** Chaque format
+  détermine d'abord son jeu de données (`inStock`, `inCart` + `customCartItems`, …) ;
+  **si ce jeu est vide, on sort avant toute écriture** — pas d'en-tête, pas d'appel au
+  presse-papiers, message d'erreur. L'en-tête n'est composé qu'une fois la source jugée
+  non vide. C'est bien UNE seule correction (SSOT), mais **pas celle que la fiche
+  décrivait**.
+
+  ⚠️ **Découverte P1 — il y a un CINQUIÈME cas** : `exportClipboard` n'a **aucune branche
+  `else`** (`js/app.js:1576`). Un type inconnu laisse `text = ''`, écrit une chaîne vide
+  dans le presse-papiers **et affiche le toast de succès**. C'est le **seul** cas que le
+  garde-fou de l'oracle aurait attrapé tel quel. Il doit rester couvert et testé.
 - **Le repli de copie a été perdu.** Le monolithe, si `navigator.clipboard` échouait,
   retombait sur un `<textarea>` + `document.execCommand('copy')` (l.6484-6486, le repli
   tenant sur la seule l.6485). Aujourd'hui l'échec donne juste « Erreur lors de la copie »
@@ -527,9 +557,21 @@ Absentes du brief initial — trouvées en relisant `exportClipboard` du monolit
 (`i.name`), **sans aucun en-tête global** (ni titre, ni date, ni compteur) ; l'app actuelle
 ajoute un en-tête daté, l'emoji et un marqueur de statut. **On garde le format actuel**,
 plus lisible pour un partage — écart délibéré à l'oracle, tracé ici pour l'audit Dur.
-⚠️ Conséquence à assumer : une fois la source restreinte à `inStock` (chantiers 1-2), le
-marqueur de statut (`js/app.js:1552` et `1560`) vaudra **toujours ✅** — information morte
-conservée par choix, ou marqueur retiré. À trancher à l'exécution, pas à improviser.
+
+⚠️ **Précision de l'audit Gemini (Q15) — le 4ᵉ écart, désormais DÉCLARÉ.** L'oracle
+produisait pour `cart` une **liste plate de noms nus** (l.6479), sans regroupement par rayon
+et sans case `☐`. L'app groupe par rubrique `[ CATÉGORIE ]` et préfixe chaque ligne d'un `☐`
+(`js/app.js:1569-1572`). **On garde le format de l'app** — une liste de courses cochable par
+rayon est plus utile en magasin qu'une liste plate. Le lot compte donc **quatre** écarts
+assumés au-dessus de l'oracle, pas trois : suppression du bouton JSON (ch. 4), toasts
+chiffrés (ch. 8), coches dans le fichier de sauvegarde (ch. 5), et ce regroupement.
+
+⚠️ **Précision de l'audit Gemini (Q2) — le « toujours ✅ » ne concerne QU'UN format.**
+La fiche citait `js/app.js:1552` et `1560` : la première est la branche `full`, **qui
+disparaît au chantier 4** (point sans objet), et `simple` (l.1546) n'a **aucun** marqueur
+tandis que `cart` (l.1572) utilise `☐`, pas `✅`. **Seul `categorized` (l.1560) est
+concerné.** L'arbitrage se réduit donc à : garder ou retirer le `✅` du format « par
+rayons » une fois sa source restreinte à `inStock`. À trancher à l'exécution.
 
 ### 10. Le PÉRIMÈTRE du fichier de sauvegarde — 2 blocages trouvés à l'audit du 2026-07-30
 
@@ -584,6 +626,27 @@ la 5.5 en ligne n'ignorerait pas le champ, elle l'absorberait et le figerait.
 citation exacte), pas par le `spread` de `setState`.** Le champ du fichier doit être extrait
 AVANT et retiré de l'objet passé à `applyExternalState`. Vérifier ensuite qu'aucune clé
 fantôme ne subsiste dans `state`.
+
+🔴 **DÉCISION DE FORMAT, prise après l'audit Gemini (Q9) — la fiche la renvoyait à
+« l'exécution » sans la trancher.** Gemini confirme qu'**aucune clé de racine n'est sûre** :
+le `spread` de `setState` absorbe tout, et la 5.7 en ligne figerait le champ dans son état
+puis le re-exporterait indéfiniment. Ce n'est pas une perte de données (la construction du
+document cloud se fait clé par clé, `src/services/firebase.js:54-63`, et n'emporte donc pas
+l'orpheline), mais c'est une violation SSOT qui se propage.
+
+**Format retenu, en deux volets :**
+1. **Le champ s'appelle `shoppingChecked`, à la racine du fichier** — nom honnête et lisible,
+   plutôt qu'un alias obscur qui ne protégerait de rien puisque aucune racine n'est sûre.
+   La nouvelle version l'**extrait et le supprime** de l'objet avant `applyExternalState`.
+2. **Filet de rattrapage dans `sanitizeGlobalState` : la nouvelle version élague
+   `state.shoppingChecked` s'il existe.** Ainsi, si Joel restaure un fichier neuf sur un
+   appareil resté en 5.7 (cache navigateur, second téléphone), la clé orpheline créée là-bas
+   **disparaît d'elle-même** au passage en 5.8. La compatibilité descendante devient vraie
+   *par réparation*, à défaut de pouvoir l'être *par prévention*.
+
+⚠️ Ce filet doit être testé pour ce qu'il est : un état d'entrée contenant
+`state.shoppingChecked` (comme après un aller-retour 5.7) doit ressortir **sans** cette clé,
+et le Set doit rester la seule représentation.
 
 **c) Les coches restaurées doivent être filtrées.** Le LOT 008 (chantier 7) garantit que le
 Set ne contient que des ids réellement « à acheter » (verrouillé par
@@ -643,9 +706,12 @@ tests de la zone existe déjà.
 
 Tout tient dans `exportClipboard` (`js/app.js:1536-1585`) et dans la carte à supprimer
 (`index.html:538-544`). Ordre interne :
-1. **Le garde-fou « rien à copier » d'abord** (chantier 9) — c'est la cause racine commune
-   des états vides malhonnêtes des chantiers 1-3 **et** du cinquième cas trouvé à la
-   découverte (type inconnu). Une seule correction en ferme quatre.
+1. **Le garde-fou « rien à copier » d'abord** (chantier 9), **dans sa version corrigée par
+   l'audit Gemini** : il teste la **source de données**, pas le texte final — sinon il ne
+   se déclenche jamais, les en-têtes étant écrits avant toute vérification. Concrètement :
+   chaque format calcule d'abord son jeu de données, sort immédiatement si ce jeu est vide,
+   et ne compose l'en-tête qu'ensuite. Une seule correction ferme bien les cinq cas, mais
+   **pas** par un simple `if (!text)`.
 2. Le **repli de copie** (chantier 9), avec garde d'existence et lecture du retour.
 3. Les **sources** : `simple` → `inStock`, `categorized` → `inStock` groupé avec
    `getCategoryEmoji`, `cart` → `inCart` **+** `customCartItems`.
@@ -687,6 +753,44 @@ Le cœur du risque, donc en dernier. Ordre interne :
 
 **Preuve :** `tests/backup-restore.test.js` (neuf), avec faux `FileReader`, faux Firebase
 et `__resetSyncEngineForTests`.
+
+---
+
+## Audit de spec — Gemini 3.6 Flash, 2026-07-30 : **NO-GO, 4 points** → tous intégrés
+
+Premier audit du dispositif de remplacement de Codex. Brief en 15 questions **fermées**
+(réponse imposée : OUI/NON + `fichier:ligne` + citation littérale) + 3 questions ouvertes
+bornées — méthode choisie pour contrer sa faiblesse connue (affirmer sans rouvrir le
+fichier). **Chaque point a été revérifié sur pièce avant intégration.**
+
+| # | Finding | Vérifié | Traitement |
+|---|---|---|---|
+| **Q1** | Le garde-fou « rien à copier » porté tel quel **ne se déclencherait jamais** : chaque branche écrit un en-tête dans `text` avant de regarder les données (`js/app.js:1541,1550,1556,1565`) | ✅ **CONFIRMÉ sur pièce** | 🔴 **Correction majeure** — le garde-fou teste désormais la **source**, pas le texte final. Chantier 9 et sous-lot A réécrits. |
+| **Q9** | Aucune clé de racine n'est sûre pour les coches ; la 5.7 absorberait et figerait le champ | ✅ Confirmé — risque déjà connu (§10b), mais **décision jamais prise** | Format tranché : champ `shoppingChecked` à la racine, extrait avant `applyExternalState`, **+ élagage de rattrapage** dans `sanitizeGlobalState` |
+| **Q12** | Un article libre sans `name` produirait la ligne « undefined » | ✅ Confirmé — constat présent, **règle absente** | Règle ajoutée : article sans nom exploitable **ignoré** à la copie |
+| **Q15** | Le regroupement par rayon + `☐` du format `cart` est un **4ᵉ écart** à l'oracle, non déclaré | ✅ Confirmé (oracle l.6479 = liste plate de noms nus) | Écart déclaré ; le lot en compte **quatre**, pas trois |
+
+**Deux précisions utiles hors « à corriger »**, également intégrées :
+- **Q2** — le « toujours ✅ » ne concerne que `categorized` : `full` disparaît, `simple` n'a
+  pas de marqueur, `cart` utilise `☐`. L'arbitrage se réduit à un seul format.
+- **Q6** — la barrière de synchro est transposable, mais `reader.onload` devra devenir
+  **asynchrone** pour pouvoir l'attendre.
+
+**Confirmations obtenues (aucune action) :** Q3 (non-régression du cas nominal), Q4 (les
+ingrédients ont toujours une catégorie, les articles libres ne passant pas par
+`groupByCategory`), Q5 (le type inconnu reste couvert), Q7 (l'ordre coches → état du chemin
+cloud est bien le bon modèle), Q8 (aucune donnée durable absente de la liste blanche), Q10
+(un ancien fichier se restaure proprement), Q11 (**aucun test existant mis en péril par la
+correction du §G** — revérifié : `tests/actions-data.test.js` ne touche `shoppingChecked`
+que dans son chantier 7, qui ne teste pas `importStockOnly`), Q13 (l'ordre des sous-lots
+n'a pas de dépendance inverse), Q14 (pas de concurrence possible, JavaScript est
+mono-tâche).
+
+**Questions ouvertes :** O1 désigne le risque d'envoi en vol — **déjà couvert** par la
+barrière du sous-lot C (P6). O2 (divergence de `customCartItems` entre deux appareils) et
+O3 (restauration hors ligne puis reconnexion) décrivent des comportements **du moteur de
+synchro du LOT 007**, antérieurs à ce lot et non aggravés par lui → **versés au backlog**,
+hors périmètre (les élargir ici ferait dériver un lot déjà plus lourd que prévu).
 
 ---
 
@@ -752,6 +856,15 @@ Réglages ne porte d'`id`** — les tests DOM devront cibler par texte ou par ra
 - [ ] **Ajouté par la découverte** : le second bouton de copie (`📋 Copier` de la barre
       supérieure, `js/app.js:711`) produit bien le **même résultat** que la carte de
       Réglages — aujourd'hui il n'est testé que sur son libellé
+- [ ] **Ajouté par l'audit Gemini (Q1)** : source vide → **aucun en-tête n'est composé** et
+      `navigator.clipboard.writeText` **n'est jamais appelé du tout**. C'est le test qui
+      distingue le vrai garde-fou du faux : un `if (!text)` naïf laisserait passer un texte
+      « en-tête + (Vide) » et le test resterait vert à tort
+- [ ] **Ajouté par l'audit Gemini (Q9)** : un état contenant une clé orpheline
+      `state.shoppingChecked` (comme après un aller-retour par la 5.7) ressort **élagué**
+      de `sanitizeGlobalState` ; le Set reste la seule représentation
+- [ ] **Ajouté par l'audit Gemini (Q12)** : un article libre sans `name` exploitable est
+      **ignoré** à la copie — la chaîne « undefined » n'apparaît jamais dans le texte copié
 - [ ] Manuels (Joel) : vérification navigateur de CHAQUE carte de Réglages — le résultat
       correspond au titre et au sous-titre
 
