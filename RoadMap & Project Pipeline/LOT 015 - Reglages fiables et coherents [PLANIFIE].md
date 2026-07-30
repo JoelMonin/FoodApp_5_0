@@ -4,7 +4,8 @@
 > **Branche à créer :** `feat/lot15-reglages-fiables`
 > **Niveau d'audit : DUR** — le lot touche les sauvegardes, les restaurations et des
 > risques de données incohérentes (zones sensibles : `src/state.js`, chemins d'export/import)
-> **Effort estimé :** ~1 journée · **Version visée :** 5.8
+> **Effort estimé :** ~2 journées (révisé après l'audit du 2026-07-30 : 10 chantiers,
+> dont 2 blocages sur le format du fichier de sauvegarde) · **Version visée :** 5.8
 
 **Lecture obligatoire :** `CLAUDE.md`, `DOCTRINE_PRODUIT.md`, `PROJECT_MAP.md`,
 fiche `LOT 008 - Donnees en securite [CLOTURE].md` (les protections à ne PAS casser),
@@ -27,7 +28,7 @@ annonce d'effacer la clé API alors qu'elle la conserve. La page est contrôlée
 **ensemble cohérent** avant que le LOT 013 ne fige son comportement par des tests et que le
 LOT 014 ne déplace `exportClipboard`.
 
-## Périmètre — 9 chantiers (tous les arbitrages tranchés par Joel le 2026-07-30)
+## Périmètre — 10 chantiers (tous les arbitrages tranchés par Joel le 2026-07-30)
 
 ### 1. « Copier mon stock (liste simple) » copie… la liste de courses
 
@@ -55,6 +56,9 @@ aux courses partent dans le partage.
 **Attendu :**
 **Oracle (monolithe l.6469-6475) :** groupe le **seul** `inStock` par catégorie, avec
 l'emoji de rubrique (`EMOJI_CATEGORY_DEFAULTS`) et des lignes `  - nom`. Régression nette.
+⚠️ `EMOJI_CATEGORY_DEFAULTS` est un nom du monolithe : l'équivalent modulaire est
+`getCategoryEmoji` (`src/data.js:38`, déjà importé par `js/app.js:19`) — ne pas recréer
+une seconde table (SSOT §6).
 
 **Attendu :**
 - uniquement les ingrédients **en stock**, regroupés par catégorie ;
@@ -83,8 +87,17 @@ Autrement dit, cet article est déjà invisible dans l'app — l'inclure dans la
   il injecte la donnée directement dans l'état, comme le fait déjà `tests/sync-scope.test.js` ;
 - **les articles libres n'ont pas de `category`** (structure réelle : `id`, `name`, `emoji`,
   `checked`, `source`) → le classement par rayon doit avoir une **règle explicite tranchée
-  ici, pas laissée à l'exécutant** : les regrouper en fin de texte sous une rubrique dédiée
-  (ex. `[ AUTRES ]`), jamais dans une rubrique `undefined` ;
+  ici, pas laissée à l'exécutant**. ⚠️ **CORRECTION du 2026-07-30 : surtout PAS `AUTRES`.**
+  `Autres` est à la fois une catégorie légitime (`src/data.js:32`) ET le repli imposé à
+  tout ingrédient sans catégorie (`src/state.js:173`) : y verser les articles libres les
+  mélangerait à de vrais ingrédients, et un test « jamais `undefined` » passerait au vert
+  sans rien prouver. **Règle retenue : une rubrique au nom distinct et non collidable, du
+  type `[ ARTICLES LIBRES ]`** ;
+- **piège d'ordre :** `groupByCategory` trie les rubriques par tri par défaut
+  (`js/app.js:1156`) — la rubrique dédiée sortirait au milieu, pas en fin. La placer en
+  fin **sans modifier `groupByCategory`**, qui est partagé avec le format `categorized`
+  et dont l'ordre est explicitement volontaire (`js/app.js:1154-1155`) : le pare-feu A/B
+  interdit de changer l'ordre d'un format que ce chantier ne vise pas ;
 - **hors périmètre :** rebrancher l'ajout/retrait d'articles libres dans l'interface reste
   un sujet à part (à verser au backlog si Joel le souhaite — ce lot ne fait que cesser de
   les ignorer à la copie).
@@ -161,11 +174,13 @@ explicitement, c'est ce qui justifie le niveau d'audit DUR :**
   pour pouvoir resélectionner le même fichier ;
 - textes honnêtes : rappeler que la clé API locale est **exclue de l'export** et
   **conservée à la restauration** (comportement LOT 008, casses C3a/C3b) ;
-- décider et écrire **où** les coches vivent dans le fichier (clé dédiée à la racine, ex.
-  `shoppingChecked: [...]`) — un format, une fois, documenté dans la fiche à l'exécution ;
-- **compatibilité descendante** : un fichier produit par la nouvelle version doit rester
-  lisible par l'ancienne (le champ inconnu y est simplement ignoré) — à vérifier, la page
-  en ligne peut rester en 5.5 un moment.
+- décider et écrire **où** les coches vivent dans le fichier — ⚠️ **voir le chantier 10b
+  AVANT de choisir** : une clé posée naïvement à la racine crée un doublon dans l'état et
+  casse la compatibilité descendante. Le format retenu doit être documenté dans la fiche
+  à l'exécution ;
+- **compatibilité descendante** : vérifier ce que fait réellement la 5.5 en ligne d'un
+  fichier neuf — l'hypothèse « le champ inconnu est ignoré » est **fausse** telle quelle
+  (chantier 10b) ; c'est le format choisi qui doit la rendre vraie.
 
 ### 6. « Mise à zéro complète » — le texte de la carte contredit le code
 
@@ -235,18 +250,89 @@ Absentes du brief initial — trouvées en relisant `exportClipboard` du monolit
 **Écart assumé sur le FORMAT des lignes :** le monolithe copiait des noms nus
 (`i.name`) ; l'app actuelle ajoute emoji et statut. **On garde le format actuel**, plus
 lisible pour un partage — écart délibéré à l'oracle, tracé ici pour l'audit Dur.
+⚠️ Conséquence à assumer : une fois la source restreinte à `inStock` (chantiers 1-2), le
+marqueur de statut (`js/app.js:1175` et `1183`) vaudra **toujours ✅** — information morte
+conservée par choix, ou marqueur retiré. À trancher à l'exécution, pas à improviser.
+
+### 10. Le PÉRIMÈTRE du fichier de sauvegarde — 2 blocages trouvés à l'audit du 2026-07-30
+
+**C'est le point le plus grave de la relecture, et il conditionne tout le chantier 5.**
+
+**a) BLOQUANT — la sauvegarde emporte l'état d'écran, et le restaurer casse l'affichage.**
+`exportJSON` sérialise `state` en ENTIER (`src/actions.js:155`) : partent donc dans le
+fichier `currentView`, `search`, `filter`, `showInStockOnly`, `showInCartOnly`,
+`aiSuggestions`, `currentSuggestionIdx`, `lastSync` (`src/state.js:40-47`). Au démarrage,
+`loadState` neutralise explicitement recherche et filtres (`src/state.js:111-114`,
+commentaire « for safety ») — **mais `applyExternalState` ne le fait jamais**
+(`src/state.js:222-231` → `setState` → `sanitizeGlobalState`, qui n'y touche pas).
+Conséquence concrète pour Joel : une sauvegarde faite pendant qu'un filtre « en stock » ou
+une recherche étaient actifs, une fois restaurée, **affiche un inventaire filtré ou vide**,
+et la boîte de recherche paraît vide alors que le filtre s'applique (rien ne réécrit le
+champ — `js/app.js:708-713`). `currentView` restauré fait en plus changer d'écran tout seul.
+**L'oracle faisait juste :** liste blanche de 5 clés à l'export (l.6490) et
+`switchView('pantry')` après import (l.6509). C'est donc une **régression de migration
+supplémentaire**, non répertoriée jusqu'ici.
+
+→ **Attendu : définir une LISTE BLANCHE explicite du fichier de sauvegarde** (données
+durables uniquement : inventaire, favoris, extras, articles libres, réglages IA sans clé,
+coches) + un horodatage `exportedAt` (l'oracle l'avait, l'app l'a perdu). Et **neutraliser
+recherche/filtres/vue à la restauration**, comme le fait déjà `loadState`.
+
+**b) BLOQUANT — mettre les coches « à la racine du fichier » créerait un doublon dans
+l'état (violation SSOT §6).** `setState` fusionne (`{ ...state, ...data }`,
+`src/state.js:201`) : une clé `shoppingChecked` dans le fichier deviendrait un **tableau
+`state.shoppingChecked`** cohabitant avec le **Set** `shoppingChecked` (`src/state.js:50`)
+— deux représentations de la même donnée. Rien ne l'élague, elle serait persistée puis
+re-exportée indéfiniment. Cela **invalide aussi la compatibilité descendante annoncée** :
+la 5.5 en ligne n'ignorerait pas le champ, elle l'absorberait et le figerait.
+
+→ **Attendu : les coches entrent par `replaceShoppingChecked` (`src/state.js:86-89`), pas
+par le `spread` de `setState`.** Le champ du fichier doit être extrait AVANT et retiré de
+l'objet passé à `applyExternalState`. Vérifier ensuite qu'aucune clé fantôme ne subsiste
+dans `state`.
+
+**c) Les coches restaurées doivent être filtrées.** Le LOT 008 (chantier 7) garantit que le
+Set ne contient que des ids réellement « à acheter » (verrouillé par
+`tests/actions-data.test.js:308-339`). Une restauration brute réintroduirait des ids
+fantômes, invisibles à l'écran (`src/ui/shopping.js:42`) mais poussés au cloud
+(`src/services/firebase.js:61`). → ne garder que les ids présents dans l'inventaire
+restauré et marqués `inCart`.
+
+**d) Un fichier à inventaire VIDE passe la garde d'entrée.** `importJSON` ne teste que la
+présence de `data.ingredients` (`src/actions.js:175`) — or `[]` est « vrai ».
+`sanitizeGlobalState` reconstruit alors les ~297 ingrédients par défaut
+(`src/state.js:161-169`) et l'envoi cloud part quand même. → durcir la garde (tableau NON
+vide), en s'alignant sur celle du chemin cloud (`js/app.js:370-376`), plus stricte.
 
 ## Frontières avec les autres lots
 
 - **LOT 011** : la carte « Transformer un texte en recette » (lecture URL propre, titre
   automatique, nettoyage des champs, aperçu) reste au LOT 011 — hors périmètre ici.
 - **LOT 012** : la barre supérieure de Réglages reste au LOT 012.
-- **LOT 013** (après ce lot) : testera chaque format de copie, les états vides et les
-  parcours de sauvegarde/restauration **après** correction.
+- **LOT 013** (après ce lot) — ⚠️ **CHEVAUCHEMENT À TRANCHER AVANT OUVERTURE.** La fiche
+  du LOT 013 se réserve nommément la ligne « `exportClipboard` | 1 test par format + état
+  vide + ordre conservé » (`LOT 013 …md:37`), alors que le plan de test ci-dessous exige
+  déjà un test par format. **Règle retenue : le LOT 015 écrit les tests de ce qu'il
+  CORRIGE** (c'est la preuve de sa propre correction, et la gouvernance interdit de dire
+  « fini » sans preuve) ; **le LOT 013 retire ces lignes de son périmètre** et se concentre
+  sur ce qu'il est seul à couvrir. À répercuter dans la fiche du LOT 013 au moment de
+  l'ouverture de ce lot. Aligner aussi la MÉTHODE : le LOT 013 §D impose l'accès **via
+  `window`** et interdit l'extraction (l.67-79) — le LOT 015 doit suivre la même
+  convention, donc **ne pas ajouter `exportClipboard` au bloc `export {}`**
+  (`js/app.js:505-521`) : la fonction n'est exposée que sur `window` (`js/app.js:38-42`,
+  `2009-2031`), et c'est suffisant pour la tester.
 - **LOT 014** : déplacera ensuite `exportClipboard` hors de `js/app.js` **sans changer
   son comportement** (ce lot-ci fixe le comportement, le 014 déplace le code).
 
 ## Plan de test
+
+⚠️ **Contrainte d'environnement mesurée le 2026-07-30 :** sous jsdom, `navigator.clipboard`
+**et** `document.execCommand` sont `undefined`. Conséquences obligatoires :
+- chaque test de copie doit **simuler `navigator.clipboard`**, sinon le `try` de
+  `js/app.js:1201-1207` avale une erreur et le test valide en réalité le chemin d'échec ;
+- le repli de copie ne peut être prouvé que par **espionnage d'un `execCommand` simulé** —
+  et le code du repli doit **vérifier l'existence de `document.execCommand` avant de
+  l'appeler**, sinon il plante en test (et sur certains navigateurs).
 
 - [ ] Un test par format de copie restant (`simple`, `categorized`, `cart`) + preuve de
       la suppression propre de `'full'` (3 recherches convergentes consignées, aucune
@@ -267,6 +353,16 @@ lisible pour un partage — écart délibéré à l'oracle, tracé ici pour l'au
       MÊME document cloud (chantier 5) ; aucune fenêtre avec les anciennes coches
 - [ ] Restauration d'un fichier **partiel** : comportement conforme au texte affiché
       (les clés absentes sont conservées — chantier 5)
+- [ ] **Sauvegarde faite avec un filtre/une recherche actifs → restaurée, l'inventaire
+      s'affiche en entier** (aucun filtre, aucune recherche, vue par défaut — chantier 10a)
+- [ ] Le fichier exporté ne contient **que** la liste blanche (aucun champ d'écran, aucune
+      suggestion IA) + `exportedAt` (chantier 10a)
+- [ ] Après restauration, `state` ne contient **aucune clé fantôme** `shoppingChecked` —
+      les coches vivent dans le Set seul (chantier 10b)
+- [ ] Coches restaurées **filtrées** : un id absent de l'inventaire ou non « à acheter »
+      n'entre jamais dans le Set (chantier 10c)
+- [ ] Fichier avec `ingredients: []` → **refusé**, pas de reconstruction des 297 par
+      défaut, aucun envoi cloud (chantier 10d)
 - [ ] Manuels (Joel) : vérification navigateur de CHAQUE carte de Réglages — le résultat
       correspond au titre et au sous-titre
 
@@ -292,6 +388,15 @@ lisible pour un partage — écart délibéré à l'oracle, tracé ici pour l'au
   risque synchro du chantier 5, champ fantôme `customCartItems` et sa règle de classement
   (chantier 3), écarts à l'oracle assumés (chantiers 4 et 9), inexactitude du texte
   « Remplace TOUTES vos données » (chantier 5).
+- **Audit adversarial du 2026-07-30 (avant ouverture, agent dédié)** : 8 angles morts
+  trouvés, tous intégrés. Deux BLOQUANTS → chantier 10 (l'état d'écran part dans la
+  sauvegarde et casse l'affichage à la restauration ; les coches à la racine créeraient un
+  doublon SSOT). Cinq IMPORTANTS → contrainte jsdom du plan de test, rubrique `AUTRES`
+  collidante corrigée en `ARTICLES LIBRES`, coches restaurées à filtrer, garde d'entrée
+  d'un inventaire vide, chevauchement de tests avec le LOT 013 tranché. Un MINEUR →
+  `getCategoryEmoji` au lieu du nom monolithe, marqueur ✅ devenu constant.
+  L'audit a aussi **levé une inquiétude** : les garde-fous du LOT 007 protègent déjà une
+  restauration d'un pull concurrent (`js/app.js:223-232, 357, 377-382`) — rien à ajouter.
 - **À verser au backlog si Joel le souhaite** (hors périmètre de ce lot) : rebrancher
   l'ajout/retrait d'articles libres dans la liste de courses — le champ existe, la donnée
   existe, mais aucune interface ne le nourrit depuis la migration.
