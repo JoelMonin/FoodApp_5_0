@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BPLANIFIE%5D.md) | Recettes IA riches | PLANIFIÉ | `feat/lot11-recettes-ia-riches` |
+| [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BEN%20COURS%5D.md) | Recettes IA riches (phase découverte faite, ancrages vérifiés) | **EN COURS** | `feat/lot11-recettes-ia-riches` |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BPLANIFIE%5D.md) | Confort d'usage retrouvé | PLANIFIÉ | `feat/lot12-confort-usage` |
 | [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BPLANIFIE%5D.md) | Réglages fiables et cohérents (arbitrages tranchés le 2026-07-30) — s'exécute AVANT le 013 | PLANIFIÉ | `feat/lot15-reglages-fiables` |
 | [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
