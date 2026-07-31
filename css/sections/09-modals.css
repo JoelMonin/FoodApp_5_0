@@ -155,67 +155,6 @@
       border-color: var(--terra)
     }
 
-    /* Checkbox list for modals */
-    .check-list {
-      max-height: 280px;
-      overflow-y: auto;
-      border: 1.5px solid var(--border);
-      border-radius: var(--r-sm);
-      margin-bottom: 14px
-    }
-
-    .check-list::-webkit-scrollbar {
-      width: 4px
-    }
-
-    .check-list::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px
-    }
-
-    .check-item {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--cream-dk);
-      cursor: pointer;
-      transition: background .12s
-    }
-
-    .check-item:last-child {
-      border-bottom: none
-    }
-
-    .check-item:hover {
-      background: var(--cream)
-    }
-
-    .check-item input[type=checkbox] {
-      width: 18px;
-      height: 18px;
-      border-radius: 5px;
-      cursor: pointer;
-      accent-color: var(--green);
-      flex-shrink: 0
-    }
-
-    .check-item-emoji {
-      font-size: 18px;
-      flex-shrink: 0
-    }
-
-    .check-item-name {
-      font-size: 13.5px;
-      font-weight: 500;
-      flex: 1
-    }
-
-    .check-item-cat {
-      font-size: 11px;
-      color: var(--txt-soft)
-    }
-
     /* Enhanced Item Picker (Premium Modal) */
     .picker-list {
       display: flex;
@@ -360,56 +299,7 @@
       accent-color: var(--green);
     }
 
-    .picker-strategy-box {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      padding-left: 6px;
-    }
-
-    .picker-new-checkbox {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--terra);
-      cursor: pointer;
-      padding: 4px 8px;
-      background: var(--cream-dk);
-      border-radius: 8px;
-      border: 1.5px solid var(--border);
-      transition: all 0.2s;
-    }
-
-    .picker-new-checkbox:hover {
-      border-color: var(--terra);
-      background: #fff5f5;
-    }
-
-    .picker-new-checkbox input {
-      width: 14px;
-      height: 14px;
-      accent-color: var(--terra);
-    }
-
     /* Recipe detail modal */
-    .recipe-detail-name {
-      font-family: 'Lora', serif;
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 6px
-    }
-
-    .recipe-detail-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--txt-soft);
-      margin-bottom: 16px
-    }
 
     .recipe-detail-section {
       font-size: 10px;
@@ -460,7 +350,6 @@
       color: var(--txt-soft);
       opacity: 0.6;
     }
-
 
     .recipe-steps li::before {
       content: counter(steps);
@@ -563,113 +452,8 @@
       border-radius: 20px;
     }
 
-    .rd-section-title {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--txt-soft);
-      margin-bottom: 8px;
-      margin-top: 16px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    .rd-section-title::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .rd-ingredients {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .rd-ingredients li {
-      font-size: 13.5px;
-      color: var(--txt);
-      display: flex;
-      gap: 4px;
-    }
-
-    .rd-ing-name {
-      font-weight: 500;
-    }
-
     .rd-ing-amount {
       color: var(--txt-soft);
-    }
-
-    .rd-instructions {
-      list-style: none;
-      counter-reset: rdsteps;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .rd-instructions li {
-      counter-increment: rdsteps;
-      display: flex;
-      gap: 12px;
-      font-size: 13.5px;
-      line-height: 1.5;
-    }
-
-    .rd-instructions li::before {
-      content: counter(rdsteps);
-      min-width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--green);
-      color: white;
-      font-size: 11px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    .rd-nutrition {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .rd-nut-item {
-      font-size: 12px;
-      color: var(--txt-mid);
-      background: var(--cream);
-      padding: 8px 14px;
-      border-radius: var(--r-sm);
-    }
-
-    .rd-nut-val {
-      font-weight: 700;
-      color: var(--txt);
-    }
-
-    /* Carte recette IA/favoris (src/ui/recipe.js renderRecipeCard).
-       CORRECTIF LOT 014 — ce commentaire disait EXACTEMENT L'INVERSE de la realite, et aurait
-       envoye un futur nettoyage supprimer du CSS bien vivant. La verite verifiee sur piece :
-       `rc-header` et `rc-body` sont emis par le rendu (src/ui/recipe.js:28 et :30) et stylees
-       en section AI VIEW ; `rc-emoji` et `rc-info` ci-dessous, eux, ne sont emis NULLE PART. */
-    .rc-emoji {
-      font-size: 32px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-
-    .rc-info {
-      flex: 1;
-      min-width: 0;
     }
 
     /* Visual Stability Fixes */

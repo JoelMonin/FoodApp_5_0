@@ -116,15 +116,6 @@
       border-top: 1px solid rgba(255, 255, 255, .08)
     }
 
-    .api-pill {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 11px;
-      color: rgba(255, 255, 255, .4);
-      cursor: pointer
-    }
-
     .api-dot {
       width: 7px;
       height: 7px;
@@ -197,12 +188,6 @@
       transition: all 0.2s;
     }
 
-    .tb-search.searching {
-      border-color: var(--terra);
-      background: var(--terra-lt);
-      box-shadow: 0 0 12px rgba(214, 48, 49, 0.15);
-    }
-
     .tb-search input {
       border: none;
       background: transparent;
@@ -252,11 +237,6 @@
     .mh-search-bar .clear-search-btn:hover {
       background: white;
       color: var(--green);
-    }
-
-    .mh-search-bar.searching {
-      border: 1.5px solid var(--terra);
-      background: rgba(214, 48, 49, 0.25) !important;
     }
 
     .tb-btn {

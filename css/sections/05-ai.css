@@ -220,13 +220,6 @@
       font-style: italic
     }
 
-    .ez-sub {
-      font-size: 11px;
-      color: var(--blue);
-      opacity: .75;
-      margin-bottom: 9px
-    }
-
     .ez-input-row {
       display: flex;
       gap: 7px;
@@ -265,12 +258,6 @@
       font-weight: 600;
       font-family: 'DM Sans', sans-serif;
       cursor: pointer;
-    }
-
-    .ez-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px
     }
 
     .ez-chip {
@@ -573,17 +560,5 @@
       text-align: center;
       color: var(--txt-soft);
       padding: 40px;
-    }
-
-    .ai-placeholder-icon {
-      font-size: 56px;
-      margin-bottom: 16px
-    }
-
-    .ai-placeholder-title {
-      font-family: 'Lora', serif;
-      font-size: 17px;
-      color: var(--txt);
-      margin-bottom: 6px
     }
 

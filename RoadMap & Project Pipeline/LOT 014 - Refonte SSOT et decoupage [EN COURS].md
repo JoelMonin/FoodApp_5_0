@@ -820,6 +820,45 @@ le prouve déjà.
 l'inverse, vérifié sur pièce (`src/ui/recipe.js:28` et `:30`). Tel quel, il aurait envoyé un
 futur nettoyage supprimer du CSS bien vivant.
 
+#### Étape E (suite) — le CSS mort, **62 règles retirées, −10,9 %**
+
+**Balayage systématique plutôt que la liste de la découverte.** 271 classes stylées passées
+au crible ; **47 candidates** au lieu des 9 annoncées. Les 9 attendues étaient bien dedans —
+un attendu écrit AVANT le balayage, pour que ce soit le balayage qui se fasse juger, et pas
+l'inverse.
+
+**Les 3 recherches convergentes ont servi, et l'une a évité une casse réelle.** La recherche
+« nom construit dynamiquement » a montré que `.ns-A` à `.ns-E` sont fabriquées à la volée
+(`` class: `ns-bar ns-${letter}` ``, `src/ui/recipe.js`). Une suppression sur la seule
+recherche directe **aurait cassé l'affichage du Nutri-Score**. C'est précisément le cas
+d'école que la discipline « une seule recherche ne prouve jamais une absence » décrit.
+Les 2 autres alertes de la recherche « fichiers annexes » étaient de fausses pistes : le mot
+français « check-list » dans la gouvernance, et le mot `rc-emoji` dans le suivi du lot.
+
+**Règle de retrait appliquée** : un sélecteur qui cite une classe jamais produite ne peut
+JAMAIS correspondre à un élément, quelles que soient les autres classes qu'il cite. Les
+`@keyframes` n'ont pas été touchés — seule une enveloppe `@media` devenue vide est partie.
+
+**Mesure** : la feuille livrée passe de **49 533 à 44 160 octets (−10,9 %)**. Vérifié dans les
+deux sens : aucune classe morte ne subsiste dans la feuille produite, et aucune classe vivante
+n'en a disparu (`.ns-*`, `.r-tag`, `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator`,
+`.rc-header`/`.rc-body` — la liste des intouchables du lot).
+
+**Deux commentaires devenus orphelins ont été retirés** (« Checkbox list for modals »,
+« Mobile Interaction Hints ») : ils annonçaient des sections qui n'existaient plus. La remise
+en forme est prouvée **cosmétique** — la feuille produite ne bouge pas d'un octet.
+
+**Un deuxième incident, même famille que le premier.** La première version du rangement a
+supprimé l'en-tête de la section COMPONENTS : sa règle disait « un commentaire suivi de rien
+d'autre qu'un autre commentaire est orphelin », ce qui est faux pour un en-tête suivi d'un
+sous-titre. Repéré immédiatement (les 13 en-têtes sont vérifiés un par un après chaque
+passe), repris depuis l'état committé. Les en-têtes sont désormais protégés explicitement.
+
+**Aucun verrou « anti-CSS-mort » n'a été posé, et c'est délibéré.** Un test qui signalerait
+les classes stylées mais non citées aurait dénoncé `.ns-A`..`.ns-E` — il aurait donc poussé
+un futur lecteur à supprimer du CSS vivant. Un verrou qui a tort sur ce qui compte est pire
+que pas de verrou.
+
 ---
 
 ## Traçabilité

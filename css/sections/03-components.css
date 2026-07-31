@@ -149,14 +149,6 @@
       text-align: center;
     }
 
-    .ing-pin-badge {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      font-size: 11px;
-      line-height: 1
-    }
-
     .ing-emoji {
       font-size: 25px;
       display: block;
@@ -239,13 +231,6 @@
       background: var(--terra-lt);
       color: var(--terra);
       border-color: var(--terra)
-    }
-
-    .ing-frozen-badge {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-      font-size: 11px
     }
 
     .ing-card.out-of-stock {

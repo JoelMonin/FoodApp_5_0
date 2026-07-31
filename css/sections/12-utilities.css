@@ -3,43 +3,6 @@
       display: none !important
     }
 
-    .text-soft {
-      color: var(--txt-soft)
-    }
-
-    .mt-8 {
-      margin-top: 8px
-    }
-
-    .mt-12 {
-      margin-top: 12px
-    }
-
-    .gap-6 {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap
-    }
-
-    .info-note {
-      background: var(--gold-lt);
-      border: 1px solid var(--gold);
-      border-radius: var(--r-xs);
-      padding: 9px 13px;
-      font-size: 11.5px;
-      color: var(--gold);
-      display: flex;
-      align-items: flex-start;
-      gap: 7px;
-      margin-bottom: 14px;
-    }
-
-    .info-note-blue {
-      background: var(--blue-lt);
-      border-color: #A8BCEF;
-      color: var(--blue)
-    }
-
     .two-col-settings {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -74,53 +37,6 @@
     .modal-overlay.recipe-fullscreen .mh-title {
       font-size: 1.4rem;
     }
-    .modal-overlay.recipe-fullscreen .rd-instructions {
-      font-size: 1.15rem;
-      line-height: 1.65;
-    }
-    .modal-overlay.recipe-fullscreen .rd-ingredients li {
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-
-    /* Mobile Interaction Hints */
-    .modal-drag-handle {
-      display: none;
-      width: 40px;
-      height: 4px;
-      background: rgba(0,0,0,0.1);
-      border-radius: 2px;
-      margin: 8px auto 0 auto;
-    }
-
-    .btn-mode-cuisine { display: none !important; }
-    .modal-hdr-actions .fs-text { display: none; }
-
-    @media(max-width: 767px) {
-      .modal-drag-handle { display: block; }
-      
-      .modal-hdr-btn.fs-btn-mobile {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: var(--green-lt) !important;
-        color: var(--green) !important;
-        padding: 6px 10px !important;
-        border-radius: 12px !important;
-        width: auto !important;
-        height: auto !important;
-      }
-      .modal-hdr-btn.fs-btn-mobile .fs-text {
-        display: inline;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .modal-hdr-btn.fs-btn-mobile .fs-icon {
-        font-size: 14px;
-      }
-    }
 
     /* Support for native Fullscreen API */
     .modal-overlay:fullscreen {
@@ -145,7 +61,6 @@
       max-height: none;
     }
 
-
     .r-tag.green {
       background: #e8f5e9;
       color: var(--green);
@@ -162,32 +77,6 @@
       background: #fff3e0;
       color: #ef6c00;
       border: 1px solid #ffe0b2;
-    }
-
-    .modal-hdr-actions {
-      display: flex;
-      gap: 8px;
-      margin-right: 12px;
-    }
-
-    .modal-hdr-btn {
-      background: var(--cream-dk);
-      border: none;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: var(--txt-mid);
-      transition: all 0.2s;
-    }
-
-    .modal-hdr-btn:hover {
-      background: var(--green-lt);
-      color: var(--green);
     }
 
     .picker-badge {
@@ -218,13 +107,6 @@
       display: inline-block;
       width: fit-content;
       font-weight: 600;
-    }
-
-    .picker-recipe-hint {
-      font-size: 13px;
-      color: var(--txt-mid);
-      margin: -10px 0 15px 0;
-      font-style: italic;
     }
 
     .spinner-small {
@@ -324,22 +206,10 @@
         color: #000 !important;
       }
 
-      .rd-section-title {
-        border-bottom: 2px solid #000;
-        color: #000;
-        margin-top: 30px;
-        page-break-after: avoid;
-      }
-
       .r-tag {
         border: 1px solid #ccc !important;
         color: #000 !important;
         background: #fff !important;
-      }
-
-      .rd-instructions li {
-        page-break-inside: avoid;
-        margin-bottom: 10px;
       }
 
       * {
