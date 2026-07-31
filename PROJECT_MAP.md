@@ -21,6 +21,7 @@
 - `src/utils/helpers.js` : Helpers algorithmiques et formatage.
 - `src/services/sync.js` : Moteur de synchro bidirectionnelle (LOT 007) — file d'opérations, barrière de quiescence, garde-fous entrant/sortant, temporisation et retry. Extrait de `js/app.js` au LOT 014. Ses DEUX dépendances d'interface sont injectées par `registerSyncUi` (pas d'import circulaire) ; `js/app.js` republie ses noms à l'identique.
 - `src/services/exports.js` : Composition des textes de partage (presse-papiers) — `buildClipboardText` est PURE (l'état lui est passé en paramètre) et `writeToClipboard` isole l'effet de bord. Extrait de `js/app.js` au LOT 014 ; le point d'entrée `exportClipboard` reste dans `js/app.js` car il est publié sur `window`.
+- `src/utils/categorize.js` : Déduction de catégorie (`guessCategoryLocally` d'après le nom, `sanitizeCategory` qui traduit le vocabulaire de l'IA). Extrait de `js/app.js` au LOT 014, filet posé AVANT le déplacement. Porte 2 défauts latents connus, figés par les tests — voir son en-tête.
 - `src/utils/validate.js` : SSOT des gardes d'entrée des données externes (localStorage, cloud, fichier de sauvegarde, réponses IA) + échappement des valeurs interpolées dans un prompt. Zéro dépendance : ne rejette jamais ce que `sanitizeGlobalState` sait réparer.
 
 ---
@@ -39,6 +40,7 @@
 - `tests/state.test.js` : Tests unitaires du moteur d'état.
 - `tests/actions-data.test.js` : Tests des actions données (LOT 008 — import/export/reset).
 - `tests/helpers.test.js` : Tests des utilitaires algorithmiques.
+- `tests/categorize.test.js` : Tests de CARACTÉRISATION de `src/utils/categorize.js`, écrits AVANT son déplacement — ils décrivent le comportement réel, défauts compris, pour prouver que le déménagement n'a rien changé.
 - `tests/validate.test.js` : Tests des gardes d'entrée (`src/utils/validate.js`) — fige la FRONTIÈRE de chaque prédicat, y compris ce qu'il doit continuer d'ACCEPTER (anti-sur-durcissement).
 - `tests/dom.test.js` : Tests de manipulation DOM.
 - `tests/firebase.test.js` : Mocks et tests du service Firebase (transport, délai d'expiration).
