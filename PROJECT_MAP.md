@@ -14,6 +14,7 @@
 - `src/services/firebase.js` : Service d'intégration Firebase (Auth & Firestore).
 - `src/services/gemini.js` : Service d'intégration IA Gemini.
 - `src/ui/addForm.js` : Formulaire d'ajout d'ingrédient (LOT 014 §A, extrait de `js/app.js`). Détient l'état PRIVÉ du formulaire — catégorie choisie à la main, temporisations, jeton anti-course `_aiSuggestGenId` — que seule `resetManualCategory()` peut remettre à zéro depuis l'extérieur. `registerAddFormNav` injecte `switchView` (cycle réel : le formulaire renvoie à l'inventaire, `switchView` lit l'état du formulaire). Deux défauts connus figés et documentés en tête de fichier.
+- `src/ui/cartPicker.js` : Sélecteur « envoyer une recette vers la liste de courses » (LOT 014 §A, extrait de `js/app.js`). Pré-coche ce qui manque, laisse corriger chaque ligne, puis fusionne avec l'inventaire. Détient l'état PRIVÉ du sélecteur. **Trois couplages INJECTÉS** (`registerCartPickerHooks`) plutôt qu'importés — `openModal`/`closeModal` ne sont pas de simples helpers, et `buildEmojiEditSuggestions` appartient à la modale d'édition d'icône : c'est le nœud annoncé par la phase découverte, détaillé dans l'en-tête du module.
 - `src/ui/components.js` : Composants UI réutilisables.
 - `src/ui/pantry.js` : UI et gestion du garde-manger.
 - `src/ui/recipe.js` : UI et affichage des recettes.

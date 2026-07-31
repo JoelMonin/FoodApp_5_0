@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../src/state.js';
-import { openEnhancedCartPicker } from '../js/app.js';
+import { openEnhancedCartPicker, confirmRecipeToCart } from '../js/app.js';
 
 // LOT 014, volet A — TESTS DE CARACTÉRISATION de la SÉLECTION du sélecteur de courses,
 // écrits AVANT le déplacement de la zone vers son module.
@@ -115,6 +115,36 @@ describe('LOT 014 §A — sélection du sélecteur de courses (caractérisation)
             // 3 lignes cochées, et la maîtresse n'a PAS été touchée par la boucle
             expect(casesCochees()).toEqual([true, true, true]);
             expect(maitresse.checked).toBe(false);
+        });
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // TROU TROUVÉ PAR MUTATION (LOT 014 §A) : débrancher l'ouverture ou la fermeture de la
+    // modale ne cassait AUCUN des 54 tests de la zone. Autrement dit, rien ne prouvait que
+    // cet écran s'affiche. Si ce câblage lâchait, Joel cliquerait « envoyer vers la liste de
+    // courses » et il ne se passerait STRICTEMENT rien, sans le moindre message.
+    // ─────────────────────────────────────────────────────────────────────────────
+    describe('ouverture et fermeture de la modale', () => {
+        it('ouvrir le sélecteur AFFICHE sa modale', () => {
+            openEnhancedCartPicker(recette([{ n: 'Salsifis', c: 'Légumes' }]));
+            expect(document.getElementById('modal-recipe-to-cart').classList.contains('open')).toBe(true);
+        });
+
+        it('ouvrir le sélecteur FERME le détail de recette dont il vient', () => {
+            document.getElementById('modal-recipe-detail').classList.add('open');
+            openEnhancedCartPicker(recette([{ n: 'Salsifis', c: 'Légumes' }]));
+            // Sans ça, les deux modales se superposeraient.
+            expect(document.getElementById('modal-recipe-detail').classList.contains('open')).toBe(false);
+        });
+
+        it('valider la sélection REFERME la modale', () => {
+            openEnhancedCartPicker(recette([{ n: 'Salsifis', c: 'Légumes' }]));
+            expect(document.getElementById('modal-recipe-to-cart').classList.contains('open')).toBe(true);
+
+            confirmRecipeToCart();
+
+            expect(document.getElementById('modal-recipe-to-cart').classList.contains('open')).toBe(false);
+            expect(state.ingredients.some(i => i.name === 'Salsifis' && i.inCart)).toBe(true);
         });
     });
 
