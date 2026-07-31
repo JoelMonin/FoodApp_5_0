@@ -1,6 +1,7 @@
 # LOT 014 — Refonte SSOT et découpage — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-07-31, DERNIER lot de la campagne
+> **Statut :** ✅ CLOTURE — ouvert le 2026-07-31, clos et **publié en Version 5.10 le
+> 2026-07-31** (feu vert de Joel le soir même). DERNIER lot de la campagne
 > **Branche :** `feat/lot14-refonte-ssot` (ouverte depuis `main` après publication du 5.9)
 > **Niveau d'audit : DUR** — refonte transverse, touche le moteur d'état
 > **Effort estimé :** ~2-3 journées · **Version visée :** 5.10 (le LOT 013 a pris la 5.9 en

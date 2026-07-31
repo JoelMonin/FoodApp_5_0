@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BA%20PUBLIER%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **A PUBLIER** — attend le feu vert de Joel (V5.10) | `feat/lot14-refonte-ssot` |
+| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BCLOTURE%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **CLOTURE** — publié en V5.10 le 2026-07-31 | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
 
@@ -100,6 +100,11 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — LOT 014 publié en Version 5.10, campagne « Restauration & Refonte »
+  achevée** : feu vert de Joel donné le soir même, fusion `--no-ff` de
+  `feat/lot14-refonte-ssot` dans `main` et mise en ligne. Fiche passée en `[CLOTURE]`.
+  Reste ouvert, hors lot et sciemment : le point `.r-tag.red`/`.r-tag.green` (à regarder à
+  froid, « sans tout casser ») et le second rangement de `js/app.js` (fiche au backlog).
 - **2026-07-31 — LOT 014 terminé, A PUBLIER** : les 9 volets (C1, B, C, G, A, D, correctifs
   IA, E, F) faits et testés, check-list des régressions reparcourue. Audit DUR final : 6
   agents adversariaux locaux en parallèle (correctifs IA, découpage `js/app.js`, CSS,

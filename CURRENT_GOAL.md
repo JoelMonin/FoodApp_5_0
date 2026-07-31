@@ -9,12 +9,15 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 014 — Refonte SSOT et découpage**, ouvert le 2026-07-31 sur `feat/lot14-refonte-ssot`
-(depuis `main`, après publication du 5.9). Dernier lot de la campagne. Niveau d'audit **DUR**.
-**TERMINÉ ET VALIDÉ le 2026-07-31 — statut A PUBLIER, pas encore en ligne** (Joel a demandé
-explicitement de ne pas publier pour l'instant ; VERROU PRODUCTION). Détail complet, y
-compris l'audit DUR final (6 agents adversariaux) :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [A PUBLIER].md`.
+**Aucun.** La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014
+a été **publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff`
+dans `main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
+
+**Prochain chantier pressenti (décidé par Joel, pas encore ouvert)** : le second rangement
+de `js/app.js` — fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir
+via `/new-lot`, avec phase découverte obligatoire. Reste aussi le point CSS
+`.r-tag.red`/`.r-tag.green`, à regarder à froid, séparément, « sans tout casser ».
 
 **Ordre arrêté : C1 → B → C → G → A → D → E → F.**
 
@@ -102,9 +105,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
-- **014** Refonte SSOT et découpage — 🟡 **A PUBLIER** (clos le 2026-07-31), ferme la campagne
-  (V5.10). **Joel a explicitement demandé de ne PAS publier en ligne pour l'instant** — reste
-  sur `feat/lot14-refonte-ssot`, en attente du feu vert (VERROU PRODUCTION).
+- **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
+  campagne « Restauration & Refonte ».
 
 ## Vérités à ne pas perdre
 
@@ -151,7 +153,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## LOT 014 CLOS — A PUBLIER (état au 2026-07-31, arbre propre, pas encore en ligne)
+## LOT 014 CLOS — PUBLIÉ en V5.10 le 2026-07-31 (bilan conservé pour mémoire)
 
 **Métriques : 784/784 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
 · feuille de style 49,5 → 43,96 Ko.**
@@ -191,9 +193,10 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
    ouvert, sciemment, hors du lot 014 : ne pas le re-décider seul si le sujet revient, c'est
    déjà un choix de Joel.
 
-**Publication : NON.** Joel a explicitement demandé de ne pas mettre en ligne pour
-l'instant — VERROU PRODUCTION oblige, le lot reste sur `feat/lot14-refonte-ssot` en statut
-`[A PUBLIER]` jusqu'à un feu vert donné au moment même du déploiement.
+**Publication : FAITE.** Après une première clôture en `[A PUBLIER]` (Joel ne voulait pas
+publier tout de suite), le feu vert explicite est arrivé le 2026-07-31 au soir
+(« tu peux publier la dernière version ») : version montée en 5.10.0 (SSOT +
+`sync_version.py`), validation re-passée verte, fusion `--no-ff` dans `main`, mise en ligne.
 
 **SECOND RANGEMENT de `js/app.js` (2823 → 1523 lignes, −46 %, cible 700 non atteinte)** :
 tranché par Joel le 2026-07-31 — ni abandonné, ni empilé sur ce lot déjà énorme, un lot
