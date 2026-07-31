@@ -88,7 +88,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initRecipeFullscreenListeners();
 
   // Initialize swipe-to-close and overlay click for all modals
-  ['modal-shopping-bulk', 'modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
+  ['modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
     .forEach(id => {
         initSwipeToClose(id);
         const overlay = document.getElementById(id);
@@ -187,6 +187,11 @@ export {
     // LOT 012 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
     cycleEmoji,
     confirmRecipeToCart,
+    // LOT 014, volet A — exporte pour les tests unitaires (meme raison que les blocs
+    // LOT 009/010 ci-dessus) : `initKeyboardShortcuts` n'est cablee qu'au demarrage, et
+    // `DOMContentLoaded` ne se declenche jamais sous Vitest. Sans cet export, les 4
+    // raccourcis clavier restaient une zone aveugle.
+    initKeyboardShortcuts,
     initFieldEnterShortcuts,
     initChipsRowTouchScroll,
     initSearchAutofillGuard,
@@ -1432,18 +1437,6 @@ function applyEditedEmoji(emoji) {
 // handleAddInput, _onManualCategoryChange, addIngredient, addIngredientFromDb,
 // searchEmojiAddAI et selectEmoji, ainsi que leurs 4 variables d'etat.
 
-function confirmBulkAdd() {
-    const checked = document.querySelectorAll('#modal-shopping-bulk-list input:checked');
-    checked.forEach(cb => {
-        const id = cb.dataset.id;
-        const ing = state.ingredients.find(i => i.id === id);
-        if (ing) ing.inCart = true;
-    });
-    saveState();
-    closeModal('modal-shopping-bulk');
-    toast('Ajouté à la liste !');
-}
-
 function updatePickerRow(idx) {
     const row = document.getElementById(`pitem-${idx}`);
     const chk = document.getElementById(`pick-${idx}`);
@@ -1857,7 +1850,6 @@ function initKeyboardShortcuts() {
             if (activeModal) {
                 if (activeModal.id === 'modal-api-config') saveApiKey();
                 else if (activeModal.id === 'modal-recipe-to-cart') confirmRecipeToCart();
-                else if (activeModal.id === 'modal-shopping-bulk') confirmBulkAdd();
             } else if (state.currentView === 'add') {
                 addIngredient();
             }
@@ -1912,7 +1904,7 @@ expose({
     saveApiKey, resetCart, resetAllData, exportJSON,
     openModal, closeModal, openEditEmoji,
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
-    confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
+    searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
     fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
     saveRecipeOnly: savePastedRecipe,
