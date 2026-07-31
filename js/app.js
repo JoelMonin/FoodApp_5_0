@@ -50,6 +50,15 @@ import {
   searchEmojiAI,
   registerEmojiModalHooks
 } from '../src/ui/emojiModal.js';
+// Socle des modales — extrait d'ici au LOT 017. `openModal` etait le dernier « hub » reste
+// dans ce fichier : c'est parce qu'il vivait ici que trois modules devaient se le faire
+// injecter. Deux de ces trois injections disparaissent avec ce deplacement.
+import {
+  openModal,
+  closeModal,
+  initSwipeToClose,
+  registerModalHooks
+} from '../src/ui/modals.js';
 import {
   openEnhancedCartPicker,
   confirmRecipeToCart,
@@ -161,9 +170,18 @@ registerSyncUi({ restoreAiForm: restoreAIConfig, refreshSystemInfo: updateSystem
 // Le formulaire d'ajout renvoie a l'inventaire apres un ajout reussi : `switchView` vit
 // ici et lit l'etat du formulaire, d'ou l'injection plutot qu'un import croise.
 registerAddFormNav({ switchView });
-registerCartPickerHooks({ openModal, closeModal });
-registerEmojiModalHooks({ openModal, closeModal });
+// LOT 017 — `registerCartPickerHooks` et `registerEmojiModalHooks` ONT DISPARU : ces deux
+// modules importent desormais `openModal`/`closeModal` directement depuis `src/ui/modals.js`.
+// C'est la regle du LOT 014 appliquee a la lettre — des qu'une cible sort dans son module, le
+// crochet qui la remplacait devient de la dette.
+// `registerRecipeModalHooks` RESTE : `modals.js` importe `quitterPleinEcranSiBesoin` de
+// `recipeModal.js`, donc l'inverse serait un vrai cycle. Il ne porte plus qu'`openModal` et
+// le cablage vers les favoris.
 registerRecipeModalHooks({ openModal, buildRecipeHandlers });
+// Ce que les modales delegent aux ecrans concernes : deux blocs qui vivaient a tort DANS
+// `openModal`. Ils partiront avec leurs modules (`pasteRecipe`, `settings`), et ce branchement
+// suivra sans changer de forme.
+registerModalHooks({ resetPasteModal, onApiConfigOpen });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -1008,10 +1026,13 @@ function setPasteSaveButtonsEnabled(enabled) {
     if (listBtn) listBtn.disabled = !enabled;
 }
 
-function openModal(id) {
-    document.getElementById(id)?.classList.add('open');
-
-    if (id === 'modal-paste-recipe') {
+// LOT 017 — `openModal`, `closeModal` et `initSwipeToClose` ont demenage dans
+// `src/ui/modals.js`. Ce qui suit n'est PAS de la logique de modale : c'est la remise a zero
+// de l'ecran « coller une recette », qui vivait a tort DANS `openModal`. Elle reste ici pour
+// l'instant parce qu'elle ecrit `_lastTransformedRecipe`, variable privee de cet ecran ;
+// elle partira avec lui dans `src/ui/pasteRecipe.js`. Branchee par `registerModalHooks`.
+function resetPasteModal() {
+    {
         // Sans cette remise a zero, la recette transformee lors d'une ouverture
         // precedente survivait : « Sauvegarder tel quel » enregistrait alors la
         // recette d'avant, silencieusement.
@@ -1040,12 +1061,13 @@ function openModal(id) {
         const listBtn = document.getElementById('paste-list-btn');
         if (listBtn) listBtn.style.display = 'none';
     }
+}
 
-    if (id === 'modal-api-config') {
-        const keyInput = document.getElementById('api-key-input');
-        if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
-        renderAiModelsInfo();
-    }
+// Meme remarque : logique des REGLAGES, pas des modales. Partira dans `src/ui/settings.js`.
+function onApiConfigOpen() {
+    const keyInput = document.getElementById('api-key-input');
+    if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
+    renderAiModelsInfo();
 }
 
 /**
@@ -1059,14 +1081,6 @@ function renderAiModelsInfo() {
     const models = state.aiConfig?.models || {};
     el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
         `Catégories et emojis : ${models.categorySuggest}`;
-}
-function closeModal(id) {
-    const el = document.getElementById(id);
-    el?.classList.remove('open');
-    if (el?.classList.contains('recipe-fullscreen')) {
-        el.classList.remove('recipe-fullscreen');
-        quitterPleinEcranSiBesoin();
-    }
 }
 
 
@@ -1367,71 +1381,6 @@ function saveApiKey() {
     toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
 }
 
-function initSwipeToClose(modalId) {
-    const overlay = document.getElementById(modalId);
-    if (!overlay) return;
-
-    let startY = 0;
-    let currentY = 0;
-    let isSwiping = false;
-    let modal = null;
-
-    // Écouteurs posés UNE FOIS sur l'overlay, qui survit à tout `replaceChildren`
-    // de son contenu (ex. `openRecipeDetail`) — le noeud `.modal-content`/`.modal`
-    // visé est recalculé à CHAQUE geste, jamais capturé une fois pour toutes
-    // (LOT 009, casse C7 : le glissement mourait après le premier rendu dynamique).
-    overlay.addEventListener('touchstart', (e) => {
-        modal = overlay.querySelector('.modal-content') || overlay.querySelector('.modal');
-        if (!modal) return;
-        const touch = e.touches[0];
-        const rect = modal.getBoundingClientRect();
-        // Allow swipe from the top 100px (header/drag handle)
-        if (touch.clientY - rect.top < 100) {
-            startY = touch.clientY;
-            // Repart de zéro à CHAQUE geste (audit Codex, LOT 009) : sans ce reset,
-            // currentY gardait la valeur du geste PRÉCÉDENT — un simple toucher sans
-            // glissement après une fermeture réussie pouvait re-fermer aussitôt.
-            currentY = touch.clientY;
-            isSwiping = true;
-            modal.style.transition = 'none';
-        }
-    }, { passive: true });
-
-    overlay.addEventListener('touchmove', (e) => {
-        if (!isSwiping || !modal) return;
-        currentY = e.touches[0].clientY;
-        const diff = currentY - startY;
-        if (diff > 0) {
-            modal.style.transform = `translateY(${diff}px)`;
-            const opacity = 1 - (diff / 500);
-            overlay.style.backgroundColor = `rgba(0,0,0, ${Math.max(0, opacity * 0.5)})`;
-        }
-    }, { passive: true });
-
-    overlay.addEventListener('touchend', () => {
-        if (!isSwiping || !modal) return;
-        isSwiping = false;
-        const diff = currentY - startY;
-        if (diff > 100) {
-            closeModal(modalId);
-        }
-        modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        modal.style.transform = '';
-        overlay.style.backgroundColor = '';
-    });
-
-    // Durcissement (contre-vérification Codex, LOT 009) : un geste interrompu par le
-    // système (appel entrant, geste OS concurrent...) ne doit ni fermer le modal ni le
-    // laisser visuellement décalé — même remise en place que touchend, sans décision
-    // de fermeture.
-    overlay.addEventListener('touchcancel', () => {
-        if (!isSwiping || !modal) return;
-        isSwiping = false;
-        modal.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        modal.style.transform = '';
-        overlay.style.backgroundColor = '';
-    });
-}
 
 function initKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {

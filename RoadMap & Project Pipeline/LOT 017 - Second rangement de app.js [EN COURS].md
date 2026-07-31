@@ -126,17 +126,22 @@ la garantie recherchée.
 
 ---
 
-## Ordre d'exécution (du moins risqué au plus risqué)
+## Ordre d'exécution — RÉVISÉ après le volet 0
 
-| Volet | Contenu | Risque |
+Le plan plaçait `modals.js` en **dernier**, comme le morceau le plus risqué. L'analyse des
+dépendances a montré l'inverse : c'est le **hub** dont cinq zones dépendent, et tant qu'il
+vivait dans `js/app.js`, chacune devait se le faire injecter. **Le sortir en premier éteint
+des crochets au lieu d'en créer.**
+
+| Volet | Contenu | État |
 |---|---|---|
-| **0** | Filet sur `saveAiConfigFromUI` + retrait de la zone morte (`js/app.js:727-755`, 29 lignes de commentaires orphelins du LOT 014) | nul |
-| **A** | `src/ui/settings.js` (+ `updateApiStatus`, `renderAiModelsInfo`) | faible |
-| **B** | `src/ui/favorites.js` (+ `saveRecipeOnly`, `saveRecipeAndList`, `printRecipe`) | faible |
-| **C** | `src/ui/pasteRecipe.js` (+ `buildPastedFavorite`) et rapatriement des 29 lignes de remise à zéro | **moyen** |
-| **D** | `src/ui/aiPanel.js` (+ 8 compagnons) | moyen |
-| **E** | `src/ui/topbar.js` (+ `countStockAndCart`, `_favCountSub`) + `registerTopbarHooks` | moyen |
-| **F** | `src/ui/modals.js` — en dernier, une fois devenu une feuille pure ; suppression des 3 crochets devenus inutiles | **le plus élevé** |
+| **0** | Filet sur `saveAiConfigFromUI` + retrait de la zone morte | ✅ **FAIT** |
+| **A** | `src/ui/modals.js` (`openModal`, `closeModal`, `initSwipeToClose`) — remonté du dernier au premier rang | ✅ **FAIT** |
+| **B** | `src/ui/settings.js` (+ `updateApiStatus`, `renderAiModelsInfo`) — reprend le crochet `onApiConfigOpen` | à faire |
+| **C** | `src/ui/favorites.js` (+ `saveRecipeOnly`, `saveRecipeAndList`, `printRecipe`) | à faire |
+| **D** | `src/ui/pasteRecipe.js` (+ `buildPastedFavorite`) — reprend `resetPasteModal` et ses 29 lignes | à faire |
+| **E** | `src/ui/aiPanel.js` (+ 8 compagnons) | à faire |
+| **F** | `src/ui/topbar.js` (+ `countStockAndCart`, `_favCountSub`) + `registerTopbarHooks` | à faire |
 
 Chaque volet : déplacement pur → validation unifiée verte → commit séparé. Un défaut trouvé
 en chemin se fige, ne se corrige pas dans le même geste.
@@ -145,4 +150,56 @@ en chemin se fige, ne se corrige pas dans le même geste.
 
 ## RÉALISATION
 
-*(à compléter volet par volet)*
+### Volet 0 — la dernière zone aveugle, couverte AVANT tout déplacement ✅
+
+**`saveAiConfigFromUI` n'avait AUCUN test.** Seule son *existence* était vérifiée (verrou de
+parité) : un corps vide serait passé au vert alors que les réglages IA de Joel ne se seraient
+plus jamais enregistrés. 8 tests posés (`tests/save-ai-config.test.js`), **5 mutations, 5
+rouges nommés, témoin vert**.
+
+Le piège figé au passage : la créativité passe par `parseInt(champ?.value || '50')`. Le `||`
+porte sur une **chaîne**, et `'0'` est une chaîne non vide — une créativité volontairement
+réglée à 0 survit donc. Déplacer le repli sur le nombre (`parseInt(...) || 50`) la remonterait
+à 50 en silence : exactement le défaut du LOT 008, dans l'autre sens.
+
+**Zone morte retirée** (`js/app.js`, 19 lignes) : un bloc JSDoc décrivant en détail
+`matchIngredientToStock` — partie dans `stockMatch.js` au LOT 014 — juste au-dessus d'une
+fonction qui n'était plus là, plus un commentaire sur le plein écran sans son code. Le
+« commentaire menteur » que le LOT 014 traquait ailleurs, laissé par ses propres déplacements.
+
+### Volet A — `src/ui/modals.js` : le hub sort, et éteint deux crochets ✅
+
+`openModal`, `closeModal`, `initSwipeToClose` déménagent. **Déplacement pur**, prouvé par les
+tests d'écran existants — aucun test neuf nécessaire, aucun import de test modifié.
+
+**Les 34 lignes qui ne lui appartenaient pas** sont devenues des crochets. `openModal`
+contenait la remise à zéro complète de « coller une recette » (29 l) et l'affichage des
+modèles IA des réglages (5 l). Le premier bloc **écrit `_lastTransformedRecipe`, variable
+privée d'un autre écran** — un import ne peut pas faire ça, c'était un vrai cycle. Désormais
+le socle sait qu'il faut *prévenir* un écran, plus quoi faire à sa place.
+
+**Bilan des couplages : 5 crochets → 4.**
+
+| Crochet | Devenu |
+|---|---|
+| `registerCartPickerHooks` | ❌ supprimé — import direct |
+| `registerEmojiModalHooks` | ❌ supprimé — import direct |
+| `registerRecipeModalHooks` | ✅ conservé — `modals.js` importe `quitterPleinEcranSiBesoin` de `recipeModal.js`, l'inverse serait un vrai cycle |
+| `registerModalHooks` | ➕ ajouté (2 crochets, sous le seuil de 6 fixé par le LOT 014) |
+
+`cartPicker.js`, cité par le LOT 014 comme **le couplage le plus lourd du projet** (trois
+injections), n'en a désormais plus **aucune**.
+
+**Preuve par retrait, 4 mutations, 4 rouges :** oublier `registerModalHooks` au démarrage
+→ 7 tests rouges ; débrancher chaque crochet → 6 et 1 ; retirer la classe `open` → 7.
+
+**Un commentaire menteur écrit puis corrigé dans le même volet** : l'en-tête annonçait qu'un
+`tests/modals.test.js` vérifiait le branchement des crochets. Ce fichier n'existe pas, et la
+mutation a montré que le branchement était **déjà** couvert. Corrigé — la règle du LOT 014
+(« traquer les commentaires menteurs ») s'applique d'abord à ce qu'on vient d'écrire soi-même.
+
+**`js/app.js` : 1527 → 1467 lignes.** Le gain paraît modeste (−60) parce que les 34 lignes de
+cas particuliers **restent** pour l'instant dans `js/app.js` : elles partiront avec
+`settings.js` (volet B) et `pasteRecipe.js` (volet D), sans que le branchement change de forme.
+
+**Validation à chaque étape : 798/798 Vitest · 16/16 Pytest.**
