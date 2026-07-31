@@ -525,6 +525,58 @@ Aucune moitié n'est redondante ; aucun des 9 tests n'est tautologique.
 validation de recette IA, `escapePromptValue`, et la mutualisation dans `src/utils/validate.js`
 — où les 3 prédicats iront. C1 devait rester minimal et reversible seul.
 
+### Étape C0 — chasse aux faux verrous (2026-07-31)
+
+**Déclencheur** : question de Joel — « est-tu sûr qu'on a pas de faux-verrous ? » — posée juste
+avant que le lot ne commence à déplacer du code en s'appuyant sur le filet du LOT 013.
+
+**Ce qui a été vérifié d'abord, parce que c'était le plus gros risque** : `validate.bat`
+propage-t-il vraiment l'échec ? Prouvé en cassant un test pour de vrai — code de sortie **1**,
+aucun « SUCCESS » affiché, et l'étape 2 (pytest) n'a même pas démarré. Le gardien fonctionne.
+
+**Audit adversarial : 49 mutations réelles sur `js/app.js`, 37 tuées, 12 SURVIVANTES.** Le
+LOT 013 avait conclu « 0 test tautologique » sur un échantillon de 11 mutations — conclusion
+invalidée (addendum ajouté à sa fiche).
+
+**Ce qui tient (rassurant, et important pour la suite du lot)** : la barrière de quiescence, la
+garde anti-vidange du cloud, le rejet des documents cloud malformés, l'empreinte du document
+synchronisé, le jeton anti-course principal, l'envoi-avant-pull. Le cœur le plus subtil du
+projet est réellement protégé.
+
+**Les 12 trous comblés — 17 tests neufs (559 → 576), chacun prouvé au rouge** en réappliquant
+sa mutation d'origine :
+
+| # | Trou | Ce que la mutation cassait sans être vue | Test |
+|---|---|---|---|
+| FV-1 | `js/app.js:1710` | **Test formellement tautologique** : jsdom ne vole jamais le focus, donc `expect(activeElement).toBe(champ)` était vrai code présent ou non | `export-clipboard.test.js` (espion sur `focus`, + cas d'échec) |
+| FV-2 | `js/app.js:855` | `includes` → `startsWith` : la recherche ne trouvait plus « mat » dans « Tomate ». Les 5 cas d'origine cherchaient tous par le début | `pantry-filters-search.test.js` (milieu + fin) |
+| FV-3 | `js/app.js:434` | Un pull revenant pendant que Joel tape sa clé API **écrasait sa saisie**. Le moteur a DEUX empreintes ; seule celle du document était testée | `sync-engine.test.js` |
+| FV-4 | `js/app.js:2099` | Effacer le champ n'invalidait plus la requête IA en vol : elle réécrivait catégorie et emoji dans un formulaire vidé. Le jeton n'était protégé que sur la course frappe→frappe | `add-input-suggestions.test.js` |
+| FV-5 | `js/app.js:2189` | L'IA **écrasait l'emoji déjà choisi** par Joel | `add-input-suggestions.test.js` |
+| FV-6a | `js/app.js:219` | Après un refus 4xx, une modification ne réautorisait plus le cycle automatique | `sync-engine.test.js` |
+| FV-6b | `js/app.js:489` | Après un refus 4xx, le retour du réseau ne réautorisait plus l'envoi | `sync-engine.test.js` |
+| FV-7a | `js/app.js:234` | Un clic manuel mis en file était **rétrogradé** en cycle automatique (règle §4.4) | `sync-engine.test.js` |
+| FV-7b | `js/app.js:264` | Le clic manuel ne déposait plus l'inventaire local sur un cloud vide | `sync-engine.test.js` |
+| FV-8 | `js/app.js:337` | Une modification faite **pendant** un envoi voyait son drapeau baissé : elle ne partait jamais et le pull suivant l'écrasait | `sync-engine.test.js` |
+| FV-9 | `js/app.js:785` | La puce « Tous » restait allumée alors qu'un toggle était actif. **`renderPantryFilters` n'était référencé par AUCUN test** | `pantry-filters-search.test.js` (6 tests) |
+| FV-10 | `js/app.js:178` | Le voyant « Hors ligne » perdait sa couleur d'alerte : le test ne vérifiait que le libellé | `sync-engine.test.js` |
+
+**Deux enseignements trouvés en écrivant les tests, plus utiles que les trous eux-mêmes :**
+- **FV-7b** : quand le pull APPLIQUE une photo cloud, il met aussitôt la référence anti-boucle
+  à jour (`js/app.js:427`) — le renvoi qui suit est alors *structurellement* inobservable. Le
+  seul cas où il agit est le **cloud vide**. Un test bâti sur l'autre scénario aurait été un
+  faux verrou de plus : la première version l'était, elle a été refaite.
+- **FV-6a / FV-7a** : `_syncSendBlocked` ne garde QUE le chemin du pull (`js/app.js:249`), et
+  compter les GET ne distingue pas un `manual` d'un `pull`. Mes deux premières versions
+  passaient sous mutation — donc ne prouvaient rien. Refaites sur le chemin réellement
+  discriminant (le cycle automatique ; le message rendu à Joel).
+
+**Dette ouverte tracée** : l'ÉCART 1 du LOT 013 (ancres `data-testid` posées dans `index.html`
+et `js/app.js`, autorisé par Joel) avait été justifié en partie par les puces de filtre — dont
+**aucun test ne consommait les ancres**. La dérogation avait été prise pour une couverture
+jamais écrite. C'est désormais réparé (FV-9), mais la leçon vaut : **une ancre posée sans test
+qui la consomme est une dérogation gratuite**.
+
 ---
 
 ## Traçabilité

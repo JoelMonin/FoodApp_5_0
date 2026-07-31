@@ -258,9 +258,226 @@ describe('Moteur de synchro — LOT 007', () => {
         expect(fetch).not.toHaveBeenCalled(); // pas de pull voué à l'échec
         const label = document.querySelector('#sync-indicator-desktop .sync-label');
         expect(label.textContent).toBe('Hors ligne'); // jamais remplacé par « Échec »
+        // FAUX VERROU FV-10 (audit adversarial du 2026-07-31, mutation M40) : ce test ne
+        // vérifiait QUE le libellé. `setSyncStatus` mappe 'offline' sur la classe CSS
+        // `error` (js/app.js:178) parce qu'aucune classe `.sync-indicator.offline` n'existe
+        // dans css/style.css — supprimer ce mappage laissait le voyant sans couleur
+        // d'alerte, et le test restait vert.
+        expect(document.getElementById('sync-indicator-desktop').className).toContain('error');
       } finally {
         Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
       }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FAUX VERROUS COMBLÉS — audit adversarial du 2026-07-31 (49 mutations réelles sur
+  // js/app.js, 12 survivantes). Six d'entre elles vivaient dans ce moteur : le code
+  // pouvait être cassé sur ces six points sans qu'aucun des 559 tests ne bronche.
+  // Chaque test ci-dessous a été re-vérifié en réappliquant sa mutation d'origine.
+  // ═══════════════════════════════════════════════════════════════════════════════
+  describe('Faux verrous du moteur comblés (audit adversarial du 2026-07-31)', () => {
+
+    // FV-3 / mutation M06 — js/app.js:434. Le moteur a DEUX empreintes distinctes :
+    // celle du document synchronisé (`currentSyncDocJson`, :390/:410, testée par C2) et
+    // celle du FORMULAIRE IA non sauvegardé (`aiFormFingerprint`, :391/:434). Seule la
+    // première était couverte. Remplacer la seconde par `if (true)` laissait 559 tests
+    // verts, alors qu'un pull revenant pendant que Joel tape sa clé API écrasait sa saisie.
+    it('FV-3 : une saisie EN COURS dans le formulaire IA n\'est jamais réécrite par un pull '
+       + '(acquis LOT 005 — empreinte distincte de celle du document)', async () => {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="ai-settings">
+          <input id="api-key-input" value="">
+          <input id="ai-exceptions" value="">
+          <input id="ai-exclusions" value="">
+        </div>
+      `);
+      // Le cloud porte des exclusions déjà enregistrées, différentes de la saisie en cours.
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ inStock: true })],
+        favorites: [], extraIngredients: [], customCartItems: [],
+        shoppingChecked: [],
+        aiConfig: { ...defaultAiConfig(), exclusions: 'valeur venue du cloud' }
+      });
+
+      let resoudreGet;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') { cloudStore = options.body; return { ok: true, status: 200, statusText: 'OK' }; }
+        await new Promise(r => { resoudreGet = r; });
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      const enVol = performSyncPull({ manual: false });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Joel tape pendant que la requête est en vol, SANS cliquer sur « Sauvegarder ».
+      document.getElementById('ai-exclusions').value = 'ce que Joel est en train de taper';
+
+      resoudreGet();
+      await enVol;
+
+      // Sa saisie survit : `restoreAIConfig` n'a pas été appelée.
+      expect(document.getElementById('ai-exclusions').value).toBe('ce que Joel est en train de taper');
+    });
+
+    // FV-8 / mutation M10 — js/app.js:337. La même expression `_syncDirtyGen === genAtBuild`
+    // existe deux fois : :325 (branche anti-boucle, sans réseau) et :337 (après un envoi
+    // réseau réussi). Seule la première était effleurée. Sans la seconde, une modification
+    // faite PENDANT l'envoi voyait son drapeau baissé — elle ne partait jamais et le pull
+    // suivant l'écrasait.
+    it('FV-8 : une modification faite PENDANT un envoi en vol reste protégée après le succès', async () => {
+      let resoudrePut;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          cloudStore = options.body;
+          await new Promise(r => { resoudrePut = r; });
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => (cloudStore ? JSON.parse(cloudStore) : null) };
+      });
+
+      state.ingredients[0].inStock = true;
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // l'envoi part, il est en vol
+      expect(isSyncPending()).toBe(true);
+
+      // Joel modifie encore, pendant que la requête voyage.
+      state.ingredients[0].pinned = true;
+      saveState();
+
+      resoudrePut();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Le succès concernait l'ANCIEN document : le drapeau doit rester levé pour la
+      // modification qui n'est pas encore partie.
+      expect(isSyncPending()).toBe(true);
+    });
+
+    // FV-6a / mutation M49 — js/app.js:219. Trois déclencheurs sont censés réautoriser
+    // l'envoi après un refus 4xx (js/app.js:119-121) : un geste, un clic manuel, le retour
+    // réseau. Seul le clic manuel était testé (D1).
+    //
+    // PRÉCISION TROUVÉE EN ÉCRIVANT CE TEST : `_syncSendBlocked` ne garde QUE le chemin du
+    // pull (js/app.js:249) — une opération 'send' n'est jamais gardée par lui. Un test qui se
+    // contente d'attendre le minuteur de 2 s passe donc dans les deux cas et ne prouve rien.
+    // C'est le CYCLE AUTOMATIQUE (pull) qu'il faut provoquer : sans la réautorisation, il
+    // refuse de repartir et l'appareil reste muet jusqu'au prochain clic manuel.
+    it('FV-6a : après un refus 4xx, une VRAIE MODIFICATION réautorise le cycle automatique', async () => {
+      let failing = true;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (failing) return { ok: false, status: 403, statusText: 'Forbidden' };
+          cloudStore = options.body;
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => (cloudStore ? JSON.parse(cloudStore) : null) };
+      });
+
+      state.ingredients[0].inStock = true;
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // 403 → cycles automatiques suspendus
+      expect(putCalls()).toHaveLength(1);
+      expect(isSyncPending()).toBe(true);
+
+      // Un cycle automatique AVANT tout nouveau geste : il doit rester muet.
+      await requestSyncOp('pull');
+      expect(fetch.mock.calls.length).toBe(1); // ni PUT ni GET
+
+      failing = false;
+      // Un geste de Joel, et rien d'autre : pas de clic sur « Cloud Sync ».
+      state.ingredients[0].pinned = true;
+      saveState();
+
+      // Le cycle automatique suivant doit repartir grâce à ce geste.
+      await requestSyncOp('pull');
+
+      expect(putCalls().length).toBeGreaterThanOrEqual(2);
+      expect(isSyncPending()).toBe(false);
+    });
+
+    // FV-6b / mutation M43 — js/app.js:489, l'écouteur `online`.
+    it('FV-6b : après un refus 4xx, le RETOUR DU RÉSEAU réautorise l\'envoi', async () => {
+      let failing = true;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          if (failing) return { ok: false, status: 403, statusText: 'Forbidden' };
+          cloudStore = options.body;
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => (cloudStore ? JSON.parse(cloudStore) : null) };
+      });
+
+      initSyncEngine(); // c'est lui qui pose l'écouteur `online`
+      await vi.advanceTimersByTimeAsync(0);
+
+      state.ingredients[0].inStock = true;
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // 403 → bloqué
+      const putsApresBlocage = putCalls().length;
+
+      failing = false;
+      window.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(putCalls().length).toBeGreaterThan(putsApresBlocage);
+    });
+
+    // FV-7a / mutation M45 — js/app.js:234, règle §4.4 « un clic manuel n'est jamais
+    // rétrogradé ». Aucun test ne mettait un `manual` en file pendant une opération en vol.
+    it('FV-7a : un clic manuel mis en file pendant une opération en vol n\'est PAS rétrogradé', async () => {
+      let resoudrePut;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') {
+          cloudStore = options.body;
+          await new Promise(r => { resoudrePut = r; });
+          return { ok: true, status: 200, statusText: 'OK' };
+        }
+        return { ok: true, status: 200, statusText: 'OK', json: async () => (cloudStore ? JSON.parse(cloudStore) : null) };
+      });
+
+      state.ingredients[0].inStock = true;
+      saveState();
+      await vi.advanceTimersByTimeAsync(2000); // un 'send' est en vol
+
+      // Joel clique « Cloud Sync » PUIS un cycle automatique arrive : le manuel doit gagner.
+      requestSyncOp('manual');
+      requestSyncOp('pull');
+
+      resoudrePut();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // PRÉCISION TROUVÉE EN ÉCRIVANT CE TEST : compter les GET ne distingue PAS les deux
+      // opérations — un 'pull' rétrogradé en fait un aussi. Ce qui les sépare, c'est que
+      // seul le chemin MANUEL rend compte à Joel (js/app.js:439). Un cycle automatique est
+      // silencieux par construction : si la file avait rétrogradé son clic, il n'aurait
+      // eu aucun retour à l'écran.
+      const messages = [...document.querySelectorAll('#toast-container .toast')].map(t => t.textContent);
+      expect(messages).toContain('☁️ Données chargées du Cloud');
+    });
+
+    // FV-7b / mutation M47 — js/app.js:264, le renvoi silencieux qui suit le pull manuel.
+    //
+    // TROUVÉ EN ÉCRIVANT CE TEST, et c'est la vraie leçon : quand le pull APPLIQUE une photo
+    // cloud, il met aussitôt la référence anti-boucle à jour (js/app.js:427). Le renvoi qui
+    // suit construit alors un document identique à cette référence et s'arrête AVANT le
+    // réseau (:324) — il est structurellement inobservable. Un test bâti sur ce scénario
+    // aurait été un faux verrou de plus.
+    //
+    // Le seul cas où ce renvoi fait réellement quelque chose est le CLOUD VIDE : le pull
+    // rend `true` sans toucher à la référence (:397-401), et le renvoi dépose alors
+    // l'inventaire local. C'est ce cas — le seul qui compte — que ce test fige.
+    it('FV-7b : un clic manuel sur un cloud VIDE y dépose l\'inventaire local (aller-retour)', async () => {
+      cloudStore = null; // première synchro : la base est vide
+
+      const putsAvant = putCalls().length;
+      await requestSyncOp('manual');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(getCalls().length).toBeGreaterThan(0);          // le cloud a bien été interrogé
+      expect(putCalls().length).toBeGreaterThan(putsAvant);  // et l'inventaire local y est monté
+      expect(cloudStore).toBeTruthy();
+      expect(JSON.parse(cloudStore).ingredients).toHaveLength(1);
     });
   });
 

@@ -179,6 +179,49 @@ describe('LOT 013 — handleAddInput (js/app.js, accessible via window)', () => 
         expect(emojisAffiches).not.toContain('🌶️');
     });
 
+    // FAUX VERROU FV-4 (audit adversarial du 2026-07-31, mutation M21) : le test ci-dessus
+    // ne couvre que la course FRAPPE → FRAPPE, dont le jeton est pris en js/app.js:2154 et
+    // vérifié en :2160. L'invalidation lors de l'EFFACEMENT du champ vit ailleurs
+    // (js/app.js:2099) : la supprimer laissait les 559 tests verts, alors qu'une réponse IA
+    // en vol venait alors réécrire catégorie et emoji dans un formulaire que Joel avait vidé.
+    it('JETON ANTI-COURSE (2e moitié) : vider le champ invalide la requête IA en vol — '
+       + 'elle ne réécrit rien dans un formulaire vidé', async () => {
+        const resolveurs = [];
+        vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => resolveurs.push(resolve))));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800); // l'appel IA part, il est en vol
+        expect(resolveurs.length).toBe(1);
+
+        // Joel efface tout avant que la réponse revienne.
+        window.handleAddInput('');
+        expect(document.getElementById('add-category').value).toBe('');
+
+        // La réponse périmée atterrit maintenant.
+        resolveurs[0](fetchOk(geminiEnveloppe({ category: 'Épices sèches', emojis: ['🌶️'] })));
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('');
+        expect(document.getElementById('add-emoji').value).toBe('');
+    });
+
+    // FAUX VERROU FV-5 (audit adversarial du 2026-07-31, mutation M26) : la garde
+    // `!emojiInput.value` de js/app.js:2189 empêche l'IA d'écraser un emoji que Joel a déjà
+    // choisi. La retirer laissait les 559 tests verts. La règle jumelle de searchEmojiAddAI
+    // était testée, celle de handleAddInput ne l'était pas.
+    it('l\'IA n\'écrase JAMAIS un emoji déjà choisi manuellement', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fetchOk(geminiEnveloppe({ category: 'Légumes', emojis: ['🥕'] }))));
+        document.getElementById('add-emoji').value = '🥬'; // choix de Joel, antérieur
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-emoji').value).toBe('🥬');
+        // La catégorie, elle, se remplit normalement : seule l'écrasement d'emoji est bloqué.
+        expect(document.getElementById('add-category').value).toBe('Légumes');
+    });
+
     it('ajoute les emojis proposés par l\'IA à la grille, avec leur ancre data-emoji '
        + '(dédoublonnage NON prouvable ici — voir commentaire)', async () => {
         // La production dédoublonne via `container.querySelector('[data-emoji="${e}"]')`

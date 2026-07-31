@@ -376,17 +376,47 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             expect(toasts()).toContain('Erreur lors de la copie');
         });
 
-        it('le repli REND le focus au champ que l\'utilisateur était en train de remplir', async () => {
+        // FAUX VERROU FV-1 (audit adversarial du 2026-07-31, mutations M18 vs M48) — ce test
+        // était TAUTOLOGIQUE dans sa forme d'origine. Il n'assertait que
+        // `document.activeElement === champ` : or sous jsdom, le `ta.select()` du repli
+        // (js/app.js:1702) ne DÉPLACE PAS le focus. Le repli ne volait donc jamais le focus
+        // dans l'environnement de test, et l'assertion était vraie par construction — supprimer
+        // purement la restauration (js/app.js:1710) laissait le test vert.
+        //
+        // On teste donc le MÉCANISME et non son effet observable : la restauration doit être
+        // réellement appelée sur le champ mémorisé. C'est la seule chose que jsdom permette de
+        // prouver ici ; l'effet visuel reste, lui, une preuve navigateur.
+        it('le repli REND le focus au champ que l\'utilisateur était en train de remplir '
+           + '(mécanisme espionné : jsdom ne vole jamais le focus, cf. FV-1)', async () => {
             removeClipboard();
             document.execCommand = vi.fn(() => true);
             document.body.innerHTML = '<input id="saisie-en-cours">';
             const champ = document.getElementById('saisie-en-cours');
             champ.focus();
+            const focusSpy = vi.spyOn(champ, 'focus');
             state.ingredients = [ing({ inStock: true })];
 
             await window.exportClipboard('simple');
 
+            expect(focusSpy).toHaveBeenCalled();
             expect(document.activeElement).toBe(champ);
+        });
+
+        // Corollaire : la restauration vit dans le `finally` (js/app.js:1706-1711), donc elle
+        // doit avoir lieu MÊME quand la copie échoue — sinon un échec de copie laisserait Joel
+        // avec le curseur nulle part.
+        it('le focus est rendu MÊME si la copie de repli échoue', async () => {
+            removeClipboard();
+            document.execCommand = vi.fn(() => { throw new Error('interdit'); });
+            document.body.innerHTML = '<input id="saisie-en-cours">';
+            const champ = document.getElementById('saisie-en-cours');
+            champ.focus();
+            const focusSpy = vi.spyOn(champ, 'focus');
+            state.ingredients = [ing({ inStock: true })];
+
+            await window.exportClipboard('simple');
+
+            expect(focusSpy).toHaveBeenCalled();
         });
 
         it('execCommand qui échoue SILENCIEUSEMENT (retour false) est traité comme un échec '
