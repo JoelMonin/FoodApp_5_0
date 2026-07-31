@@ -150,9 +150,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## POINT DE REPRISE — LOT 014 (état au 2026-07-31, 12 commits, arbre propre)
+## POINT DE REPRISE — LOT 014 (état au 2026-07-31, 17 commits, arbre propre)
 
-**Métriques : 641/641 Vitest · 13/13 Pytest · build OK · `js/app.js` 2823 → 2216 lignes.**
+**Métriques : 682/682 Vitest · 13/13 Pytest · build OK · `js/app.js` 2823 → 1852 lignes.**
 
 ### Ce qui est FAIT (dans l'ordre des commits, `cce6a44` → `6418bde`)
 
@@ -167,18 +167,26 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 | Auto-audit + suites d'audit | 2 défauts de mon propre travail ; code mort supprimé ; **le même trou trouvé sur 2 autres portes** |
 | **G** — articles libres | Supprimés (10 sites) + filet d'élagage du localStorage |
 | **A** (1/3) | `src/services/exports.js` + `src/services/sync.js` (−570 lignes) |
-| **A** (2/3) | `src/utils/categorize.js`, filet de caractérisation posé AVANT (17 tests) |
+| **A** (2/5) | `src/utils/categorize.js`, filet de caractérisation posé AVANT (17 tests) |
 | Correctifs catégorisation | Les 2 défauts trouvés par ces tests, corrigés sur décision de Joel |
+| **A** (3/5) | `src/ui/addForm.js` — état du formulaire rendu PRIVÉ ; `switchView` injecté (`registerAddFormNav`) pour casser un cycle réel. Filet posé avant : 18 tests, 7/7 mutations |
+| Modale morte retirée | « Ajout groupé » : inatteignable depuis la migration (3 recherches convergentes). Filet de `initKeyboardShortcuts` posé AVANT le retrait — 8 tests, 5/5 mutations |
+| **A** (4/5) | `src/utils/stockMatch.js` — le SSOT du calcul « en stock / manquant ». 15 tests, 7/7 mutations avant déplacement + 8/8 après |
 
 ### Ce qui RESTE
 
-1. **Volet A, fin** — extraire le **formulaire d'ajout** (`src/ui/addForm.js`) puis les
-   **modales** (`src/ui/recipeModal.js`). ⚠️ Les plus délicates : lire §B5 et §B7 de la phase
-   découverte AVANT de commencer (collision de noms `saveRecipeOnly`/`saveRecipeAndList` entre
-   les deux contrats publics ; 3 couplages croisés entre sous-zones ; `selectEmoji` appartient
-   au formulaire mais vit 500 lignes plus loin ; double reset incohérent `switchView`/`renderAdd`).
-   **Zones aveugles restantes à couvrir AVANT déplacement** : `searchEmojiAI`, `selectEmoji`,
-   `confirmBulkAdd`, `toggleAllPickerItems`, `matchIngredientToStock`, `initKeyboardShortcuts`.
+1. **Volet A, fin (5/5)** — extraire les **modales**. La zone se découpe naturellement en
+   **trois** ensembles, pas un seul `recipeModal.js` fourre-tout : le **sélecteur de courses**
+   (`_currentPickerData`, `openEnhancedCartPicker`, `confirmRecipeToCart`, `updatePickerRow`,
+   `toggleAllPickerItems`, `cycleEmoji`), le **détail de recette** (`_currentRecipeDetail` &
+   co., `openRecipeDetail`, `analyzeNutrition`, les 6 fonctions plein écran, `changePplScale`)
+   et l'**édition d'icône** (`_currentEditingIngId`, `openEditEmoji`,
+   `buildEmojiEditSuggestions`, `renderEmojiEditGrid`, `applyEditedEmoji`, `searchEmojiAI`).
+   ⚠️ Lire §B5 AVANT : `saveRecipeOnly`/`saveRecipeAndList` existent dans les DEUX contrats
+   publics avec des fonctions DIFFÉRENTES (`import` ≠ `window`) — un découpage par nom les
+   fusionnerait.
+   **Zones aveugles restantes** : `toggleAllPickerItems`, `updatePickerRow`, `searchEmojiAI`,
+   `renderEmojiEditGrid`. Les 2 autres de la liste d'origine sont faites.
 2. **Volet D** — traque SSOT (liste complète en §B11 de la découverte).
 3. **Volet E** — découpage CSS. Lire §B7 et §B8 : l'interdiction « ne pas toucher `rd-*` » est
    trop grossière (7 des 14 sont morts), et le découpage naturel n'est pas celui de la fiche.
