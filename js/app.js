@@ -70,6 +70,18 @@ import {
   saveApiKey,
   saveAiConfigFromUI
 } from '../src/ui/settings.js';
+// Ecran FAVORIS — extrait d'ici au LOT 017, avec `buildRecipeHandlers` que le LOT 014 avait
+// laissee exprès : elle trouve la-bas ses six dependances en simples imports.
+import {
+  renderFavorites,
+  deleteFav,
+  pousserFavori,
+  saveSuggestionToFavDirect,
+  saveRecipeOnly,
+  saveRecipeAndList,
+  printRecipe,
+  buildRecipeHandlers
+} from '../src/ui/favorites.js';
 import {
   openEnhancedCartPicker,
   confirmRecipeToCart,
@@ -732,20 +744,9 @@ function toggleAiChip(field, el) {
 
 
 
-function buildRecipeHandlers(r, source, favId) {
-    return {
-        closeModal,
-        toggleRecipeFullscreen,
-        changePplScale,
-        saveSuggestionToFav: () => saveSuggestionToFavDirect(r),
-        addSuggestionToCart: () => openEnhancedCartPicker(r),
-        saveRecipeOnly: () => saveRecipeOnly(r),
-        saveRecipeAndList: () => saveRecipeAndList(r),
-        deleteFav: () => deleteFav(source === 'fav' ? favId : r.id),
-        analyzeNutrition: () => analyzeNutrition(r, source, favId),
-        printRecipe: () => printRecipe()
-    };
-}
+// LOT 017 — `buildRecipeHandlers` est partie avec les favoris, comme le LOT 014 l'avait
+// annonce : « elle partira naturellement avec `favorites.js` ». Elle y trouve ses six
+// dependances en simples imports, la ou les porter dans la modale aurait exige six injections.
 
 
 
@@ -767,76 +768,8 @@ function buildRecipeHandlers(r, source, favId) {
 
 
 
-/**
- * Favoris riches (LOT 011, chantier 7). Composant DÉDIÉ (`renderFavoriteCard`), distinct
- * de `renderRecipeCard` (trouvé par l'audit du sous-lot 11A : les deux écrans réutilisaient
- * la même carte sans lui passer les mêmes handlers — un bouton ajouté à l'un aurait planté
- * au clic dans l'autre). État vide enrichi avec CTA vers le collage, oracle l.5871.
- */
-function renderFavorites() {
-    const el = document.getElementById('fav-list');
-    if (!el) return;
-    if (!state.favorites || state.favorites.length === 0) {
-        el.replaceChildren(h('div', { class: 'fav-empty' }, [
-            h('div', { class: 'fav-empty-icon' }, '📖'),
-            h('div', { class: 'fav-empty-title' }, 'Aucune recette favorite'),
-            h('div', { style: { fontSize: '13px', color: 'var(--txt-soft)' } },
-                'Sauvegardez une recette via les Recettes IA ou en collant un texte.'),
-            h('button', {
-                class: 'tb-btn primary',
-                style: { margin: '16px auto 0', display: 'flex' },
-                onclick: () => openModal('modal-paste-recipe')
-            }, '📋 Coller une recette')
-        ]));
-        return;
-    }
-    el.replaceChildren(...state.favorites.map(fav => {
-        const r = fav.recipe || fav; // Repli si les données sont plates (forme canonique).
-        const tags = buildIngredientTags(r.ingredients, 'card');
-        const handlers = {
-            openFav: () => openRecipeDetail(fav.id, 'fav'),
-            deleteFavorite: () => deleteFav(fav.id)
-        };
-        return renderFavoriteCard(fav, handlers, tags);
-    }));
-}
-
-function deleteFav(id) {
-    state.favorites = state.favorites.filter(f => f.id !== id);
-    // saveState() emet 'stateUpdated', qui relance deja renderCurrentView() : pas de rendu manuel.
-    saveState();
-    toast('Recette supprimée');
-}
-
-/**
- * SSOT de l'ajout aux favoris (LOT 014, volet D) : la meme ligne etait ecrite a
- * l'identique dans deux fonctions. Le jour ou un champ s'ajoute a un favori, il ne doit
- * y avoir qu'un seul endroit a modifier.
- */
-function pousserFavori(recette) {
-    state.favorites.push({ ...recette, id: generateId('fav'), date: formatDateFr() });
-}
-
-function saveSuggestionToFavDirect(r) {
-    if (!r) return;
-    pousserFavori(r);
-    saveState();
-    toast('Ajouté aux favoris !');
-}
-
-function saveRecipeOnly(r) {
-    if (!r) return;
-    pousserFavori(r);
-    saveState();
-    toast('Recette sauvegardée !');
-    closeModal('modal-paste-recipe');
-}
-
-function saveRecipeAndList(r) {
-    if (!r) return;
-    saveRecipeOnly(r);
-    openEnhancedCartPicker(r);
-}
+// LOT 017 — l'ecran FAVORIS vit dans `src/ui/favorites.js` (rendu, suppression, les trois
+// chemins de sauvegarde et leur SSOT `pousserFavori`).
 
 /**
  * Construit le favori à partir de la fenêtre « Coller une recette » — recette structurée
@@ -1272,9 +1205,6 @@ async function transformRecipeAI() {
 
 let _lastTransformedRecipe = null;
 
-function printRecipe() {
-    window.print();
-}
 
 // LOT 015, chantier 5 : le champ fichier doit etre REARME apres chaque tentative, sinon
 // resselectionner LE MEME fichier ne declenche plus rien (l'evenement `change` n'est pas
