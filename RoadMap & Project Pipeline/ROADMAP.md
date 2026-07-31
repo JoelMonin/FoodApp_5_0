@@ -60,13 +60,13 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BA%20PUBLIER%5D.md) | Filet de tests UI (promu du backlog) — terminé et audité le 2026-07-31 : 102 tests neufs (448 → 550), matrice de couverture des 84 acquis, 2 audits adversariaux + audit Gemini | **À PUBLIER (5.9)** | `feat/lot13-filet-tests-ui` |
-| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ (5.10) | `feat/lot14-refonte-ssot` |
+| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BEN%20COURS%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) — phase découverte faite le 2026-07-31 : 3 points déjà soldés par les LOTS 013/015, un défaut actif trouvé (`importStockOnly`), 40+ citations corrigées | EN COURS (5.10) | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
 
 | Lot | Sujet | Version |
 |---|---|---|
+| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BCLOTURE%5D.md) | **Filet de tests UI** — 102 tests neufs (448 → 550), matrice de couverture des 84 acquis des LOTS 005-015, infrastructure de test partagée avec son propre garde-fou, 2 audits adversariaux (mutation testing, 0 test tautologique) + audit Gemini | **5.9** |
 | [015](LOT%20015%20-%20Reglages%20fiables%20et%20coherents%20%5BCLOTURE%5D.md) | **Réglages fiables et cohérents** — chaque bouton fait ce qu'il annonce : copies corrigées, bouton JSON supprimé, garde-fou « rien à copier » et repli de copie restaurés, périmètre du fichier de sauvegarde, coches sauvegardées et filtrées, gardes d'entrée durcies, trou de la barrière de synchro fermé | **5.8** |
 | [012](LOT%20012%20-%20Confort%20d%20usage%20retrouve%20%5BCLOTURE%5D.md) | **Confort d'usage retrouvé** — sélecteur éditable (nom + emoji via 🎲), clavier et gestes, barre supérieure contextuelle, styles neufs | **5.7** |
 | [011](LOT%20011%20-%20Recettes%20IA%20riches%20%5BCLOTURE%5D.md) | **Recettes IA riches** — cartes complètes, détail riche, prompts blindés, mode 🎲, favoris riches, récupération d'URL propre | **5.7** |
@@ -100,6 +100,16 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — ouverture du LOT 014** : la phase découverte (4 agents) a de nouveau donné
+  raison à la règle « aucune citation de fiche ne vaut sans re-vérification ». La fiche datait
+  du 2026-07-29, donc d'avant les LOTS 015 et 013 : **3 de ses points étaient déjà soldés**
+  (la table d'emojis dupliquée n'existe plus depuis le LOT 006 ; la séparation de la copie est
+  faite à 80 % par le LOT 015 ; le volet « validation » est à ~40 % en place, avec 48 gardes
+  déjà présentes dans le code). Un **défaut réel et actif en production** a été trouvé au
+  passage : « Importer uniquement le stock » est resté sans la protection que le LOT 015 a
+  posée sur son bouton jumeau — il part en tête du lot. Deux corrections annoncées à Joel :
+  la suppression des articles libres **efface** aussi le champ du cloud (la fiche disait
+  l'inverse), et deux libellés de Réglages qu'il lit deviendront faux. 40+ citations corrigées.
 - **2026-07-31 — le filet publié seul, et non avec la refonte** : arbitrage de Joel à la
   clôture du LOT 013. La campagne avait pour habitude de chaîner les lots par paires
   (007+008, 009+010, 011+012) ; ici le 013 n'est pas le pair du 014, c'est sa **police

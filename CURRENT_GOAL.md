@@ -9,9 +9,21 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 014 — Refonte SSOT et découpage** — dernier lot de la campagne, à ouvrir sur
-`feat/lot14-refonte-ssot` **après la publication du 5.9**. Niveau d'audit **DUR**. Détail :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [PLANIFIE].md`.
+**LOT 014 — Refonte SSOT et découpage**, ouvert le 2026-07-31 sur `feat/lot14-refonte-ssot`
+(depuis `main`, après publication du 5.9). Dernier lot de la campagne. Niveau d'audit **DUR**.
+**Phase découverte faite** (4 agents) : 3 points de la fiche étaient déjà soldés par les LOTS
+006/013/015, un **défaut actif en production** a été trouvé (`importStockOnly`, voir ci-dessous),
+40+ citations corrigées. Détail complet :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [EN COURS].md` §PHASE DÉCOUVERTE.
+
+**Ordre arrêté : C1 → B → C → G → A → D → E → F.**
+
+**Deux points signalés à Joel le 2026-07-31, décision inchangée :**
+- La suppression des articles libres **efface** aussi le champ du cloud dès le premier envoi
+  suivant (la fiche annonçait à tort qu'une copie périmée y resterait). Action de Joel avant la
+  livraison du volet G : copier sa liste de courses s'il veut garder trace du « porc haché ».
+- Deux libellés de Réglages qu'il lit (`index.html:535`, `:571`, « articles libres compris »)
+  deviendront faux et seront réécrits dans le même volet.
 
 **LOT 013 — Filet de tests UI** : terminé et audité le 2026-07-31, **publié seul en Version
 5.9** — 102 tests neufs (448 → 550), matrice de couverture 84/84, 2 audits adversariaux locaux
@@ -90,7 +102,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
-- **014** Refonte SSOT et découpage — ⚪ **PLANIFIÉ**, ferme la campagne (V5.10)
+- **014** Refonte SSOT et découpage — 🔵 **EN COURS** (ouvert le 2026-07-31), ferme la campagne
+  (V5.10)
 
 ## Vérités à ne pas perdre
 
@@ -139,21 +152,20 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-**LOT 014 — Refonte SSOT et découpage**, le dernier de la campagne. Prérequis rempli : le
-filet est en ligne. Ordre de livraison prévu par la fiche : **B → C → G → A → D → E → F**, un
-commit par étape aboutie, validation unifiée verte à chaque commit — pas de « grand soir »,
-pour qu'une étape qui déraille se revert seule.
+**Étape C1 du LOT 014** : fermer le trou d'`importStockOnly` (`src/actions.js:316-319` et
+`:346`). Un fichier `{"ingredients": ["Tomate","Oignon"]}` y fait entrer des ingrédients
+fantômes sans nom, persistés puis poussés au cloud — c'est le défaut exact que le LOT 015 a
+corrigé sur le bouton jumeau « Restaurer une sauvegarde », resté ouvert ici par symétrie
+manquante. Commit isolé, mêmes cas de test que `tests/backup-restore.test.js:290-392`.
 
 **Les deux seuls volets qui changent un comportement** (donc commits séparés, isolés de la
-refonte pure) : **C** — rejet des données invalides (cloud, localStorage, recette IA) — et
-**G** — suppression des « articles libres », décidée par Joel le 2026-07-30. Effet à annoncer
-avant livraison du G : la liste de courses copiée cessera d'inclure le « porc haché » de Joel,
-seul endroit où ce vestige était encore visible.
+refonte pure) : **C** — rejet des données invalides — et **G** — suppression des « articles
+libres », décidée par Joel le 2026-07-30.
 
-**Ce que la fiche du 014 doit se voir confirmer en phase découverte** : elle a été écrite le
-2026-07-29, avant les LOTS 013 et 015. La découverte du 013 y a déjà trouvé une erreur de
-taille (`js/app.js` annoncé « ~1500 lignes », mesuré à 2810) — traiter chaque citation
-`fichier:ligne` comme périmée jusqu'à vérification.
+**Règle de non-régression propre à ce lot** : 9 fonctions que le découpage va déplacer n'ont
+aucun test direct, dont `renderPantryFilters` — la zone que le LOT 013 a lui-même modifiée sans
+la tester. Chacune reçoit un **test de caractérisation avant** d'être déplacée, sinon le filet
+du 013 a un trou exactement là où le code bouge.
 
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.
