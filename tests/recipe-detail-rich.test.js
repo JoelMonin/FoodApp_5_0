@@ -40,6 +40,24 @@ describe('LOT 011 / chantier 2 — écran de détail complet', () => {
         ];
     });
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // TROU TROUVÉ PAR MUTATION (LOT 014 §A) : 88 tests de la zone vérifiaient le CONTENU de
+    // cette modale, aucun ne vérifiait qu'elle S'AFFICHE. Débrancher son ouverture ne faisait
+    // rougir personne — Joel aurait cliqué sur une recette et rien ne serait apparu, le
+    // contenu étant pourtant correctement construit dans un conteneur resté invisible.
+    // Même trou exactement que celui trouvé sur le sélecteur de courses : les tests de modale
+    // de ce projet testaient ce qu'il y a DEDANS, jamais qu'on la voit.
+    // ─────────────────────────────────────────────────────────────────────────────
+    it('ouvrir une recette AFFICHE réellement la modale, pas seulement son contenu', () => {
+        state.favorites = [{ id: 'f1', title: 'Recette de mamie', content: 'Un texte.' }];
+        const modale = document.getElementById('modal-recipe-detail');
+        expect(modale.classList.contains('open')).toBe(false);
+
+        openRecipeDetail('f1', 'fav');
+
+        expect(modale.classList.contains('open')).toBe(true);
+    });
+
     describe('Le cas r.content — le plus important (arbitrage A1)', () => {
         it('un favori texte brut affiche son texte, JAMAIS une fiche vide', () => {
             state.favorites = [{ id: 'f1', title: 'Recette de mamie', content: 'Mélanger, cuire, déguster.' }];

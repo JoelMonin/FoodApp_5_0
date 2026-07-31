@@ -25,6 +25,20 @@ import { matchIngredientToStock, buildIngredientTags } from '../src/utils/stockM
 // INJECTES (openModal/closeModal, qui ne sont pas de simples helpers, et
 // buildEmojiEditSuggestions, qui appartient a la modale d'edition d'icone) : voir
 // l'en-tete du module pour le detail du noeud annonce par la phase decouverte.
+// Modale « detail de recette » — extraite d'ici au LOT 014, volet A. `buildRecipeHandlers`
+// reste ici : c'est du cablage vers la zone favoris, pas du rendu.
+import {
+  renderRecipeModal,
+  openRecipeDetail,
+  analyzeNutrition,
+  isDocumentFullscreen,
+  exitDocumentFullscreen,
+  toggleRecipeFullscreen,
+  syncRecipeFullscreenClass,
+  initRecipeFullscreenListeners,
+  changePplScale,
+  registerRecipeModalHooks
+} from '../src/ui/recipeModal.js';
 // Modale « changer l'icone » — extraite d'ici au LOT 014, volet A.
 import {
   openEditEmoji,
@@ -147,6 +161,7 @@ registerSyncUi({ restoreAiForm: restoreAIConfig, refreshSystemInfo: updateSystem
 registerAddFormNav({ switchView });
 registerCartPickerHooks({ openModal, closeModal });
 registerEmojiModalHooks({ openModal, closeModal });
+registerRecipeModalHooks({ openModal, buildRecipeHandlers });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -675,16 +690,6 @@ function saveAiConfigFromUI() {
 }
 
 
-// LOT 010 (casse C12) — état du modal recette ouvert, module-level comme dans l'oracle
-// (`_originalPpl`/`_currentScale`, `foodapp-v5-Joel.html` l.5357-5359). `_originalPpl`
-// est LA référence : `_currentScale` en est toujours dérivé, jamais accumulé, ce qui
-// évite toute dérive d'arrondi d'un changement à l'autre.
-let _currentRecipeDetail = null;
-let _currentRecipeSource = 'ai';
-let _currentRecipeFavId = null;
-let _originalPpl = 2;
-let _currentScale = 1;
-
 function buildRecipeHandlers(r, source, favId) {
     return {
         closeModal,
@@ -700,155 +705,17 @@ function buildRecipeHandlers(r, source, favId) {
     };
 }
 
-/**
- * Re-rend le modal recette avec l'échelle courante (LOT 010, casse C12).
- * Point d'entrée UNIQUE du rendu du modal : `openRecipeDetail` (nouvelle ouverture,
- * échelle réinitialisée), `changePplScale` (échelle changée) et `analyzeNutrition`
- * (échelle PRÉSERVÉE — l'analyse ne doit jamais remettre à 1 un choix déjà fait) s'y
- * appellent tous, jamais un `replaceChildren` direct.
- */
-function renderRecipeModal() {
-    const modal = document.getElementById('modal-recipe-detail');
-    if (!modal || !_currentRecipeDetail) return;
-    const tags = buildIngredientTags(_currentRecipeDetail.ingredients, 'detail');
-    modal.replaceChildren(renderRecipeDetail(
-        _currentRecipeDetail,
-        _currentRecipeSource,
-        buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
-        _currentScale,
-        tags
-    ));
-}
 
-function openRecipeDetail(idx, source = 'ai') {
-    let r = null;
-    let favId = null;
-    if (source === 'ai') {
-        r = state.aiSuggestions[idx];
-    } else if (source === 'fav') {
-        const fav = state.favorites.find(f => f.id === idx);
-        if (fav) {
-            r = fav.recipe || fav;
-            favId = fav.id;
-        }
-    }
 
-    if (!r) return;
 
-    _currentRecipeDetail = r;
-    _currentRecipeSource = source;
-    _currentRecipeFavId = favId;
-    _originalPpl = parseInt(r.people || r.ppl) || 2;
-    _currentScale = 1;
 
-    renderRecipeModal();
-    openModal('modal-recipe-detail');
-}
 
-async function analyzeNutrition(r, source, favId) {
-    if (!r || !r.ingredients) return;
-    const apiKey = state.aiConfig.apiKey;
-    if (!apiKey) { toast("Clé API requise pour l'analyse", 'error'); return; }
 
-    const btn = document.getElementById('rd-nutri-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Analyse...';
-    }
-
-    try {
-        const ingList = (r.ingredients || []).map(i => (i.q || i.amount || '') + ' ' + (i.n || i.name)).join(', ');
-        const prompt = `Tu es un nutritionniste expert. Analyse cette recette:\nNom: ${r.name}\nIngrédients: ${ingList}\nInstructions: ${(r.steps || r.instructions || []).join(' ')}\n\nEstime le Nutri-Score (A à E) et le nombre de kilocalories (kcal) pour UNE portion (la recette est pour ${r.people || r.ppl || 1} pers.), et propose 2 tags courts. Réponds UNIQUEMENT en JSON: {"score": "A", "kcal": 450, "tags": ["Sain", "Léger"]}`;
-
-        const model = state.aiConfig.models?.nutrition || AI_ROLES.REASONING;
-        const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
-        const match = raw.match(/\{[\s\S]*?\}/);
-        if (!match) throw new Error("Réponse IA invalide");
-        
-        const nutrition = JSON.parse(match[0]);
-        r.nutrition = nutrition;
-
-        saveState();
-        // LOT 010 (casse C12) : re-rend via le point d'entrée unique, qui PRÉSERVE
-        // l'échelle courante — une analyse ne doit jamais remettre le nombre de
-        // personnes à sa valeur d'origine si l'utilisateur l'avait déjà changé.
-        renderRecipeModal();
-        toast('Analyse nutritionnelle terminée !');
-    } catch (e) {
-        console.error(e);
-        toast("Erreur analyse nutrition", 'error');
-        if (btn) {
-            btn.disabled = false;
-            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton
-            // (`src/ui/recipe.js`, NUTRI_BTN_LABEL) — sans ce rappel, un échec laissait
-            // un texte plus court que celui rendu la première fois.
-            btn.textContent = '🔍 Estimer la valeur nutritionnelle (IA)';
-        }
-    }
-}
-
-/**
- * Vrai plein écran d'appareil (LOT 009, casse C6) : la classe CSS
- * `recipe-fullscreen` assure le repli visuel même si l'API navigateur refuse
- * (contexte non interactif, permission absente) — la classe est posée AVANT
- * l'appel API et ne dépend jamais de sa réussite.
- */
-function isDocumentFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
-        document.mozFullScreenElement || document.msFullscreenElement);
-}
-
-function requestElementFullscreen(el) {
-    const request = el.requestFullscreen || el.webkitRequestFullscreen ||
-        el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (!request) return Promise.reject(new Error('Fullscreen API indisponible'));
-    return request.call(el);
-}
-
-function exitDocumentFullscreen() {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen ||
-        document.mozCancelFullScreen || document.msExitFullscreen;
-    if (!exit) return Promise.resolve();
-    return exit.call(document);
-}
-
-function toggleRecipeFullscreen(id) {
-    const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (!el) return;
-    if (el.classList.contains('recipe-fullscreen')) {
-        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
-        else el.classList.remove('recipe-fullscreen');
-    } else {
-        el.classList.add('recipe-fullscreen');
-        requestElementFullscreen(el).catch(() => { /* repli CSS pur, cf. commentaire ci-dessus */ });
-    }
-}
 
 // Resynchronise la classe si l'utilisateur sort par Échap ou un geste système —
 // les 4 variantes préfixées de l'évènement (oracle l.5457-5464).
-function syncRecipeFullscreenClass() {
-    const el = document.getElementById('modal-recipe-detail');
-    if (el && !isDocumentFullscreen()) el.classList.remove('recipe-fullscreen');
-}
 
-function initRecipeFullscreenListeners() {
-    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
-        .forEach(evt => document.addEventListener(evt, syncRecipeFullscreenClass));
-}
 
-/**
- * Recalcule les quantités affichées selon le nombre de personnes (LOT 010, casse
- * C12). Porté depuis l'oracle (`foodapp-v5-Joel.html` l.5467-5472) : la nouvelle
- * échelle se calcule TOUJOURS depuis `_originalPpl`, jamais en cumulant sur la
- * précédente — c'est ce qui garantit l'absence de dérive d'arrondi. Bornes 1-20 :
- * au-delà, le clic est sans effet.
- */
-function changePplScale(delta) {
-    const newPpl = (_originalPpl * _currentScale) + delta;
-    if (newPpl < 1 || newPpl > 20) return;
-    _currentScale = newPpl / _originalPpl;
-    renderRecipeModal();
-}
 
 /**
  * Confronte un ingrédient de recette à l'inventaire.
