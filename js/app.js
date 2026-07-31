@@ -731,25 +731,16 @@ function buildRecipeHandlers(r, source, favId) {
 
 
 
-// Resynchronise la classe si l'utilisateur sort par Échap ou un geste système —
-// les 4 variantes préfixées de l'évènement (oracle l.5457-5464).
-
-
-
-/**
- * Confronte un ingrédient de recette à l'inventaire.
- *
- * Deux sources d'information, par ordre de fiabilité :
- *  1. le statut `s` renvoyé par l'IA (`stock` | `pinned` | `missing`), qui n'est
- *     présent que pour les recettes générées, pas pour celles collées à la main ;
- *  2. à défaut, l'inventaire réel, via `areSimilar` — le comparateur déjà utilisé
- *     pour la détection de doublons et l'ajout d'ingrédients.
- *
- * @returns {{inStock: boolean, matchedName: string|null, isExact: boolean}}
- */
-// LOT 014, volet A — `matchIngredientToStock` et `buildIngredientTags` ont demenage
-// dans `src/utils/stockMatch.js` (deplacement pur ; filet pose AVANT,
-// tests/stock-match.test.js). C'est le SSOT du calcul « en stock / manquant ».
+// LOT 014, volet A — `matchIngredientToStock` et `buildIngredientTags` ont demenage dans
+// `src/utils/stockMatch.js` (deplacement pur ; filet pose AVANT, tests/stock-match.test.js).
+// C'est le SSOT du calcul « en stock / manquant ». Le plein ecran de la modale de recette
+// est parti avec elle, dans `src/ui/recipeModal.js`.
+//
+// LOT 017 — la DOCUMENTATION de ces fonctions etait restee ici, orpheline : un bloc JSDoc
+// decrivant en detail `matchIngredientToStock` juste au-dessus d'une fonction qui n'est plus
+// la, et un commentaire sur le plein ecran sans son code. Exactement le « commentaire
+// menteur » que le LOT 014 traquait ailleurs, laisse par ses propres deplacements. Retires :
+// la doc vit desormais avec le code qu'elle decrit.
 
 
 

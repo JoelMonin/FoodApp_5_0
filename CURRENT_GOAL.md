@@ -9,6 +9,21 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
+**LOT 017 — Second rangement de `js/app.js`** : ouvert le 2026-07-31 sur
+`feat/lot17-second-rangement-app-js`, **chaînée depuis `feat/lot16`** (le LOT 016 est
+`[A PUBLIER]`, pas encore en ligne — précédent établi par les LOTS 007+008, 009+010,
+011+012, fusionnés ensemble). Niveau d'audit **Standard**. Base de travail :
+`Backlog/BACKLOG - Second rangement de app.js.md`.
+
+**⚠️ La mesure de départ était fausse DEUX FOIS** : la fiche backlog annonçait `js/app.js` à
+**1523 lignes** (chiffre écrit à la main à la clôture du LOT 014, jamais remesuré), et ma
+première vérification a répondu **1366** — un comptage des lignes NON VIDES, donc faux lui
+aussi. **La valeur réelle est 1527 lignes**, identique depuis 5 commits. Deux chiffres faux
+d'affilée sur la mesure la plus simple du lot : rien ne se cite sans être remesuré, pas même
+une correction.
+
+## Lot précédent — LOT 016, en attente de publication
+
 **LOT 016 — Étiquettes de recette au propre** : ouvert et **terminé le 2026-07-31** sur
 `feat/lot16-etiquettes-recette-css`, statut **A PUBLIER**. Traite le point de sortie n°2 du
 LOT 014 (`.r-tag`), que Joel avait volontairement reporté. Détail et preuves :
