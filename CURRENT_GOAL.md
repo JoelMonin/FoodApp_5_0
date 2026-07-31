@@ -11,10 +11,10 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 **LOT 014 — Refonte SSOT et découpage**, ouvert le 2026-07-31 sur `feat/lot14-refonte-ssot`
 (depuis `main`, après publication du 5.9). Dernier lot de la campagne. Niveau d'audit **DUR**.
-**Phase découverte faite** (4 agents) : 3 points de la fiche étaient déjà soldés par les LOTS
-006/013/015, un **défaut actif en production** a été trouvé (`importStockOnly`, voir ci-dessous),
-40+ citations corrigées. Détail complet :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [EN COURS].md` §PHASE DÉCOUVERTE.
+**TERMINÉ ET VALIDÉ le 2026-07-31 — statut A PUBLIER, pas encore en ligne** (Joel a demandé
+explicitement de ne pas publier pour l'instant ; VERROU PRODUCTION). Détail complet, y
+compris l'audit DUR final (6 agents adversariaux) :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [A PUBLIER].md`.
 
 **Ordre arrêté : C1 → B → C → G → A → D → E → F.**
 
@@ -102,8 +102,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
-- **014** Refonte SSOT et découpage — 🔵 **EN COURS** (ouvert le 2026-07-31), ferme la campagne
-  (V5.10)
+- **014** Refonte SSOT et découpage — 🟡 **A PUBLIER** (clos le 2026-07-31), ferme la campagne
+  (V5.10). **Joel a explicitement demandé de ne PAS publier en ligne pour l'instant** — reste
+  sur `feat/lot14-refonte-ssot`, en attente du feu vert (VERROU PRODUCTION).
 
 ## Vérités à ne pas perdre
 
@@ -150,7 +151,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## POINT DE REPRISE — LOT 014 (état au 2026-07-31, arbre propre)
+## LOT 014 CLOS — A PUBLIER (état au 2026-07-31, arbre propre, pas encore en ligne)
 
 **Métriques : 784/784 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
 · feuille de style 49,5 → 43,96 Ko.**
@@ -177,17 +178,22 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icône) ·
 `sanitize()` supprimée (addendum posé sur la fiche du LOT 003).
 
-### Ce qui RESTE — **tout le périmètre technique est livré et audité ; 2 points de sortie**
+### Les 2 points de sortie — **tous deux clos par Joel le 2026-07-31**
 
-1. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
-   niveau du fichier produit, mais le retrait des 62 règles mortes change forcément ce
-   fichier. Le raisonnement est solide, un regard humain reste la ceinture et les bretelles.
-2. **Décision de Joel sur `.r-tag.red`/`.r-tag.green`** (trouvé par l'audit DUR du
-   2026-07-31) : probablement dupliquées entre `05-ai.css` et `12-utilities.css` avec des
-   valeurs différentes (même mécanisme que `.recipe-detail-section`, déjà corrigé — la
-   version de `05-ai.css` serait alors du CSS mort). **Non touché** : `.r-tag` figure sur la
-   liste des classes explicitement protégées « CSS REBRANCHÉ par la campagne » plus haut dans
-   ce document — remonté plutôt que tranché seul.
+1. **Coup d'œil de Joel sur les 5 vues et les modales** (le retrait des 62 règles CSS mortes
+   change forcément le fichier produit, même si la preuve au niveau du build est solide) —
+   **fait, « tout m'a l'air ok »**.
+2. **Décision de Joel sur `.r-tag.red`/`.r-tag.green`** (probablement dupliquées entre
+   `05-ai.css` et `12-utilities.css`, même mécanisme que `.recipe-detail-section` déjà
+   corrigé — mais `.r-tag` figure sur la liste des classes protégées « CSS REBRANCHÉ par la
+   campagne », donc remonté plutôt que tranché seul) — **Joel a choisi de clôturer le lot
+   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. Reste donc
+   ouvert, sciemment, hors du lot 014 : ne pas le re-décider seul si le sujet revient, c'est
+   déjà un choix de Joel.
+
+**Publication : NON.** Joel a explicitement demandé de ne pas mettre en ligne pour
+l'instant — VERROU PRODUCTION oblige, le lot reste sur `feat/lot14-refonte-ssot` en statut
+`[A PUBLIER]` jusqu'à un feu vert donné au moment même du déploiement.
 
 **SECOND RANGEMENT de `js/app.js` (2823 → 1523 lignes, −46 %, cible 700 non atteinte)** :
 tranché par Joel le 2026-07-31 — ni abandonné, ni empilé sur ce lot déjà énorme, un lot

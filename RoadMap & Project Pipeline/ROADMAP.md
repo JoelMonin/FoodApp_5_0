@@ -60,7 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BEN%20COURS%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) — phase découverte faite le 2026-07-31 : 3 points déjà soldés par les LOTS 013/015, un défaut actif trouvé (`importStockOnly`), 40+ citations corrigées | EN COURS (5.10) | `feat/lot14-refonte-ssot` |
+| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BA%20PUBLIER%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **A PUBLIER** — attend le feu vert de Joel (V5.10) | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
 
@@ -100,6 +100,15 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — LOT 014 terminé, A PUBLIER** : les 9 volets (C1, B, C, G, A, D, correctifs
+  IA, E, F) faits et testés, check-list des régressions reparcourue. Audit DUR final : 6
+  agents adversariaux locaux en parallèle (correctifs IA, découpage `js/app.js`, CSS,
+  sécurité des données, qualité des tests par mutation réelle, traque SSOT indépendante) —
+  1 défaut bloquant et 3 moyens trouvés et corrigés, 3 mineurs corrigés, 1 mineur documenté
+  sans être tranché (`.r-tag.red`/`.r-tag.green`, remonté à Joel car sur la liste des classes
+  protégées de la campagne). 784/784 Vitest, 16/16 Pytest, build OK. **Joel a explicitement
+  demandé de ne PAS publier en ligne pour l'instant** (VERROU PRODUCTION) : le lot reste sur
+  sa branche, en attente du feu vert.
 - **2026-07-31 — ouverture du LOT 014** : la phase découverte (4 agents) a de nouveau donné
   raison à la règle « aucune citation de fiche ne vaut sans re-vérification ». La fiche datait
   du 2026-07-29, donc d'avant les LOTS 015 et 013 : **3 de ses points étaient déjà soldés**
