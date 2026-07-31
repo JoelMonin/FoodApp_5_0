@@ -776,28 +776,39 @@ function renderPantryFilters() {
         { val: 'frozen', label: 'Surgelés', emoji: '❄️ ', cls: '' },
     ];
 
+    // LOT 013 (écart d'ancrage autorisé) : `data-filter` est un attribut de TEST pur, posé
+    // ici pour la première fois — contrairement à `data-val` des puces IA (js/app.js §aiConfig),
+    // aucun code applicatif ne le lit. Ne pas le confondre avec un attribut fonctionnel.
     const chips = [
         // "Tous" — remet tout à zéro
         h('div', {
             class: `chip ${state.filter === 'all' && !state.showInStockOnly && !state.showInCartOnly ? 'active' : ''}`,
+            'data-testid': 'filter-chip',
+            'data-filter': 'all',
             onclick: () => resetFilters()
         }, 'Tous'),
 
         // Toggles combinables
         ...toggles.map(t => h('div', {
             class: `chip ${t.cls} ${state[t.key] ? 'active' : ''}`,
+            'data-testid': 'filter-chip',
+            'data-filter': t.key,
             onclick: t.onclick
         }, `${t.emoji}${t.label}`)),
 
         // Filtres exclusifs
         ...exclusifs.map(s => h('div', {
             class: `chip ${s.cls} ${state.filter === s.val ? 'active' : ''}`,
+            'data-testid': 'filter-chip',
+            'data-filter': s.val,
             onclick: () => setFilter(s.val)
         }, `${s.emoji}${s.label}`)),
 
         // Catégories
         ...CATEGORIES.map(cat => h('div', {
             class: `chip ${state.filter === cat ? 'active' : ''}`,
+            'data-testid': 'filter-chip',
+            'data-filter': cat,
             onclick: () => setFilter(cat)
         }, `${getCategoryEmoji(cat)} ${cat}`))
     ];

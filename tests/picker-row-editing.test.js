@@ -130,4 +130,38 @@ describe('LOT 012 / zone A — édition par ligne du sélecteur', () => {
         expect(document.getElementById('pitem-1').querySelector('.picker-badge')).toBeFalsy();
         expect(document.getElementById('pitem-1').classList.contains('checked')).toBe(true);
     });
+
+    // ─── LOT 013 : la branche `areSimilar` de confirmRecipeToCart n'était couverte par ───
+    // ─── AUCUN test avant ce lot (js/app.js:1413-1418).                                ───
+    it('un ingrédient déjà présent (même approximativement) est RÉUTILISÉ, jamais dupliqué '
+       + '(areSimilar, js/app.js:1413)', () => {
+        state.ingredients = [
+            { id: 'existant_1', name: 'Yaourt', category: 'Crèmerie', emoji: '🥛', inStock: true, inCart: false, shoppingSource: null }
+        ];
+        openEnhancedCartPicker(recette([{ n: 'Yaourt', q: '1', e: '🥛', c: 'Crèmerie' }]));
+        document.getElementById('pick-0').checked = true;
+
+        confirmRecipeToCart();
+
+        expect(state.ingredients.length).toBe(1); // aucun doublon créé
+        const existant = state.ingredients.find(i => i.id === 'existant_1');
+        expect(existant.inCart).toBe(true);
+        expect(existant.shoppingSource).toBe('Test'); // nom de la recette passée à recette()
+        expect(existant.inStock).toBe(true); // le reste de la fiche n'est pas altéré
+    });
+
+    it('sans correspondance existante : un NOUVEL ingrédient est créé, avec un id neuf', () => {
+        state.ingredients = [];
+        openEnhancedCartPicker(recette([{ n: 'Fenouil', q: '1', e: '🌿', c: 'Légumes' }]));
+        document.getElementById('pick-0').checked = true;
+
+        confirmRecipeToCart();
+
+        expect(state.ingredients.length).toBe(1);
+        const nouveau = state.ingredients[0];
+        expect(nouveau.name).toBe('Fenouil');
+        expect(nouveau.inCart).toBe(true);
+        expect(nouveau.inStock).toBe(false);
+        expect(nouveau.id).toBeTruthy();
+    });
 });

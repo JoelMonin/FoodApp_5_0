@@ -568,6 +568,67 @@ describe('Moteur de synchro — LOT 007', () => {
       expect(document.getElementById('info-last-sync').textContent).not.toBe('--');
       expect(document.getElementById('info-network').textContent).toBe('🌐 Connecté');
     });
+
+    // LOT 013 — audit adversarial du diff : la matrice de couverture citait ce describe
+    // pour « les DEUX voyants, sans toast » alors que seul le desktop était vérifié, et
+    // qu'aucune assertion ne portait sur l'ABSENCE de toast. Comblé ici.
+    it('le voyant MOBILE suit le même cycle que le desktop', async () => {
+      const mobile = document.getElementById('sync-indicator-mobile');
+      const label = mobile.querySelector('.sync-label');
+
+      await performSyncSend();
+      expect(mobile.className).toContain('success');
+      expect(label.textContent).toBe('À jour ✓');
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(mobile.className).toBe('sync-indicator');
+      expect(label.textContent).toBe('Cloud Sync');
+    });
+
+    it('une synchro automatique réussie n\'affiche AUCUN toast (le voyant suffit)', async () => {
+      await performSyncSend();
+      expect(document.querySelectorAll('.toast').length).toBe(0);
+    });
+  });
+
+  // LOT 013 — l'acquis LOT 007 « récupération au retour d'onglet » n'était couvert par
+  // AUCUN test (audit adversarial du diff : `initSyncEngine` teste le drapeau, jamais
+  // l'écouteur `visibilitychange` lui-même, js/app.js:493-495).
+  describe('Retour d\'onglet déclenche une récupération (§4.4, LOT 007)', () => {
+    it('document redevenu visible, en ligne → une récupération est lancée', async () => {
+      initSyncEngine();
+      // `initSyncEngine` lance elle-même un pull initial SANS l'attendre : il faut le
+      // laisser se résoudre en entier avant de mesurer `avant`, sinon `_syncInFlight`
+      // est encore vrai et la récupération suivante serait mise en FILE plutôt que
+      // réellement relancée (même s'il n'y a pas de vrai timer à avancer ici, il faut
+      // laisser les micro-tâches déjà en attente se dérouler).
+      await vi.advanceTimersByTimeAsync(0);
+      const avant = getCalls().length;
+
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Robuste au nombre EXACT d'écouteurs déjà accumulés par d'autres tests du même
+      // fichier (`initSyncEngine` en ajoute un nouveau à chaque appel, jamais retiré) :
+      // ce qui compte ici est qu'AU MOINS une récupération parte, pas laquelle.
+      expect(getCalls().length).toBeGreaterThan(avant);
+    });
+
+    it('document redevenu visible mais HORS LIGNE → aucune récupération', () => {
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+      try {
+        initSyncEngine();
+        const avant = getCalls().length;
+
+        Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+
+        expect(getCalls().length).toBe(avant);
+      } finally {
+        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+      }
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────

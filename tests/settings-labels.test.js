@@ -11,15 +11,19 @@ import { resolve } from 'node:path';
 // stock » prétendait ne toucher qu'à la « disponibilité » alors qu'il applique quatre
 // états et peut ajouter des ingrédients.
 //
-// Ces tests lisent le VRAI `index.html` (aucun test du dépôt ne le faisait avant ce lot) et
-// ciblent les boutons par leur `onclick` — jamais par leur texte, ce qui rendrait
-// l'assertion circulaire. Aucun bouton de cette page ne porte d'`id`.
+// Ces tests lisent le VRAI `index.html` (aucun test du dépôt ne le faisait avant ce lot).
+//
+// LOT 013 (écart d'ancrage autorisé par Joel, 2026-07-30) : les 9 cartes portent désormais
+// un `id` stable (`settings-*`) — posé PRÉCISÉMENT parce que ce fichier ciblait jusqu'ici les
+// boutons par leur `onclick`, ce qui casserait tout le fichier au moindre renommage de
+// fonction prévu par le LOT 014 (`exportClipboard` → `src/services/exports.js`). Migré vers
+// une sélection par `id` ; l'`onclick` n'est plus lu que là où c'est LUI le comportement
+// testé (l'argument exact passé à `exportClipboard`), jamais comme simple sélecteur.
 
 let doc;
 
-function carte(onclick) {
-    const bouton = [...doc.querySelectorAll('#view-export button.export-btn')]
-        .find(b => b.getAttribute('onclick') === onclick);
+function carte(id) {
+    const bouton = doc.querySelector(`#view-export #${id}`);
     if (!bouton) return null;
     return {
         titre: bouton.querySelector('.export-btn-label')?.textContent.trim() ?? '',
@@ -46,7 +50,12 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
 
     // ─── Chantier 4 : la carte qui mentait sur le JSON a disparu ───
     it('la carte « Données techniques (JSON) » n\'existe plus', () => {
-        expect(carte("exportClipboard('full')")).toBeNull();
+        // Pas d'id à chercher : cette carte n'a jamais existé depuis la pose des ancres du
+        // LOT 013. On prouve son absence par le seul lien qu'elle aurait pu laisser :
+        // aucun bouton de la page n'appelle plus `exportClipboard('full')`.
+        const appelsFull = [...doc.querySelectorAll('#view-export button')]
+            .filter(b => b.getAttribute('onclick') === "exportClipboard('full')");
+        expect(appelsFull).toHaveLength(0);
     });
 
     it('plus AUCUNE carte de la page ne promet du JSON dans son titre — le mot ne reste '
@@ -56,15 +65,19 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
         expect(titres.filter(t => /json/i.test(t))).toHaveLength(0);
     });
 
-    it('il reste exactement trois façons de copier, dont la liste de courses', () => {
-        const copies = [...doc.querySelectorAll('#view-export button.export-btn')]
-            .map(b => b.getAttribute('onclick'))
-            .filter(a => a?.startsWith('exportClipboard'));
-        expect(copies).toEqual([
-            "exportClipboard('simple')",
-            "exportClipboard('categorized')",
-            "exportClipboard('cart')"
-        ]);
+    it('il reste exactement trois façons de copier, dont la liste de courses, dans cet ordre', () => {
+        // L'id ancre l'IDENTITÉ et l'ORDRE des boutons ; l'onclick, lui, reste la seule
+        // preuve de l'ARGUMENT exact envoyé à exportClipboard — les deux ne se remplacent
+        // pas l'un l'autre.
+        const idsDeCopie = ['settings-copy-stock', 'settings-copy-stock-categorized', 'settings-copy-cart'];
+        const ordreReel = [...doc.querySelectorAll('#view-export button.export-btn')]
+            .map(b => b.id)
+            .filter(id => idsDeCopie.includes(id));
+        expect(ordreReel).toEqual(idsDeCopie);
+
+        expect(doc.getElementById('settings-copy-stock').getAttribute('onclick')).toBe("exportClipboard('simple')");
+        expect(doc.getElementById('settings-copy-stock-categorized').getAttribute('onclick')).toBe("exportClipboard('categorized')");
+        expect(doc.getElementById('settings-copy-cart').getAttribute('onclick')).toBe("exportClipboard('cart')");
     });
 
     // ─── Chantier 8 : titres de sections orientés intention ───
@@ -78,27 +91,27 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
 
     // ─── Chantier 1 : le titre annonçait le stock, le bouton copiait les courses ───
     it('« Copier mon stock » parle bien du stock, jamais de courses', () => {
-        const c = carte("exportClipboard('simple')");
+        const c = carte('settings-copy-stock');
         expect(c.titre).toBe('Copier mon stock (liste simple)');
         expect(c.sous).not.toMatch(/course/i);
     });
 
     // ─── Chantier 3 : les articles libres sont désormais inclus, il faut le dire ───
     it('« Copier ma liste de courses » annonce les articles libres, maintenant qu\'ils y sont', () => {
-        const c = carte("exportClipboard('cart')");
+        const c = carte('settings-copy-cart');
         expect(c.sous).toMatch(/articles libres/i);
     });
 
     // ─── Chantier 5 : la clé API ne sort jamais dans le fichier ───
     it('« Télécharger une sauvegarde » prévient que la clé API n\'est PAS dans le fichier', () => {
-        const c = carte('exportJSON()');
+        const c = carte('settings-download-backup');
         expect(c.sous).toMatch(/clé API/i);
         expect(c.sous).toMatch(/jamais/i);
     });
 
     // ─── Chantier 8 : la paire Restaurer / Importer doit être limpide ───
     it('« Restaurer » annonce un REMPLACEMENT total et la conservation de la clé locale', () => {
-        const c = carte("document.getElementById('import-file').click()");
+        const c = carte('settings-restore-backup');
         expect(c.titre).toBe('Restaurer une sauvegarde');
         expect(c.sous).toMatch(/REMPLACE/);
         expect(c.sous).toMatch(/clé API/i);
@@ -106,7 +119,7 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
 
     it('« Importer uniquement le stock » annonce une FUSION, le même fichier, '
        + 'les quatre états repris et l\'ajout d\'inconnus — l\'ancien texte n\'en disait aucun', () => {
-        const c = carte("document.getElementById('restore-file').click()");
+        const c = carte('settings-import-stock-only');
         expect(c.sous).toMatch(/douceur|fusion/i);
         expect(c.sous).toMatch(/MÊME fichier/i);
         expect(c.sous).toMatch(/stock/i);
@@ -119,8 +132,8 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
     });
 
     it('les deux cartes de fichier se distinguent nettement l\'une de l\'autre', () => {
-        const remplace = carte("document.getElementById('import-file').click()");
-        const fusionne = carte("document.getElementById('restore-file').click()");
+        const remplace = carte('settings-restore-backup');
+        const fusionne = carte('settings-import-stock-only');
         expect(remplace.sous).not.toBe(fusionne.sous);
         expect(remplace.sous).toMatch(/REMPLACE/);
         expect(fusionne.sous).not.toMatch(/REMPLACE/);
@@ -128,19 +141,19 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
 
     // ─── Chantier 6 : le texte contredisait le code ───
     it('« Mise à zéro complète » ne prétend plus effacer la clé API — le code la conserve', () => {
-        const c = carte('resetAllData()');
+        const c = carte('settings-reset-all');
         expect(c.sous).toMatch(/clé API est conservée/i);
         expect(c.sous).not.toMatch(/Efface absolument tout/i);
     });
 
     it('« Mise à zéro complète » précise que le cloud est visé lui aussi', () => {
-        expect(carte('resetAllData()').sous).toMatch(/cloud/i);
+        expect(carte('settings-reset-all').sous).toMatch(/cloud/i);
     });
 
     // ─── Chantier 7 : comportement inchangé, texte complété ───
     it('« Réinitialiser mon panier » dit qu\'il emporte AUSSI les articles libres '
        + 'et qu\'il épargne le stock', () => {
-        const c = carte('resetCart()');
+        const c = carte('settings-reset-cart');
         expect(c.sous).toMatch(/articles libres/i);
         expect(c.sous).toMatch(/stock n'est pas touché/i);
     });

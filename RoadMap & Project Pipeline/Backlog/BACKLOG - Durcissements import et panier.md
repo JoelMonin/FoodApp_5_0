@@ -107,6 +107,22 @@ de synchro, `js/app.js:113`), 60 000 ms (pull périodique, `js/app.js:114`) — 
 verrou. Le LOT 013 en traite une partie (les 800 ms sont dans son périmètre via
 `handleAddInput`) ; le reste reste ouvert.
 
+## 8. L'ordre « rendu local avant réseau » du démarrage n'est pas prouvé par un test
+
+Constat de l'audit adversarial du LOT 013 (2026-07-30) : contrairement à ce que documentait
+d'abord la matrice de couverture du lot, jsdom **peut** en théorie prouver cet acquis (LOT 005,
+#1) — l'auditeur a vérifié empiriquement que `window.dispatchEvent(new Event('DOMContentLoaded'))`
+déclenche bien le handler de démarrage de `js/app.js:60` sous Vitest, même après que
+`document.readyState` soit passé à `'complete'`.
+
+- **Non fait dans le LOT 013** : le handler enchaîne ~10 initialisations avec effets de bord
+  réels (appels réseau non mockés par défaut, `setInterval` de synchro, écouteurs
+  clavier/tactiles) — les neutraliser correctement pour isoler la seule question « le rendu
+  local précède-t-il toute attente réseau » dépassait le temps disponible pour ce lot.
+- **Piste pour le LOT 014** : dispatcher `DOMContentLoaded` avec `fetch` stubé en promesse
+  jamais résolue, vérifier que `#ing-grid` contient déjà les ingrédients AVANT que la
+  promesse ne soit levée.
+
 ## 7. Le câblage du démarrage est structurellement hors de portée des tests
 
 `DOMContentLoaded` **ne se déclenche jamais** sous Vitest (`document.readyState === 'complete'`

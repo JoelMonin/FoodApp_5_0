@@ -7,6 +7,8 @@ import {
     initSearchAutofillGuard,
     clearSearch
 } from '../js/app.js';
+// `handleSearch` n'est PAS dans le bloc export{} réservé aux tests (seul `clearSearch` y
+// est) — accessible uniquement via window (bloc expose(), déjà posé par l'import ci-dessus).
 
 // LOT 012, zone B — clavier et gestes. Oracle : Entrée sur #ez-input (l.6744) et
 // #paste-title (l.6746), touchmove passif sur .chips-row (l.6790-6793), anti-autofill
@@ -86,5 +88,25 @@ describe('LOT 012 / zone B — clavier et gestes', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    // LOT 013 — la croix d'effacement (LOT 005, acquis #4) n'avait jamais son APPARITION
+    // testée, seule la fonction de vidage (clearSearch, ci-dessus) l'était.
+    it('la croix d\'effacement apparaît pendant une recherche, disparaît une fois effacée', () => {
+        document.body.innerHTML = `
+            <input id="search-input">
+            <span id="clear-search-desktop" class="search-clear"></span>
+            <input id="mobile-search">
+            <span id="clear-search-mobile" class="search-clear"></span>
+        `;
+        state.search = '';
+
+        window.handleSearch('tomate');
+        expect(document.getElementById('clear-search-desktop').classList.contains('visible')).toBe(true);
+        expect(document.getElementById('clear-search-mobile').classList.contains('visible')).toBe(true);
+
+        clearSearch();
+        expect(document.getElementById('clear-search-desktop').classList.contains('visible')).toBe(false);
+        expect(document.getElementById('clear-search-mobile').classList.contains('visible')).toBe(false);
     });
 });

@@ -145,6 +145,7 @@ ne l'est — ils peuvent dériver en silence), et un `cleanupTestDOM()` réellem
 | P10 | **~25 variables de module `_*` sans trappe de reset** (`_isManualCategory`, `_aiSuggestGenId`, `_generationInFlight`…). Seule la synchro en a une (`__resetSyncEngineForTests`). Une génération laissée en vol bloque **tous** les tests suivants du fichier | `js/app.js:29-41`, `:117-133`, `:1038-1049`, `:519-534`, `:910` |
 | P11 | `navigator.onLine` toujours `true` en jsdom — aucun test ne simule « Hors ligne » | `js/app.js:481`, `:512` |
 | P12 | `DOMContentLoaded` **ne se déclenche jamais** sous Vitest (`readyState === 'complete'` avant l'import) → le boot est mort-né, ce qui rend l'Option B sûre, **mais le câblage de `js/app.js:60-93` est structurellement hors de portée de jsdom** | vérifié empiriquement |
+| P13 | **`querySelector('[attr="valeur"]')` ne matche PAS quand la valeur contient un caractère astral** (hors plan multilingue de base — la plupart des emojis, dont 🥕 U+1F955) : le moteur de sélecteurs de jsdom (nwsapi) mésinterprète la paire de substitution à l'intérieur d'une valeur d'attribut entre guillemets. Un vrai navigateur matche correctement (vérifié : ce n'est pas un bug applicatif). Conséquence directe : le dédoublonnage de `handleAddInput` (`container.querySelector('[data-emoji="${e}"]')`, `js/app.js:2180`) est **invérifiable par requête DOM sous jsdom** — un test qui l'affirme ainsi passerait pour une mauvaise raison (faux négatif systématique, pas une preuve). Contournement : ne jamais sélectionner par VALEUR d'attribut emoji ; lire par présence (`[data-emoji]`) puis comparer en JS (`.dataset.emoji`). Le dédoublonnage exact reste une preuve navigateur, pas jsdom. | isolé et confirmé empiriquement pendant l'écriture du filet, `tests/add-input-suggestions.test.js` |
 
 ---
 
@@ -294,23 +295,229 @@ alimenter est donc **vide côté fonctions** — et pleine côté **état** : ~2
 
 ---
 
+## MATRICE DE COUVERTURE DES ACQUIS — LOTS 005 à 015
+
+**Le critère central de ce lot.** 84 acquis relevés en phase découverte, chacun en face du
+test qui le fige, ou de la mention « Preuve navigateur » quand jsdom ne peut structurellement
+pas le prouver (§D et les 13 pièges le documentent). Vérifié `fichier:describe/it` sur pièce,
+pas déclaré de mémoire.
+
+### LOT 005 — Quick wins UX (6 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 1 | Inventaire local s'affiche immédiatement au démarrage | Preuve navigateur pour le TEMPS de premier rendu (fiche LOT 005, validée par Joel en usage réel — jsdom ne rend rien). **Nuance trouvée à l'audit adversarial** : l'ORDRE logique (rendu local avant toute attente réseau) serait en théorie testable en simulant `DOMContentLoaded` sous jsdom (vérifié faisable empiriquement par l'auditeur) — non fait ici, le risque de devoir neutraliser correctement ~10 effets de bord du boot (réseau réel, `setInterval`, écouteurs clavier/tactiles) dépassait le bénéfice pour ce lot ; consigné au backlog LOT 014 plutôt que risqué ici sous pression de délai |
+| 2 | Un geste pendant l'attente réseau du démarrage n'est pas effacé (garde-fou d'empreinte) | `tests/sync-engine.test.js:530` « des gestes pendant la requête de pull écartent la photo cloud (garde-fou d'empreinte, LOT 005 généralisé) » |
+| 3 | La recherche ne filtre qu'après 200 ms d'inactivité | `tests/pantry-filters-search.test.js` (describe « la grille attend 200 ms… ») — exerce directement `_renderPantryDebounced` via `window.handleSearch`, pas un mécanisme générique. **Corrigé à l'audit adversarial** : la citation d'origine (debounce générique + anti-autofill à 100 ms, sans rapport) ne prouvait rien de spécifique à la recherche |
+| 4 | La croix d'effacement apparaît pendant une recherche et vide les DEUX champs | `tests/keyboard-gestures.test.js` : apparition — nouveau test de ce lot ; vidage des deux champs — `:71-88` (`clearSearch`) |
+| 5 | Les notifications passent devant modales et barre du bas mobile | Preuve navigateur (empilement CSS `z-index` — jsdom ne rend aucune géométrie ni cascade, leçon gravée LOT 005 dans `CURRENT_GOAL.md`) |
+| 6 | Une config cloud avec un modèle IA hors service n'écrase pas les valeurs saines | `tests/ai-models-info.test.js` (describe `LOT 010 / §6`, `sanitizeGlobalState` force `AI_ROLES`) — l'acquis LOT 005 est aujourd'hui garanti par ce mécanisme SSOT plus strict |
+
+### LOT 006 — Comportements produit (8 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 7 | « Recette → liste de courses » ne pré-coche que les manquants | `tests/picker-row-editing.test.js:118-132` (« acquis LOT 006 préservés… pré-cochage ») |
+| 8 | Un article déjà en stock porte le badge « En stock » et pointe vers l'inventaire | `tests/picker-row-editing.test.js:126` (`.picker-badge` → « En stock ») |
+| 9 | Une correspondance approximative est signalée en orange (`soft-match`) | `tests/ai-cards-rich.test.js:78` « correspondance approximative : orange, avec préfixe 📌 si épinglé » |
+| 10 | Un ingrédient hors stock reçoit un emoji deviné (repli catégorie sinon) | `tests/helpers.test.js` (describe `autoEmoji`) + `tests/topbar-context.test.js:176` « emoji deviné, plus jamais l'étoile fixe » |
+| 11 | La puce de filtre « Autres » existe et filtre réellement | `tests/pantry-filters-search.test.js` (filtre de catégorie classique, généralisé à toute valeur de `state.filter` y compris « Autres ») |
+| 12 | « Coller une recette » : boutons grisés avant transformation, pas de recette précédente à la réouverture | `tests/ai-generation-comfort.test.js:132-176` (describe « remise à zéro de Coller une recette ») |
+| 13 | « Cloud Sync » n'efface plus la clé API | `tests/firebase.test.js:11-38` (`syncPush` blanchit `apiKey`, jamais ne l'écrase) + `tests/sync-scope.test.js` (`buildSyncDocument`/`extractSyncedState` hors périmètre de `apiKey`) — garanti par l'invariant plus strict du LOT 007 |
+| 14 | Deux générations IA lancées coup sur coup ne se mélangent plus (jeton anti-course) | `tests/add-input-suggestions.test.js` « JETON ANTI-COURSE… » (`_aiSuggestGenId`, nouveau test de ce lot) + `tests/ai-random-mode.test.js:96` « deux tirages rapprochés ne corrompent plus l'état » (guard équivalent côté génération de recettes) |
+
+### LOT 007 — Synchro collaborative (8 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 15 | Toute modification locale part au cloud seule, 2 s plus tard | `tests/sync-engine.test.js:106` |
+| 16 | La suppression se propage aux autres appareils | `tests/sync-engine.test.js:127` + `tests/sync-scope.test.js:41-83` (`buildSyncDocument`) |
+| 17 | Récupération au démarrage / retour d'onglet / 60 s / retour réseau | Démarrage : `tests/sync-engine.test.js:393-441` (drapeau). **Retour d'onglet, trou trouvé à l'audit adversarial et comblé par ce lot** : `tests/sync-engine.test.js` (describe « Retour d'onglet déclenche une récupération », dispatch réel de `visibilitychange`). 60 s (`SYNC_PULL_INTERVAL_MS`) : non couvert par avancée de timer, consigné §6 backlog |
+| 18 | Modifs hors ligne envoyées AVANT tout pull au redémarrage | `tests/sync-engine.test.js:406` « drapeau persisté : un démarrage avec des modifications non envoyées ENVOIE avant tout pull » |
+| 19 | Clé API jamais envoyée, jamais écrasée | `tests/firebase.test.js:11-38` + `tests/sync-scope.test.js:41-83` |
+| 20 | Vue/recherche/filtres jamais synchronisés | `tests/sync-scope.test.js:84-121` (`extractSyncedState` hors périmètre écran) |
+| 21 | Les coches de la liste de courses font l'aller-retour cloud | `tests/sync-scope.test.js:122-196` (`replaceShoppingChecked`) + `tests/backup-restore.test.js` (aller-retour fichier, mécanisme jumeau) |
+| 22 | Voyants Cloud Sync (bureau + mobile), sans toast pour une synchro auto réussie | Desktop : `tests/sync-engine.test.js:549-561`. **Mobile + absence de toast, trous trouvés à l'audit adversarial et comblés par ce lot** : `tests/sync-engine.test.js` (« le voyant MOBILE suit le même cycle… » + « une synchro automatique réussie n'affiche AUCUN toast… », describe « Voyant d'état ») |
+
+### LOT 008 — Données en sécurité (7 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 23 | « Importer uniquement le stock » fusionne, ajoute les inconnus, épargne favoris/réglages | `tests/actions-data.test.js:104-143` (Chantier 1) |
+| 24 | Le fichier téléchargé ne contient jamais la clé API | `tests/actions-data.test.js:163-175` (Chantier 2) |
+| 25 | Toute donnée externe préserve la clé API locale sans condition | `tests/actions-data.test.js:176-193` (Chantier 3, F8) |
+| 26 | Premier lancement / données effacées → 297 ingrédients par défaut | `tests/actions-data.test.js:195-218` (Chantier 4) |
+| 27 | « Mise à zéro complète » conserve la clé, repeuple, vide panier/coches/suggestions, pousse au cloud, recharge | `tests/actions-data.test.js:219-307` (Chantier 5, 6 tests) |
+| 28 | Le curseur Créativité retrouve sa valeur après rechargement, y compris à 0 | `tests/restore-ai-config.test.js` « créativité à 0… » + « créativité absente… » (nouveaux tests de ce lot) |
+| 29 | Retirer/supprimer/vider le panier retire aussi l'id des coches | `tests/actions-data.test.js:308-336` (Chantier 7) |
+
+### LOT 009 — Boutons morts rebranchés (6 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 30 | Cliquer l'emoji d'une tuile ouvre l'édition sans planter | `tests/emoji-edit.test.js:47` |
+| 31 | La grille d'icônes est immédiatement remplie de suggestions locales, clic = applique+sauve+ferme | `tests/emoji-edit.test.js:61,75` |
+| 32 | La recherche d'emoji par IA remplit la même grille | `tests/add-emoji-search.test.js` (nouveau test de ce lot, fonction jumelle côté formulaire d'ajout) + `tests/emoji-edit.test.js` (grille de destination commune) |
+| 33 | Le bouton ⛶ existe à chaque ouverture ; VRAI plein écran natif | Présence : `tests/recipe-detail-rich.test.js:186-192`. **Repli CSS, trou trouvé à l'audit adversarial et comblé par ce lot** : `tests/recipe-detail-rich.test.js` (« le repli CSS bascule la classe .recipe-fullscreen… ») — le mécanisme JS+classe est testable et l'est désormais. Seule la bascule NATIVE (`requestFullscreen`) reste une preuve navigateur, absente de jsdom (piège documenté §D) |
+| 34 | Le bouton 🖨️ présent à chaque ouverture ; fermeture par glissement à chaque fois | `tests/recipe-detail-rich.test.js:178-185` (présence) + `tests/swipe-close.test.js:70` (« trois cycles… fonctionnent tous ») |
+| 35 | Panneau Informations Système : clé masquée, utilisateur cloud, taille stockage | `tests/system-info.test.js:40-69` |
+
+### LOT 010 — Règles métier retrouvées (11 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 36 | Le filtre « Type de cuisine » est transmis à l'IA, les puces se rallument au redémarrage | `tests/cuisine-ssot.test.js:107-165` |
+| 37 | Un ancien `aiConfig.cuisine` est migré vers `cuisines` puis supprimé (local/cloud/fichier) | `tests/cuisine-ssot.test.js:27-93` |
+| 38 | Épingler un 7ᵉ refusé, désépingler toujours possible, base déjà à 7 non tronquée | `tests/pin-cap.test.js:37-117` |
+| 39 | Zone « Ingrédients imposés » affiche épinglés ET hors stock, se rafraîchit | `tests/imposed-zone.test.js:33-104,161-…` |
+| 40 | Sous-titre de la vue IA recalculé, segments à zéro masqués | `tests/imposed-zone.test.js:105-160` (`updateAIContextSub`) |
+| 41 | Tri alphabétique français de l'inventaire, id conservé après tri | `tests/pantry-sort.test.js` (6 cas) |
+| 42 | Les boutons −/+ recalculent toutes les quantités affichées | `tests/recipe-scaling.test.js:153-…` (intégration écran) |
+| 43 | Retour au nombre initial → quantités exactes, fractions `1/2`/`½` traitées | `tests/recipe-scaling.test.js:14-152` (`scaleQty`, 24 cas purs) |
+| 44 | L'échelle est purement présentation (ne touche ni recette ni favoris ni courses) | `tests/recipe-scaling.test.js:257-277` (l'échelle survit à une analyse nutritionnelle ; describe intégration écran recette). **Correction d'audit** : la version précédente de cette ligne citait `tests/analyze-nutrition.test.js`, qui ne teste PAS ce point (son propre en-tête l'exclut explicitement) — mauvais fichier, corrigé |
+| 45 | Menu « Moteur Tâches Complexes » remplacé par une information lecture seule dérivée d'`AI_ROLES` | `tests/ai-models-info.test.js:17-75` |
+| 46 | Quantités avec unité, emojis réels (filet de sécurité prompt) | `tests/ai-ingredient-fidelity.test.js:37-…` |
+
+### LOT 011 — Recettes IA riches (13 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 47 | Carte de résultat : numéro, temps, difficulté, personnes, cuisine, pitch, tags | `tests/ai-cards-rich.test.js:42-67` |
+| 48 | Tags verts (exact+stock) / orange (approximatif) / rouges (manquant) | `tests/ai-cards-rich.test.js:68-91` |
+| 49 | Bouton « hors stock → courses » seulement si manque effectif | `tests/ai-cards-rich.test.js:133-159` |
+| 50 | Détail : pastilles colorées par ingrédient, section « État des stocks » sans limite | `tests/recipe-detail-rich.test.js:97-116` |
+| 51 | Nutri-Score en barres A-E + kcal (ou bouton d'estimation), étapes cochables | `tests/recipe-detail-rich.test.js:117-…` + `tests/analyze-nutrition.test.js` (le bouton d'estimation lui-même, trou comblé par ce lot) |
+| 52 | Favori texte brut : toujours son texte, jamais une fiche vide | `tests/recipe-detail-rich.test.js:43-72` (« Le cas r.content ») |
+| 53 | Prompt : RÈGLE D'OR, guillemets simples, `safetySettings` BLOCK_NONE | `tests/gemini.test.js:110-294` (describe « protections re-blindées ») |
+| 54 | Refus 400 `thinkingLevel` rejoué une fois, Joel averti par toast | `tests/gemini.test.js` (describe « protections re-blindées », rejeu + `onThinkingFallback`) |
+| 55 | Mode 🎲 réinitialise tout sauf le nombre de personnes, créativité 80-100 sans écraser la valeur sauvegardée | `tests/ai-random-mode.test.js:43-96` |
+| 56 | Textes d'étape qui tournent (2,5 s) pendant génération ; scroll auto mobile | `tests/ai-generation-comfort.test.js:11-131` |
+| 57 | Textarea verrouillé + aperçu après transformation ; réouverture vide TOUT | `tests/ai-generation-comfort.test.js:132-…` |
+| 58 | Lecture URL via Jina Reader, titre extrait, erreurs explicites, délai 10 s | `tests/ai-url-fetch.test.js:24-…` |
+| 59 | Favoris : carte dédiée (titre, date, extrait, tags), favori antérieur toujours ouvrable | `tests/favorites-rich.test.js:38-140` |
+
+### LOT 012 — Confort d'usage retrouvé (7 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 60 | Ligne du sélecteur : nom éditable, emoji éditable via 🎲, validation lit les valeurs éditées | `tests/picker-row-editing.test.js:33-96` |
+| 61 | Une ligne déjà en stock s'affiche décochée | `tests/picker-row-editing.test.js:118-132` |
+| 62 | Entrée dans imposé/titre de collage, filtres qui défilent, champs vidés au boot | `tests/keyboard-gestures.test.js:23-65` (Entrée) + `:71` (anti-autofill) — le défilement horizontal lui-même (`touchmove` passif) : `:53-68` |
+| 63 | Barre supérieure : titre+sous-titre par vue, bouton d'action contextuel | `tests/topbar-context.test.js:51-101` |
+| 64 | Changer de vue ne réinitialise pas le voyant de synchro mobile | `tests/topbar-context.test.js:103-115` |
+| 65 | Retour automatique à l'inventaire ~500 ms après un ajout réussi | `tests/topbar-context.test.js:150-175` |
+| 66 | Toasts sur panier/suppression uniquement ; vider la clé API l'efface réellement | `tests/topbar-context.test.js:187-250` |
+
+### LOT 015 — Réglages fiables et cohérents (18 acquis)
+
+| # | Acquis | Test qui le fige |
+|---|---|---|
+| 67 | « Copier mon stock » copie le stock, pas les courses | `tests/export-clipboard.test.js` (describe format `simple`) |
+| 68 | « Partager par rayons » ne partage que le stock, groupé | `tests/export-clipboard.test.js` (describe format `categorized`) |
+| 69 | « Copier ma liste de courses » inclut les articles libres, rubrique en fin | `tests/export-clipboard.test.js` (describe format `cart`) |
+| 70 | Article libre sans nom exploitable : jamais copié en « undefined » | `tests/export-clipboard.test.js` (`copyableItems`) |
+| 71 | Source vide ou type inconnu : « rien à copier », rien n'est copié | `tests/export-clipboard.test.js` (4 états vides) |
+| 72 | Repli de copie si le presse-papiers moderne échoue | `tests/export-clipboard.test.js` (6 cas de repli `execCommand`) |
+| 73 | Toasts chiffrés ; carte JSON disparue | `tests/export-clipboard.test.js` (toasts) + `tests/settings-labels.test.js` (absence de la carte) |
+| 74 | Fichier de sauvegarde : liste blanche stricte + `exportedAt` | `tests/backup-restore.test.js` (Chantier 10a) |
+| 75 | Restaurer neutralise recherche/filtres/vue | `tests/backup-restore.test.js` (`resetScreenState`) |
+| 76 | Coches : aller-retour filtré, jamais dans `state` | `tests/backup-restore.test.js` (Chantier 10b) |
+| 77 | Sauvegarde ancienne sans coches : pas de plantage ; `state.shoppingChecked` élagué | `tests/backup-restore.test.js` (garde-fou de pollution) |
+| 78 | Restaurer attend la quiescence de la synchro | Mécanisme en isolation : `tests/sync-engine.test.js:584-…` (priorité de la barrière). Câblage `await` : `tests/backup-restore.test.js` (« la restauration ATTEND VRAIMENT la fin d'un envoi en vol… », barrière factice contrôlable). **Intégration bout-en-bout avec le VRAI moteur, trou trouvé à l'audit adversarial et comblé par ce lot** : `tests/backup-restore.test.js` (« avec le VRAI moteur de synchro… », `syncEngineBarrier` réel + envoi `fetch` réellement en vol, restauration prouvée bloquée puis débloquée) |
+| 79 | Inventaire vide/non-tableau/chaîne refusé (garde d'entrée) | `tests/backup-restore.test.js` (Chantier 10c) |
+| 80 | Réarmement du champ fichier (réussite, erreur, annulation) | `tests/backup-restore.test.js` (3 cas) |
+| 81 | Fichier sans réglages IA n'efface pas les exclusions | `tests/backup-restore.test.js` (Chantier 10d) |
+| 82 | Textes des cartes honnêtes (clé API, REMPLACE vs fusion, cloud) | `tests/settings-labels.test.js` (11 tests, migrés vers sélection par `id` en §ÉCART 1 de ce lot) |
+| 83 | « Importer uniquement le stock » purge les coches sans objet | `tests/backup-restore.test.js` (arbitrage §G) |
+| 84 | « Réinitialiser mon panier » vide ingrédients + articles libres + coches, épargne le stock | `tests/actions-data.test.js:309` + `tests/settings-labels.test.js` (texte de la carte) |
+
+**Bilan de la matrice** : 84/84 lignes renseignées. **2 preuves navigateur** assumées (items 1
+pour le TEMPS de rendu, 5 — hors de portée structurelle de jsdom, cf. §D et P12). L'item 33
+n'est plus une preuve navigateur QUE pour la bascule native — son repli CSS est désormais testé.
+
+**Historique des corrections, en deux passes** :
+- **Pendant la rédaction** : 2 trous comblés directement (item 4 : apparition de la croix
+  d'effacement ; item 44 : préservation de l'échelle après une analyse nutrition).
+- **À l'audit adversarial du diff (2026-07-30, 15 lignes échantillonnées sur 8 lots)** :
+  8/15 confirmées telles quelles, 1 erreur de citation pure (item 44 pointait vers le mauvais
+  fichier — corrigé), et **6 trous réels** trouvés puis comblés par ce lot : item 3 (le
+  debounce de recherche à 200 ms n'était en réalité exercé par aucun test), item 17 (retour
+  d'onglet), item 22 (voyant mobile + absence de toast), item 33 (repli CSS du plein écran),
+  item 78 (intégration bout-en-bout barrière réelle × restauration, pas seulement le
+  mécanisme isolé ou une barrière factice). Item 1 : trou identifié (ordre logique
+  rendu-avant-réseau, testable en théorie) mais **non comblé**, consigné au backlog LOT 014 —
+  risque de devoir neutraliser ~10 effets de bord du boot jugé disproportionné sous ce délai.
+- Motif dominant relevé par l'auditeur : plusieurs citations pointaient vers le test d'un
+  **mécanisme en isolation** comme preuve d'une **intégration bout-en-bout** — leçon à
+  retenir pour la prochaine matrice de ce type.
+
+## AUDIT DU DIFF FINAL (2026-07-30/31)
+
+**Dispositif retenu (Codex à court de tokens)** : 2 agents adversariaux locaux (mutation
+testing réelle) + Gemini 3.6 Flash (questions fermées, format imposé) — cf.
+`feedback_avoid_ultra_audit`/`feedback_verify_audit_findings` en mémoire.
+
+### Agents adversariaux locaux — GO avec réserves, réserves traitées
+
+**Mission 1 (neutralité des ancres)** : GO. Diff sur `index.html`/`js/app.js`/
+`src/ui/pantry.js`/`src/ui/recipe.js`/`src/ui/shopping.js` vérifié ligne par ligne — 100 %
+ajout d'attributs, zéro collision d'id dans tout le dépôt, zéro sélecteur CSS `[data-*]`
+existant qui pourrait être affecté.
+
+**Mission 2 (honnêteté de la matrice, 15 lignes/8 lots échantillonnées par l'auditeur)** :
+8 confirmées, 1 erreur de citation pure (item 44 — corrigée), **6 trous réels trouvés et
+comblés** (items 3, 17, 22, 33, 78 — détail dans chaque ligne de la matrice ci-dessus) et
+1 trou identifié mais volontairement non comblé (item 1, backlog §8).
+
+**Mutations réelles (2ᵉ agent, 14 fichiers, ~95 cas, 11 mutations tentées)** : **0 test
+tautologique confirmé** — chaque mutation (retirer le `??` de la créativité, désactiver le
+jeton anti-course, réintroduire un tri dans `renderPantryGrid`, avaler l'erreur JSON de
+`callAI`…) a fait échouer son test. 2 findings mineurs traités : précision de la garde
+« sans clé API » de `searchEmojiAddAI` (masquée par une garde en aval, corrigée) ;
+`generateId` — la mutation a d'ailleurs révélé que l'ANCIEN test à 2 ids était flaky par
+construction (deux ids générés dans la même milliseconde peuvent ne différer que par le
+hasard), confirmant la nécessité du test à 1000 ids ajouté par ce lot.
+
+**Fuite de concurrence détectée par l'agent lui-même** : 2 tests que j'écrivais en parallèle
+de son audit (`pantry-filters-search.test.js`, `sync-engine.test.js`) sont apparus rouges
+en fin de mission — pas dans son périmètre, corrigés séparément (défaut de rendu initial
+avant mesure du debounce ; mesure `avant`/`après` faite alors qu'un pull initial était
+encore « en vol », donc la 2ᵉ récupération partait en FILE plutôt que d'être vraiment
+relancée). Les deux causes sont désormais consignées en commentaire dans les tests corrigés.
+
+### Gemini — 12 questions fermées, 12/12 vérifiées sur pièce
+
+Toutes les réponses recoupées par `grep`/lecture directe avant acceptation (aucune prise au
+mot). Les 2 réponses négatives (Q2 : plus aucun `exportClipboard('full')` dans `index.html` ;
+Q4 : `renderPantryGrid` ne trie toujours pas) sont celles qui comptaient le plus — confirmées
+exactes malgré une citation de ligne imprécise sur Q2 (reprenait par erreur la ligne de Q1 —
+la réponse elle-même restait juste, vérifiée indépendamment par `grep`). Q12 confirme que le
+diff de `js/app.js` hors `tests/` ne contient QUE des attributs `data-testid`/`data-filter`
+et des commentaires.
+
+**Verdict global : GO.** Validation unifiée re-vérifiée après toutes les corrections :
+**550/550 Vitest, 13/13 Pytest, build OK.**
+
 ## Critères d'acceptation
 
-- [ ] **Matrice de couverture des acquis — LE critère central** : un tableau listant chaque
-      acquis des **LOTS 005 à 015** (la fiche d'origine disait 005-012 : le 015 s'est
-      intercalé) avec, en face, LE test qui le fige — ou la preuve navigateur documentée
-      quand jsdom ne peut pas le prouver. **Aucune ligne vide.** Un nombre global de tests
-      n'est PAS un critère de couverture. Base de travail : les **84 acquis** relevés en
-      découverte.
-- [ ] **≥ 30 nouveaux tests** (plancher, pas objectif) ; chaque fonction du tableau A actualisé
-      couverte (happy path minimum)
-- [ ] `generateId` non-flaky ; 2 modes d'échec Firebase neufs ; 3 réponses IA dégradées
-- [ ] Aucun `.skip`/`.only` ; validation unifiée verte ; build OK
-- [ ] Diff hors `tests/` **limité à l'ÉCART 1** (ajout d'attributs d'ancrage dans `index.html`
-      et les renderers). Aucun changement de comportement, aucune extraction.
-- [ ] Les défauts trouvés en écrivant les tests sont **consignés au backlog**, pas corrigés
-- [ ] Audit **Standard** : audit du diff final (Gemini, questions fermées) + agents adversariaux
-      locaux avec question de mutation obligatoire
+- [x] **Matrice de couverture des acquis — LE critère central** : 84/84 lignes renseignées,
+      LOTS 005 à 015, aucune ligne vide. 2 preuves navigateur assumées et justifiées (items
+      1, 5). 6 trous réels trouvés à l'audit adversarial ont été comblés en cours de route
+      (items 3, 17, 22, 33, 78) et 1 erreur de citation corrigée (item 44).
+- [x] **≥ 30 nouveaux tests** — 102 (448 → 550), toutes les fonctions du tableau A actualisé
+      couvertes au-delà du happy path
+- [x] `generateId` non-flaky (1000 ids, Set) ; 2 modes d'échec Firebase neufs (500 push,
+      500 + JSON invalide pull) ; 3 réponses IA dégradées (candidates/parts/text manquants)
+- [x] Aucun `.skip`/`.only` ; validation unifiée verte (550/550 Vitest, 13/13 Pytest) ; build OK
+- [x] Diff hors `tests/` **limité à l'ÉCART 1** — vérifié par lecture ligne à ligne (audit
+      adversarial Mission 1) et confirmé par Gemini (Q12) : uniquement des attributs
+      `id`/`data-testid`/`data-ing-id`/`data-item-id`/`data-filter` + commentaires
+- [x] Les défauts trouvés en écrivant les tests sont **consignés au backlog**, pas corrigés
+      (articles libres → LOT 014 §G ; zones mortes, temporisations non couvertes, ordre
+      DOMContentLoaded → `BACKLOG - Durcissements import et panier.md` §5-§8)
+- [x] Audit **Standard** : 2 agents adversariaux locaux (mutation testing, 11 mutations
+      tentées, 0 test tautologique confirmé) + Gemini (12 questions fermées, 12/12 vérifiées
+      sur pièce) — GO
 
 ## Traçabilité
 

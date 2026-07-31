@@ -10,9 +10,12 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 ## Lot actif
 
 **LOT 013 — Filet de tests UI**, ouvert le 2026-07-30 sur `feat/lot13-filet-tests-ui`.
-Phase découverte faite (4 agents) — la fiche d'origine (écrite avant les LOTS 011/012/015)
-s'est révélée largement périmée ; réécrite en conséquence. Détail complet, écarts déclarés et
-arbitrages : `RoadMap & Project Pipeline/LOT 013 - Filet de tests UI [EN COURS].md`.
+**Travail terminé et audité le 2026-07-31** — 102 tests neufs (448 → 550), matrice de
+couverture 84/84 lignes, validation unifiée verte, 2 audits adversariaux locaux (0 test
+tautologique confirmé) + audit Gemini (12/12 questions vérifiées sur pièce), GO. **En attente
+de la décision de Joel** : enchaîner sur le LOT 014 (même branche, précédent des LOTS
+007+008/009+010/011+012) ou marquer une pause. Détail complet, écarts déclarés, arbitrages et
+audit : `RoadMap & Project Pipeline/LOT 013 - Filet de tests UI [EN COURS].md`.
 
 **But en une phrase :** figer par des tests le comportement de l'app restaurée (LOTS 007-012
 et 015), avant que le LOT 014 déplace le code en masse — exactement ce qui manquait lors de la
