@@ -150,22 +150,52 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## Prochaine étape
+## POINT DE REPRISE — LOT 014 (état au 2026-07-31, 12 commits, arbre propre)
 
-**Étape C1 du LOT 014** : fermer le trou d'`importStockOnly` (`src/actions.js:316-319` et
-`:346`). Un fichier `{"ingredients": ["Tomate","Oignon"]}` y fait entrer des ingrédients
-fantômes sans nom, persistés puis poussés au cloud — c'est le défaut exact que le LOT 015 a
-corrigé sur le bouton jumeau « Restaurer une sauvegarde », resté ouvert ici par symétrie
-manquante. Commit isolé, mêmes cas de test que `tests/backup-restore.test.js:290-392`.
+**Métriques : 641/641 Vitest · 13/13 Pytest · build OK · `js/app.js` 2823 → 2216 lignes.**
 
-**Les deux seuls volets qui changent un comportement** (donc commits séparés, isolés de la
-refonte pure) : **C** — rejet des données invalides — et **G** — suppression des « articles
-libres », décidée par Joel le 2026-07-30.
+### Ce qui est FAIT (dans l'ordre des commits, `cce6a44` → `6418bde`)
 
-**Règle de non-régression propre à ce lot** : 9 fonctions que le découpage va déplacer n'ont
-aucun test direct, dont `renderPantryFilters` — la zone que le LOT 013 a lui-même modifiée sans
-la tester. Chacune reçoit un **test de caractérisation avant** d'être déplacée, sinon le filet
-du 013 a un trou exactement là où le code bouge.
+| Étape | Résultat |
+|---|---|
+| Ouverture + découverte | 4 agents ; 3 points de la fiche déjà soldés ; 40+ citations corrigées |
+| **C0** — chasse aux faux verrous | **12 faux verrous** trouvés (49 mutations réelles) et comblés, dont 1 test formellement tautologique. Addendum ajouté à la fiche du LOT 013, dont la conclusion « 0 test tautologique » était fausse |
+| **C1** — porte jumelle de l'import | `importStockOnly` refuse enfin ce qui n'est pas un inventaire |
+| **B** — mutation de l'état | 3 rattrapages supprimés ; invariant verrouillé par `const` sur les 3 bindings |
+| **C** — validation des données | `src/utils/validate.js` créé (SSOT) ; `loadState`, recette IA, échappement de prompt |
+| Correctif UX (demande de Joel) | « Importer uniquement le stock » → « Fusionner le catalogue » |
+| Auto-audit + suites d'audit | 2 défauts de mon propre travail ; code mort supprimé ; **le même trou trouvé sur 2 autres portes** |
+| **G** — articles libres | Supprimés (10 sites) + filet d'élagage du localStorage |
+| **A** (1/3) | `src/services/exports.js` + `src/services/sync.js` (−570 lignes) |
+| **A** (2/3) | `src/utils/categorize.js`, filet de caractérisation posé AVANT (17 tests) |
+| Correctifs catégorisation | Les 2 défauts trouvés par ces tests, corrigés sur décision de Joel |
+
+### Ce qui RESTE
+
+1. **Volet A, fin** — extraire le **formulaire d'ajout** (`src/ui/addForm.js`) puis les
+   **modales** (`src/ui/recipeModal.js`). ⚠️ Les plus délicates : lire §B5 et §B7 de la phase
+   découverte AVANT de commencer (collision de noms `saveRecipeOnly`/`saveRecipeAndList` entre
+   les deux contrats publics ; 3 couplages croisés entre sous-zones ; `selectEmoji` appartient
+   au formulaire mais vit 500 lignes plus loin ; double reset incohérent `switchView`/`renderAdd`).
+   **Zones aveugles restantes à couvrir AVANT déplacement** : `searchEmojiAI`, `selectEmoji`,
+   `confirmBulkAdd`, `toggleAllPickerItems`, `matchIngredientToStock`, `initKeyboardShortcuts`.
+2. **Volet D** — traque SSOT (liste complète en §B11 de la découverte).
+3. **Volet E** — découpage CSS. Lire §B7 et §B8 : l'interdiction « ne pas toucher `rd-*` » est
+   trop grossière (7 des 14 sont morts), et le découpage naturel n'est pas celui de la fiche.
+   **Exige une preuve NAVIGATEUR** (jsdom ne prouve ni cascade ni géométrie).
+4. **Volet F** — 2 verrous anti-récidive. Lire §B9 : le verrou d'imports sera **rouge à sa
+   création** (22 sites dans `tests/`), décision déjà prise de corriger les 22.
+
+### Règles de ce lot à ne pas perdre
+
+- **Un test de caractérisation AVANT tout déplacement** d'une fonction non couverte. La règle a
+  déjà payé : elle a révélé 2 défauts réels sur `categorize.js`.
+- **Un déplacement ne change JAMAIS un comportement** — les défauts trouvés en chemin se figent
+  d'abord, se corrigent dans un commit séparé, et seulement sur décision de Joel.
+- **Preuve par retrait obligatoire** : un test vert ne prouve rien tant qu'on n'a pas vu le
+  rouge. Trois de mes propres tests sont passés sous mutation pendant ce lot — donc ne
+  prouvaient rien — et ont été refaits.
+- **`PROJECT_MAP.md` à chaque nouveau module ou fichier de test** (le verrou pytest l'exige).
 
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.
