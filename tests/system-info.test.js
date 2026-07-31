@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { state, defaultAiConfig } from '../src/state';
+import { state, defaultAiConfig } from '../src/state.js';
 import { updateSystemInfo } from '../js/app.js';
-import { FB_USER, LOCAL_STORAGE_KEY } from '../src/constants';
+import { FB_USER, LOCAL_STORAGE_KEY } from '../src/constants.js';
 
 // LOT 009 — casse C8 : le panneau « Informations Système » restait figé sur « -- »
 // pour 3 champs (l'ancien code visait #system-storage, un id inexistant partout).

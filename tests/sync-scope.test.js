@@ -1,13 +1,13 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildSyncDocument, extractSyncedState } from '../src/services/firebase';
+import { buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import {
   state,
   shoppingChecked,
   replaceShoppingChecked,
   applyExternalState,
   defaultAiConfig
-} from '../src/state';
+} from '../src/state.js';
 
 // LOT 007 — périmètre du document synchronisé (spec §4.1) et application clé par
 // clé (§4.3). Ces tests verrouillent CE QUI part au cloud et CE QUI en revient :
@@ -203,7 +203,7 @@ describe('replaceShoppingChecked + applyExternalState — application locale', (
   it('applyExternalState({scheduleSync:false}) ne déclenche PAS le planificateur inscrit (§4.5)', async () => {
     // Le planificateur est global au module state : on l'inscrit, on vérifie,
     // puis on le désinscrit pour ne pas polluer les autres tests.
-    const { registerSyncScheduler } = await import('../src/state');
+    const { registerSyncScheduler } = await import('../src/state.js');
     const scheduler = vi.fn();
     registerSyncScheduler(scheduler);
     try {

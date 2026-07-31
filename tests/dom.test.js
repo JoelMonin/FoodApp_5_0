@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { h, sanitize } from '../src/utils/dom';
+import { h, sanitize } from '../src/utils/dom.js';
 import { JSDOM } from 'jsdom';
 
 describe('DOM Utility', () => {

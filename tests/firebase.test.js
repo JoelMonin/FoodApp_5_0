@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncPush, syncPull } from '../src/services/firebase';
-import { FB_URL } from '../src/constants';
+import { syncPush, syncPull } from '../src/services/firebase.js';
+import { FB_URL } from '../src/constants.js';
 
 describe('Firebase Service', () => {
   beforeEach(() => {

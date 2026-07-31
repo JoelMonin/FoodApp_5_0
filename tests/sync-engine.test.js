@@ -7,7 +7,7 @@ import {
   registerSyncScheduler,
   registerSyncBarrier,
   defaultAiConfig
-} from '../src/state';
+} from '../src/state.js';
 import {
   scheduleSyncPush,
   requestSyncOp,
@@ -18,8 +18,8 @@ import {
   syncEngineBarrier,
   __resetSyncEngineForTests
 } from '../js/app.js';
-import { resetAllData } from '../src/actions';
-import { DEFAULT_DB } from '../src/data';
+import { resetAllData } from '../src/actions.js';
+import { DEFAULT_DB } from '../src/data.js';
 
 // LOT 007 — moteur de synchro (spec §4.3-4.9) : temporisation, drapeau « EN
 // ATTENTE », anti-boucle, retry unique et garde-fous. Le moteur vit dans js/app.js

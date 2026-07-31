@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { state, shoppingChecked, defaultAiConfig } from '../src/state';
+import { state, shoppingChecked, defaultAiConfig } from '../src/state.js';
 import { openEditEmoji, buildEmojiEditSuggestions, applyEditedEmoji } from '../js/app.js';
-import { DEFAULT_DB } from '../src/data';
+import { DEFAULT_DB } from '../src/data.js';
 
 // LOT 009 — casse C1 : cliquer l'emoji d'une carte d'inventaire plantait avant
 // d'ouvrir la fenêtre (écriture dans #edit-emoji-input, id inexistant). Ces tests

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { state, loadState, saveState, sanitizeGlobalState, shoppingChecked, setState, defaultAiConfig } from '../src/state';
-import { LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from '../src/constants';
+import { state, loadState, saveState, sanitizeGlobalState, shoppingChecked, setState, defaultAiConfig } from '../src/state.js';
+import { LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from '../src/constants.js';
 
 describe('State Management', () => {
   let errorSpy;

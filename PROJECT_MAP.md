@@ -85,6 +85,8 @@
 - `tests/restore-ai-config.test.js` : Restauration des réglages IA à l'affichage (LOT 013 — `restoreAIConfig` n'avait qu'1 test ; créativité à 0 jamais remontée à 50, champs texte, puces tableau vs valeur simple, résumé CTA).
 - `tests/analyze-nutrition.test.js` : Analyse nutritionnelle IA (LOT 013 — `analyzeNutrition` n'avait que 2 tests indirects ; 3 branches d'échec (sans clé, JSON invalide, panne réseau), libellé du bouton réarmé identique à l'origine).
 - `tests/pantry-filters-search.test.js` : Filtrage de l'inventaire hors tri (LOT 013 — `getFilteredIngredients` : recherche texte insensible aux accents, cumul des toggles stock/panier, filtres exclusifs épinglés/surgelés).
+- `tests/html-window-parity.test.js` : VERROU ANTI-RÉCIDIVE (LOT 014 §F) — toute fonction appelée par un attribut `on*=` d'`index.html` doit exister sur `window` après le démarrage. Rend impossible la panne la plus fréquente de la migration : un bouton qui n'appelle plus rien, sans erreur ni test rouge. Vérification À L'EXÉCUTION (le vrai `window`), unidirectionnel par conception, avec une garde qui empêche le verrou d'être vert à vide.
+- `tests/test_esm_imports.py` : VERROU ANTI-RÉCIDIVE (LOT 014 §F) — tout import relatif doit porter son extension. Arbitrage laissé en suspens depuis le LOT 002 ; les 22 sites de `tests/` ont été corrigés dans le commit du verrou. Même garde anti-vide.
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).

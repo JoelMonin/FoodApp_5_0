@@ -7,10 +7,10 @@ import {
   resetAllData,
   toggleCart,
   deleteIngredient
-} from '../src/actions';
-import { state, shoppingChecked, sanitizeGlobalState, applyExternalState, registerSyncScheduler } from '../src/state';
-import { FB_URL } from '../src/constants';
-import { DEFAULT_DB } from '../src/data';
+} from '../src/actions.js';
+import { state, shoppingChecked, sanitizeGlobalState, applyExternalState, registerSyncScheduler } from '../src/state.js';
+import { FB_URL } from '../src/constants.js';
+import { DEFAULT_DB } from '../src/data.js';
 
 function makeIngredient(overrides = {}) {
   return {
