@@ -44,6 +44,17 @@ export const BACKUP_STATE_KEYS = [
 // laissé dans `js/app.js`, il serait devenu la copie d'un des deux flux.
 export const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
 
+// Filet de sécurité emoji ingrédient (LOT 010, casse C12, durci après audit Codex Terra) :
+// un prompt IA sans indication de format a pu, par le passé, faire dériver du texte (une
+// unité comme "g") dans le champ emoji. Ancré sur la chaîne ENTIÈRE (`.test()` cherche
+// n'importe où par défaut — une valeur mixte comme "g🐟" passait sinon). `\p{Emoji}️`
+// (sélecteur de variante 16) couvre en plus les emojis à présentation texte par défaut,
+// explicitement forcés en emoji. SSOT (LOT 011) : partagé par le sélecteur de courses et
+// le détail de recette — un correctif de sécurité ne doit vivre qu'à un seul endroit.
+// LOT 014, volet A : remonté ici quand `buildIngredientTags` est parti dans
+// `src/utils/stockMatch.js` — laissé dans `js/app.js`, il aurait fallu le dupliquer.
+export const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+
 export const FB_USER = 'FoodApp_V5_Joel';
 export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebasedatabase.app';
 
