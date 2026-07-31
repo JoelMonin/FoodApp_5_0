@@ -152,7 +152,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## POINT DE REPRISE — LOT 014 (état au 2026-07-31, arbre propre)
 
-**Métriques : 765/765 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %).**
+**Métriques : 771/771 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
+· feuille de style 49,5 → 44,2 Ko (−10,9 %).**
 
 ### Ce qui est FAIT
 
@@ -168,30 +169,31 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 | **F — TERMINÉ** | **3 verrous** : parité `on*=`↔`window` (à l'EXÉCUTION), imports ESM (22 sites corrigés), durcissement `PROJECT_MAP`. Les 3 portent une garde anti-vide |
 | **D — 2 passes faites** | 13 duplications supprimées + 1 défaut réel (« Autres » absent du menu) + verrou `categories-ssot` |
 | **Correctifs IA — FAITS** | extracteur JSON unique (`src/utils/aiJson.js`, **4** sites et non 3) + message unique de clé API. 13 mutations, 13 rouges. Détail : fiche du lot, § « Correctifs IA » |
+| **E — TERMINÉ** | CSS découpé en 13 sections (**feuille produite identique octet pour octet**, contre-épreuve incluse) + **62 règles mortes retirées (−10,9 %)**. Les 3 recherches convergentes ont évité de casser le Nutri-Score. Verrou `css-sections` (5 mutations / 5 rouges) |
 
 **Correctifs de comportement décidés par Joel et livrés** : les 2 défauts de catégorisation ·
 la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icône) ·
 `sanitize()` supprimée (addendum posé sur la fiche du LOT 003).
 
-### Ce qui RESTE
+### Ce qui RESTE — **tous les volets sont livrés ; 4 points de sortie**
 
-1. **Volet E — CSS, le dernier.** Lire §B7 et §B8 de la découverte. `css/style.css` = 3 785
-   lignes, chargé par UNE balise (`index.html:12`), 12 sections déjà balisées.
-   **Approche retenue, meilleure que la preuve navigateur** : garder `css/style.css` comme
-   fichier-chapeau de `@import` dans l'ORDRE ACTUEL (Vite 8 embarque postcss-import), puis
-   **comparer le CSS produit par `npm run build` avant/après**. S'il est identique, la cascade
-   est prouvée inchangée — bien plus solide qu'un contrôle visuel.
-   ⚠️ La section « UTILITIES » (~553 l) est une POUBELLE de surcharges tardives : couper aux
-   frontières actuelles et la garder en avant-dernier, la remonter changerait le rendu.
-   ⚠️ L'interdiction « ne pas toucher `rd-*` » est trop grossière (7 des 14 sont morts), et un
-   commentaire du CSS (`:2882-2883`) **MENT** sur `rc-emoji`/`rc-header` — à corriger.
-   Le retrait de CSS mort, lui, change la sortie du build : il exige une vraie preuve.
-2. **Un point signalé à Joel, sans décision** : la recherche d'emoji par IA de la modale
-   d'édition (`src/ui/emojiModal.js`) affiche « Erreur recherche emoji » quand c'est
-   simplement la clé qui manque. Ce n'était pas dans les quatre sites du correctif validé,
-   donc laissé tel quel — c'est un mot à dire, pas un chantier.
-3. **Clos** : les émojis de repli divergents (`🔸`/`❓`/`🛒`/`📦`) — **Joel a dit « laisse
-   comme ça »**.
+1. **CRITÈRE NON ATTEINT, décision de périmètre pour Joel** : `js/app.js` devait passer sous
+   **700 lignes**, il en fait **1 523** (−46 %). Atteindre la cible demande une SECONDE
+   tournée d'extraction (~1 000 lignes : modale « coller une recette », favoris, panneau IA,
+   barre supérieure, modales génériques, réglages), de la taille du volet A mais bien moins
+   risquée — ces zones sont désormais couvertes par les LOTS 013/014. **Soit on la fait, soit
+   on entérine le −46 %.**
+2. **Check-list de la fiche régressions à re-parcourir une à une.** Elle est couverte
+   indirectement par les 771 tests, ce qui n'est pas un parcours explicite.
+3. **Audit DUR final de campagne** (Gemini en questions fermées + agents adversariaux locaux).
+4. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
+   niveau du fichier produit, mais le retrait des 62 règles mortes change forcément ce
+   fichier. Le raisonnement est solide, un regard humain reste la ceinture et les bretelles.
+
+**Un point signalé, sans décision** : la recherche d'emoji par IA de la modale d'édition
+(`src/ui/emojiModal.js`) affiche « Erreur recherche emoji » quand c'est simplement la clé qui
+manque. Hors des quatre sites du correctif validé, donc laissé tel quel.
+**Clos** : les émojis de repli divergents (`🔸`/`❓`/`🛒`/`📦`) — Joel a dit « laisse comme ça ».
 
 ### Règles de ce lot à ne pas perdre
 

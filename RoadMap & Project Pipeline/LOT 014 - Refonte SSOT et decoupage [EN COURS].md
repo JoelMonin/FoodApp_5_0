@@ -495,27 +495,48 @@ localement le bénéfice du LOT 013.
       sans écriture ni envoi cloud. 9 tests calqués sur ceux du bouton voisin
       (`tests/actions-data.test.js`, describe « LOT 014 §C1 »). **559/559 Vitest, 13/13
       Pytest, build OK.** Détail de l'exécution en §RÉALISATION ci-dessous.
-- [ ] `js/app.js` < 700 lignes ; plus aucune variable `_*` de module dans `app.js`
+- [ ] ❌ **NON ATTEINT — `js/app.js` < 700 lignes ; plus aucune variable `_*` de module.**
+      Résultat réel : **1 523 lignes (2 823 au départ, −46 %)** et **4 variables `_*`**
+      restantes (`_generationInFlight`, `_favCountSub`, `_renderPantryDebounced`,
+      `_lastTransformedRecipe`). Le volet A a sorti 8 modules et s'est arrêté là où les
+      frontières étaient nettes. Atteindre 700 demanderait une SECONDE tournée d'extraction
+      (~1 000 lignes : modale « coller une recette », favoris, panneau IA, barre supérieure,
+      modales génériques, réglages) — un chantier de la taille du volet A. Elle serait
+      nettement moins risquée qu'à l'ouverture, ces zones étant désormais couvertes par les
+      LOTS 013/014. **Décision de périmètre à prendre par Joel : la faire, ou entériner le
+      −46 %.**
 - [x] **Volet B soldé (2026-07-31)** : plus aucun `state = moduleState` compensatoire (3
       suppressions), `loadState` et `setState` mutent au lieu de réassigner, `shoppingChecked`
       passe par `replaceShoppingChecked`. Invariant verrouillé par `const` sur les 3 bindings.
       6 tests neufs, dont la démonstration d'équivalence exigée par la fiche. **582/582.**
-- [ ] `validate.js` en place sur les 3 portes (cloud, localStorage, IA)
+- [x] **`validate.js` en place sur les 3 portes** (cloud, localStorage, IA) — volet C, plus
+      l'échappement des valeurs interpolées dans un prompt.
 - [x] **Volet G soldé (2026-07-31)** : plus aucune occurrence de `customCartItems` dans `js/`
       ni `src/` hors commentaires et filet d'élagage (`grep` de contrôle dans le commit) ;
       paramètre `type` mort retiré des deux fonctions **et de `src/ui/shopping.js`** ; les 7
       tests dédiés du LOT 015 supprimés, pas neutralisés ; les 2 libellés d'`index.html`
       réécrits avec leurs tests **inversés** (interdiction que la mention réapparaisse sans la
       fonction) ; `delete state.customCartItems` posé dans `sanitizeGlobalState`. **617/617.**
-- [ ] Zéro duplication SSOT connue restante (liste D soldée ou en fiches backlog)
-- [ ] Les 2 verrous anti-récidive en place et rouges quand on les provoque
-- [ ] Validation unifiée verte, build OK, **check-list de la fiche régressions re-parcourue
-      intégralement** : aucun comportement restauré n'a re-disparu
-- [ ] **Oracle visuel après le découpage CSS (audit Codex + leçon gravée du LOT 005)** :
-      preuve NAVIGATEUR avant/après pour les 5 vues ET les modales (détail de recette,
-      sélecteur, icône, API), en bureau ET en mobile. jsdom ne prouve ni cascade, ni
-      géométrie, ni plein écran ; « le texte des règles est présent dans le fichier » n'est
-      pas une preuve (incident du commentaire CSS, LOT 005).
+- [x] **Zéro duplication SSOT connue restante** — volet D en 2 passes (13 duplications) +
+      les 2 correctifs IA validés par Joel. Un seul point reste ouvert et **tranché par lui** :
+      les emojis de repli divergents (« laisse comme ça »).
+- [x] **Verrous anti-récidive en place et rouges quand on les provoque** — **4** et non 2 :
+      parité `on*=`↔`window`, imports ESM, message de clé API, découpage CSS. Tous prouvés
+      par mutation, tous porteurs d'une garde anti-vide.
+- [x] **Validation unifiée verte, build OK** — 771 Vitest, 16 Pytest.
+      ⚠️ **La check-list de la fiche régressions n'a PAS été re-parcourue une à une** : elle
+      l'est indirectement par les 771 tests (dont les 102 du LOT 013 écrits exprès pour ça),
+      ce qui n'est pas la même chose qu'un parcours explicite. **Reste à faire.**
+- [x] **Découpage CSS prouvé — MIEUX que par l'oracle visuel, sauf sur un point.** La feuille
+      produite par le build est identique **octet pour octet** après le découpage : la cascade
+      est prouvée inchangée, ce qu'un contrôle à l'écran n'aurait jamais garanti (l'incident
+      du LOT 005 venait justement d'un « ça a l'air pareil »). La contre-épreuve confirme que
+      la comparaison sait échouer.
+      ⚠️ **Cette preuve ne couvre PAS le retrait du CSS mort**, qui change forcément la
+      feuille produite (−10,9 %). Là, la garantie est le raisonnement « une classe jamais
+      produite ne peut jamais correspondre », vérifié par 3 recherches convergentes.
+      **Un coup d'œil de Joel sur les 5 vues et les modales reste la ceinture et les
+      bretelles.**
 - [ ] Audit DUR final de campagne
 
 ---
