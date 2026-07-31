@@ -19,6 +19,8 @@
 - `src/ui/shopping.js` : UI et liste de courses.
 - `src/utils/dom.js` : Utilitaires de manipulation du DOM.
 - `src/utils/helpers.js` : Helpers algorithmiques et formatage.
+- `src/services/sync.js` : Moteur de synchro bidirectionnelle (LOT 007) — file d'opérations, barrière de quiescence, garde-fous entrant/sortant, temporisation et retry. Extrait de `js/app.js` au LOT 014. Ses DEUX dépendances d'interface sont injectées par `registerSyncUi` (pas d'import circulaire) ; `js/app.js` republie ses noms à l'identique.
+- `src/services/exports.js` : Composition des textes de partage (presse-papiers) — `buildClipboardText` est PURE (l'état lui est passé en paramètre) et `writeToClipboard` isole l'effet de bord. Extrait de `js/app.js` au LOT 014 ; le point d'entrée `exportClipboard` reste dans `js/app.js` car il est publié sur `window`.
 - `src/utils/validate.js` : SSOT des gardes d'entrée des données externes (localStorage, cloud, fichier de sauvegarde, réponses IA) + échappement des valeurs interpolées dans un prompt. Zéro dépendance : ne rejette jamais ce que `sanitizeGlobalState` sait réparer.
 
 ---

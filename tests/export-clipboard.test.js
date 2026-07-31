@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { state } from '../src/state.js';
 import { renderTopbar } from '../js/app.js';
+import { buildClipboardText } from '../src/services/exports.js';
 import '../js/app.js';
 
 // LOT 015, sous-lot A — les formats de copie vers le presse-papiers.
@@ -49,6 +50,47 @@ function ing(over = {}) {
         inStock: false, inCart: false, ...over
     };
 }
+
+// LOT 014, volet A — la composition des textes vit désormais dans `src/services/exports.js`
+// et `buildClipboardText` reçoit l'état en PARAMÈTRE. Ce bloc l'exerce DIRECTEMENT, sans
+// monter l'application ni le presse-papiers : c'est le bénéfice concret de l'extraction, et
+// il couvre deux cas qui n'étaient pas atteignables par le bouton (la date, et le retour
+// `null` sur un format inconnu — que le wrapper transforme en toast « Rien à copier »).
+describe('LOT 014 §A — buildClipboardText, exercée directement (fonction pure)', () => {
+    const etat = (ingredients) => ({ ingredients });
+
+    it('un format INCONNU renvoie null — c\'est ce qui déclenche « Rien à copier »', () => {
+        expect(buildClipboardText('full', etat([ing({ inStock: true })]))).toBeNull();
+        expect(buildClipboardText('', etat([]))).toBeNull();
+        expect(buildClipboardText(undefined, etat([]))).toBeNull();
+    });
+
+    it('la date de l\'en-tête est injectable — la fonction ne lit plus l\'horloge en douce', () => {
+        const built = buildClipboardText('simple', etat([ing({ inStock: true })]), new Date('2026-07-31T12:00:00Z'));
+        expect(built.header).toContain('31/07/2026');
+    });
+
+    it('ne lit QUE l\'état qu\'on lui passe : elle ignore l\'état global du module', () => {
+        state.ingredients = [ing({ id: 'global', name: 'NeDoitPasApparaitre', inStock: true })];
+
+        const built = buildClipboardText('simple', etat([ing({ id: 'local', name: 'Chou', inStock: true })]));
+
+        expect(built.body).toContain('Chou');
+        expect(built.body).not.toContain('NeDoitPasApparaitre');
+    });
+
+    it('sépare en-tête, corps et COMPTE DE LA SOURCE — le garde-fou porte sur les données', () => {
+        const built = buildClipboardText('cart', etat([
+            ing({ id: 'a', name: 'Tomate', inCart: true }),
+            ing({ id: 'b', name: 'Miel', inCart: false })
+        ]));
+
+        expect(built.count).toBe(1);
+        expect(built.header).toContain('LISTE DE COURSES');
+        expect(built.body).toContain('Tomate');
+        expect(built.body).not.toContain('Miel');
+    });
+});
 
 describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
     beforeEach(() => {
