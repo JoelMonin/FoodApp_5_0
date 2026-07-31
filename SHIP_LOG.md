@@ -1,13 +1,42 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.8.0
-- **Dernière mise à jour** : 30/07/2026
-- **Statut** : Version 5.8 publiée (LOT 015) — la page Réglages est fiable de bout en bout.
-  Prochain chantier : LOT 013 (filet de tests UI), puis LOT 014 (refonte SSOT) pour clore
-  la campagne « Restauration & Refonte »
+- **Version actuelle** : 5.9.0
+- **Dernière mise à jour** : 31/07/2026
+- **Statut** : Version 5.9 publiée (LOT 013) — le filet de tests est en place et en ligne.
+  Prochain et dernier chantier de la campagne « Restauration & Refonte » : LOT 014
+  (refonte SSOT et découpage), visé en 5.10
 
 ## Historique des modifications
+- [x] [VERSION 5.9 - OnLine] 31/07/2026 : Publication du lot 013
+    - Lot 013 — Filet de tests UI : un lot **sans aucun changement visible**, et c'est le but.
+      La campagne a restauré ~30 comportements perdus par la migration ; ce lot les décrit
+      par des tests automatisés pour que la refonte du LOT 014 ne puisse pas les reperdre en
+      silence. C'est précisément le filet qui manquait lors de la migration Vite
+    - +102 tests (448 → 550). Quatre fonctions n'avaient AUCUN test : la saisie d'ingrédient
+      avec son jeton anti-course, la recherche d'emoji par l'IA, l'affichage de la grille
+      d'inventaire et celui de la liste de courses. Plus les trous ciblés relevés en
+      découverte : créativité à 0, réponses IA dégradées, reprise d'un ingrédient similaire,
+      identifiants uniques, pannes Firebase 500 / JSON invalide, recherche et filtres
+    - **Matrice de couverture des 84 acquis des LOTS 005 à 015** : le vrai livrable du lot —
+      pour chaque comportement restauré, le test nommé qui le fige. C'est elle qui servira de
+      check-list de non-régression au LOT 014
+    - Un seul écart au principe « zéro changement de comportement », autorisé par Joel à
+      l'ouverture : des attributs d'ancrage (`id`, `data-testid`) posés sur les zones qui
+      n'offraient aucune prise stable aux tests — cartes de Réglages, tuiles d'inventaire,
+      lignes de courses, détail de recette. Ajout d'attributs uniquement, vérifié par les
+      deux audits comme étant la seule modification hors tests
+    - Audits : 2 agents adversariaux locaux ont pratiqué du **mutation testing** — casser le
+      vrai code pour vérifier que les tests le détectent. Sur ~95 cas, zéro test tautologique.
+      Leur vraie prise a été ailleurs : 6 lignes de la matrice citaient un test qui ne prouvait
+      pas ce qu'elles annonçaient (comblées) et une citation était fausse (corrigée). Audit
+      Gemini en complément : 12 questions fermées, vérifiées sur pièce une à une
+    - Trouvé en chemin : les « articles libres » de la liste de courses sont un vestige à demi
+      branché — conservés, synchronisés et copiés, mais jamais affichés ni créables. Joel a
+      tranché leur **suppression**, programmée au LOT 014 (volet G)
+    - Découverte technique consignée : un vrai bug de l'environnement de test (jsdom, pas de
+      l'application) sur les sélecteurs d'attribut à valeur emoji — documenté comme piège
+    - Métriques : 550/550 Vitest + 13/13 Pytest verts, build OK
 - [x] [VERSION 5.8 - OnLine] 30/07/2026 : Publication du lot 015
     - Lot 015 — Réglages fiables et cohérents : chaque bouton de la page fait désormais
       exactement ce que son titre annonce. « Copier mon stock » copiait la liste de

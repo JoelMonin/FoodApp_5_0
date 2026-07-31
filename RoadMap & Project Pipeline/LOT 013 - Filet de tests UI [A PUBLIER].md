@@ -1,10 +1,13 @@
 # LOT 013 — Filet de tests UI — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-07-30, **PRÉALABLE OBLIGATOIRE du LOT 014**
+> **Statut :** 🟡 À PUBLIER — ouvert le 2026-07-30, terminé et audité le 2026-07-31,
+> **PRÉALABLE OBLIGATOIRE du LOT 014**
 > **Branche :** `feat/lot13-filet-tests-ui`
 > **Niveau d'audit : Standard** (relevé de Léger : le lot touche `index.html`, cf. §ÉCARTS)
 > **Effort estimé :** ~2 journées
-> **Version visée : 5.9** (avec le LOT 014)
+> **Version visée : 5.9 — publiée SEULE** (arbitrage de Joel du 2026-07-31 : le filet part en
+> ligne AVANT la refonte, pour qu'un LOT 014 abandonné ne l'emporte pas avec lui ; le LOT 014
+> devient la 5.10, et non la 6.0)
 > **Promu du backlog** (`BACKLOG - Filet de tests UI.md`, origine `ULTRA_AUDIT_REPORT.md`
 > 2026-05-01) le 2026-07-29 — contenu intégral repris et actualisé ci-dessous.
 

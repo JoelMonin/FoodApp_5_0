@@ -9,13 +9,17 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 013 — Filet de tests UI**, ouvert le 2026-07-30 sur `feat/lot13-filet-tests-ui`.
-**Travail terminé et audité le 2026-07-31** — 102 tests neufs (448 → 550), matrice de
-couverture 84/84 lignes, validation unifiée verte, 2 audits adversariaux locaux (0 test
-tautologique confirmé) + audit Gemini (12/12 questions vérifiées sur pièce), GO. **En attente
-de la décision de Joel** : enchaîner sur le LOT 014 (même branche, précédent des LOTS
-007+008/009+010/011+012) ou marquer une pause. Détail complet, écarts déclarés, arbitrages et
-audit : `RoadMap & Project Pipeline/LOT 013 - Filet de tests UI [EN COURS].md`.
+**LOT 014 — Refonte SSOT et découpage** — dernier lot de la campagne, à ouvrir sur
+`feat/lot14-refonte-ssot` **après la publication du 5.9**. Niveau d'audit **DUR**. Détail :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [PLANIFIE].md`.
+
+**LOT 013 — Filet de tests UI** : terminé et audité le 2026-07-31, **publié seul en Version
+5.9** — 102 tests neufs (448 → 550), matrice de couverture 84/84, 2 audits adversariaux locaux
+(0 test tautologique confirmé) + audit Gemini (12/12 vérifiées sur pièce). **Arbitrage de Joel
+du 2026-07-31** : rompre avec l'habitude de chaîner les lots par paires, parce que le 013 n'est
+pas le pair du 014 mais sa police d'assurance — la garder sur l'étagère pendant le chantier le
+plus risqué de la campagne, c'était la perdre avec lui en cas d'abandon. Le LOT 014 devient
+donc la **5.10** (et non la 6.0). Détail : `LOT 013 - Filet de tests UI [A PUBLIER].md`.
 
 **But en une phrase :** figer par des tests le comportement de l'app restaurée (LOTS 007-012
 et 015), avant que le LOT 014 déplace le code en masse — exactement ce qui manquait lors de la
@@ -85,9 +89,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **011 + 012** — ✅ **PUBLIÉS en Version 5.7 le 2026-07-30** — campagne de restauration
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
-- **013** Filet de tests UI — 🔵 **EN COURS** (ouvert le 2026-07-30) → **014** Refonte SSOT —
-  PLANIFIÉ, ferme la campagne (refonte) (V5.9 — cible ajustée par Joel le 2026-07-30,
-  anciennement V6.0)
+- **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
+- **014** Refonte SSOT et découpage — ⚪ **PLANIFIÉ**, ferme la campagne (V5.10)
 
 ## Vérités à ne pas perdre
 
@@ -136,12 +139,21 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## Prochaine étape
 
-**LOT 013 en cours** sur `feat/lot13-filet-tests-ui` — phase découverte faite, fiche réécrite,
-écarts arbitrés (ancres de test + non-restauration des articles libres). Reste à faire : poser
-les ancres, construire `tests/_helpers/`, écrire le filet (4 fonctions à 0 test + trous
-ciblés), rédiger la matrice de couverture des 84 acquis relevés (LOTS 005-015), valider et
-auditer. Débloque ensuite le **LOT 014 — Refonte SSOT**, qui hérite d'un volet G nouveau
-(suppression des articles libres, inventaire déjà rédigé dans sa fiche).
+**LOT 014 — Refonte SSOT et découpage**, le dernier de la campagne. Prérequis rempli : le
+filet est en ligne. Ordre de livraison prévu par la fiche : **B → C → G → A → D → E → F**, un
+commit par étape aboutie, validation unifiée verte à chaque commit — pas de « grand soir »,
+pour qu'une étape qui déraille se revert seule.
+
+**Les deux seuls volets qui changent un comportement** (donc commits séparés, isolés de la
+refonte pure) : **C** — rejet des données invalides (cloud, localStorage, recette IA) — et
+**G** — suppression des « articles libres », décidée par Joel le 2026-07-30. Effet à annoncer
+avant livraison du G : la liste de courses copiée cessera d'inclure le « porc haché » de Joel,
+seul endroit où ce vestige était encore visible.
+
+**Ce que la fiche du 014 doit se voir confirmer en phase découverte** : elle a été écrite le
+2026-07-29, avant les LOTS 013 et 015. La découverte du 013 y a déjà trouvé une erreur de
+taille (`js/app.js` annoncé « ~1500 lignes », mesuré à 2810) — traiter chaque citation
+`fichier:ligne` comme périmée jusqu'à vérification.
 
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.

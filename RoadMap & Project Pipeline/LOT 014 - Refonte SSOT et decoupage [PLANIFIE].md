@@ -3,7 +3,8 @@
 > **Statut :** ⚪ PLANIFIÉ — DERNIER lot de la campagne, après le LOT 013 (prérequis DUR)
 > **Branche à créer :** `feat/lot14-refonte-ssot`
 > **Niveau d'audit : DUR** — refonte transverse, touche le moteur d'état
-> **Effort estimé :** ~2-3 journées · **Version visée :** 5.9
+> **Effort estimé :** ~2-3 journées · **Version visée :** 5.10 (le LOT 013 a pris la 5.9 en
+> partant seul — arbitrage de Joel du 2026-07-31, cf. `ROADMAP.md` §Historique)
 > **Fusion de 3 fiches backlog promues le 2026-07-29** : `Decoupage app.js et style.css` +
 > `Alias state fragile` + `Validation des donnees externes` (contenus repris ci-dessous) +
 > volet SSOT demandé par Joel.
