@@ -2,7 +2,7 @@ import { state, saveState } from '../state.js';
 import { h, toast } from '../utils/dom.js';
 import { normalizeString } from '../utils/helpers.js';
 import { DEFAULT_DB, getCategoryEmoji } from '../data.js';
-import { GENERIC_EMOJI_FALLBACK, AI_ROLES } from '../constants.js';
+import { GENERIC_EMOJI_FALLBACK, AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { callAI } from '../services/gemini.js';
 
 /**
@@ -17,12 +17,12 @@ import { callAI } from '../services/gemini.js';
  * ce qui a supprime une des trois injections dont il avait besoin quand cette fonction vivait
  * encore dans `js/app.js`.
  *
- * DEUX DIVERGENCES CONNUES avec son jumeau du formulaire d'ajout (`searchEmojiAddAI`), figees
- * telles quelles par les tests — candidates du volet D, donc decisions de Joel :
- *  1. Sans cle API, le jumeau sort EN SILENCE ; ici `callAI` leve, l'exception est rattrapee,
- *     et Joel voit « Erreur recherche emoji » — un message qui ne lui dit pas qu'il lui manque
- *     simplement une cle.
- *  2. La regex d'extraction d'emojis DECOUPE les emojis composites au lieu de les rater :
+ * UNE DIVERGENCE RESTE avec son jumeau du formulaire d'ajout (`searchEmojiAddAI`), figee
+ * telle quelle par les tests. L'autre a ete CORRIGEE par Joel le 2026-07-31 : sans cle API,
+ * cet ecran affichait « Erreur recherche emoji » au lieu de dire qu'il manquait une cle ; il
+ * annonce desormais le meme message que les quatre autres ecrans (le jumeau, lui, sort
+ * toujours EN SILENCE — c'est une suggestion de fond, pas un geste demande par Joel).
+ *  1. La regex d'extraction d'emojis DECOUPE les emojis composites au lieu de les rater :
  *     « 👨‍👩‍👧 » produit 5 tuiles dont 2 INVISIBLES (liaisons de largeur nulle, cliquables),
  *     et « 1️⃣ » se reduit a son seul caractere d'encadrement. La phase decouverte annoncait
  *     l'inverse (« une regex qui rate des emojis ») ; verifie sur piece, fiche corrigee.
@@ -126,6 +126,15 @@ export async function searchEmojiAI() {
     if (!input || !btn) return;
     const query = input.value.trim();
     if (!query) return;
+
+    // CORRECTIF (LOT 014, decide par Joel le 2026-07-31). Sans cle, cet ecran laissait
+    // `callAI` lever et affichait « Erreur recherche emoji » : un message d'echec generique
+    // la ou il ne manquait qu'un reglage. Il dit desormais la meme chose que les quatre
+    // autres ecrans. L'ACTION reste propre a celui-ci : on previent sans ouvrir les
+    // Reglages, qui masqueraient la fenetre d'icone ouverte par-dessus.
+    // La garde est posee APRES le test du champ vide : inutile de reclamer une cle a
+    // quelqu'un qui n'a encore rien tape.
+    if (!state.aiConfig.apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); return; }
 
     btn.disabled = true;
     const oldHtml = btn.innerHTML;

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { state, shoppingChecked, defaultAiConfig } from '../src/state.js';
 import { setupTestDOM, resetTestState, mockFetchResponse, mockFetchNetworkError, readToasts } from './_helpers/dom-helpers.js';
+import { MESSAGE_CLE_API_MANQUANTE } from '../src/constants.js';
 import '../js/app.js';
 
 // LOT 014, volet A — TESTS DE CARACTÉRISATION de `searchEmojiAI`, écrits AVANT le
@@ -109,27 +110,36 @@ describe('LOT 014 §A — searchEmojiAI (caractérisation avant déplacement)', 
     });
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // DEUX DIVERGENCES RÉELLES avec son jumeau `searchEmojiAddAI`, figées telles quelles.
-    // Relevées par la phase découverte (§B11) et vérifiées ici sur pièce. Les corriger
-    // serait un changement de comportement : candidates du volet D, décision de Joel.
+    // DIVERGENCES avec son jumeau `searchEmojiAddAI`, relevées par la phase découverte
+    // (§B11) et vérifiées ici sur pièce. La première a été CORRIGÉE par Joel le
+    // 2026-07-31 ; la seconde reste figée telle quelle.
     // ─────────────────────────────────────────────────────────────────────────────
 
-    it('DIVERGENCE 1 : sans clé API, Joel voit une ERREUR — là où son jumeau sort en silence', async () => {
-        // `searchEmojiAddAI` teste la clé AVANT d'appeler et sort sans rien dire.
-        // Celle-ci ne la teste pas : c'est `callAI` qui lève, l'exception est rattrapée, et
-        // Joel récolte un message d'erreur générique qui ne lui dit pas qu'il lui manque
-        // simplement une clé. L'unification des messages de clé API (LOT 014) N'A PAS touché
-        // cet écran : il n'était pas dans les quatre sites validés par Joel, et son message
-        // ne parle pas de clé — c'est justement ce qui reste à trancher.
+    it('sans clé API : dit EXACTEMENT ce qui manque, et n\'ouvre pas les Réglages (correctif '
+       + 'décidé par Joel le 2026-07-31 — cet écran affichait « Erreur recherche emoji », un '
+       + 'message d\'échec générique là où il ne manquait qu\'un réglage)', async () => {
         state.aiConfig.apiKey = '';
         document.getElementById('emoji-search-input').value = 'tomate';
         const fetchMock = mockFetchResponse(reponseGemini('🍅'));
 
         await window.searchEmojiAI();
 
-        expect(fetchMock).not.toHaveBeenCalled();        // l'appel ne part pas (garde de callAI)
-        expect(readToasts().join(' ')).toContain('Erreur recherche emoji');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(readToasts().join(' ')).toContain(MESSAGE_CLE_API_MANQUANTE);
+        expect(readToasts().join(' ')).not.toContain('Erreur recherche emoji');
         expect(document.getElementById('emoji-search-btn').disabled).toBe(false);
+    });
+
+    it('champ de recherche VIDE : toujours aucun message, même sans clé — inutile de réclamer '
+       + 'une clé à quelqu\'un qui n\'a rien tapé', async () => {
+        state.aiConfig.apiKey = '';
+        document.getElementById('emoji-search-input').value = '   ';
+        const fetchMock = mockFetchResponse(reponseGemini('🍅'));
+
+        await window.searchEmojiAI();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(readToasts()).toEqual([]);
     });
 
     // La phase découverte (§B11) annonçait « une regex qui rate des émojis ». Vérifié sur

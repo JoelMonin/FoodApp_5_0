@@ -503,8 +503,9 @@ localement le bénéfice du LOT 013.
       (~1 000 lignes : modale « coller une recette », favoris, panneau IA, barre supérieure,
       modales génériques, réglages) — un chantier de la taille du volet A. Elle serait
       nettement moins risquée qu'à l'ouverture, ces zones étant désormais couvertes par les
-      LOTS 013/014. **Décision de périmètre à prendre par Joel : la faire, ou entériner le
-      −46 %.**
+      LOTS 013/014. **➡️ TRANCHÉ PAR JOEL le 2026-07-31 : ni abandonné, ni empilé sur ce lot —
+      un lot séparé, à froid.** La 5.10 se publie avec le −46 %. Fiche écrite avec l'inventaire
+      mesuré et les pièges déjà connus : `Backlog/BACKLOG - Second rangement de app.js.md`.
 - [x] **Volet B soldé (2026-07-31)** : plus aucun `state = moduleState` compensatoire (3
       suppressions), `loadState` et `setState` mutent au lieu de réassigner, `shoppingChecked`
       passe par `replaceShoppingChecked`. Invariant verrouillé par `const` sur les 3 bindings.
@@ -787,7 +788,10 @@ réponse tronquée — un autre besoin.
 
 **2. Un seul message de clé API (`MESSAGE_CLE_API_MANQUANTE`).** Quatre formulations pour un
 seul et même besoin, dont une seule disait de quelle clé il s'agissait : c'est
-« Clé API Gemini requise » qui gagne partout. **La réaction de chaque écran est préservée** —
+« Clé API Gemini requise » qui gagne partout. **Un CINQUIÈME écran s'y est ajouté le même
+jour, sur décision de Joel** : la recherche d'emoji par IA de la fenêtre « Changer l'icône »
+affichait « Erreur recherche emoji » — un message d'échec générique là où il ne manquait qu'un
+réglage. Signalé plutôt qu'appliqué d'office, parce qu'il sortait des quatre sites validés. **La réaction de chaque écran est préservée** —
 l'analyse nutritionnelle prévient sans ouvrir les Réglages, ce qui cacherait la recette
 ouverte ; les deux autres écrans les ouvrent. Verrou de source posé : ce texte ne peut plus
 être réécrit ailleurs que dans `src/constants.js`.
