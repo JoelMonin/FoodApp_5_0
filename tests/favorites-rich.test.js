@@ -257,6 +257,13 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
                 })
             });
             state.aiConfig.apiKey = 'MOCK_KEY';
+            // ISOLATION (LOT 014) : `_lastTransformedRecipe` est une variable de MODULE de
+            // js/app.js, purgée uniquement par `openModal` (js/app.js:1867). Sans cette
+            // ouverture, une recette transformée par un test précédent survivait dans le
+            // module et se faisait sauvegarder à la place de la recette du test courant —
+            // ce qui est aussi ce que fait l'app en vrai : on ouvre la fenêtre avant de
+            // s'en servir. Le test reproduit donc le parcours réel, il ne le contourne pas.
+            openModal('modal-paste-recipe');
             document.getElementById('paste-title').value = 'Titre initial';
             document.getElementById('paste-content').value = 'Texte à transformer';
         });
@@ -306,9 +313,16 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
             expect(document.getElementById('paste-content').value).toBe('Texte à transformer');
             expect(document.getElementById('paste-content').disabled).toBe(false);
             expect(document.getElementById('paste-title').value).toBe('Titre initial');
-            // Rien ne doit être sauvegardable : la recette n'a pas été mémorisée.
+
+            // La recette refusée ne doit PAS avoir été mémorisée : sauvegarder retombe sur
+            // le chemin « tel quel » (le texte brut de Joel), jamais sur la réponse invalide.
             savePastedRecipe();
-            expect(state.favorites[0]?.name).not.toBe(undefined);
+            expect(state.favorites).toHaveLength(1);
+            // Forme « texte brut » (`title`/`content`), pas la forme « recette structurée »
+            // (`name`/`ingredients`) — la preuve que la réponse refusée n'a pas été retenue.
+            expect(state.favorites[0].title).toBe('Titre initial');
+            expect(state.favorites[0].name).toBeUndefined();
+            expect(state.favorites[0].ingredients).toBeUndefined();
         });
 
         it('§C — une recette IA dont les étapes ne sont pas une liste est refusée', async () => {

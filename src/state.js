@@ -37,7 +37,7 @@ export function defaultAiConfig() {
  *
  * `const` est ici un VERROU ANTI-RÉCIDIVE, pas un détail de style : il rend impossible
  * toute réassignation future de `state`. C'est ce qui garantit qu'un alias capturé par un
- * autre module (`js/app.js:29`) reste valide pour toujours, sans rattrapage manuel. Une
+ * autre module (`js/app.js:35`) reste valide pour toujours, sans rattrapage manuel. Une
  * tentative de réassignation devient une erreur de compilation, plus un bug silencieux.
  * Le contenu, lui, se mute librement (`Object.assign`, cf. `setState`).
  */
@@ -58,7 +58,7 @@ export const state = {
 };
 
 // Même verrou que `state` ci-dessus : le Set se vide et se remplit, il ne se remplace pas
-// (contrat de `replaceShoppingChecked`, l.94-97).
+// (contrat de `replaceShoppingChecked`, plus bas dans ce fichier).
 export const shoppingChecked = new Set();
 
 /**
@@ -121,7 +121,7 @@ export function loadState() {
 
     const sc = localStorage.getItem(LOCAL_STORAGE_CHECKED_KEY);
     // LOT 014, volet B — CONTRADICTION INTERNE CORRIGÉE. Cette ligne réassignait
-    // `shoppingChecked` alors que `replaceShoppingChecked` (l.86-89) existe précisément pour
+    // `shoppingChecked` alors que `replaceShoppingChecked` (ci-dessus) existe précisément pour
     // l'éviter, et documente la règle : « on mute le Set en place, jamais par affectation ».
     // Le seul point du module qui violait son propre contrat.
     if (sc) replaceShoppingChecked(JSON.parse(sc));
@@ -274,7 +274,7 @@ export function setState(partialState, { scheduleSync = true } = {}) {
   // LOT 014, volet B — MUTATION EN PLACE, jamais de réassignation.
   //
   // `state = { ...state, ...partialState }` créait un OBJET NEUF à chaque appel. Or
-  // `js/app.js` garde un alias local (`let state = moduleState`, js/app.js:29) capturé une
+  // `js/app.js` garde un alias local (`let state = moduleState`, js/app.js:35) capturé une
   // fois pour toutes : après chaque réassignation, cet alias pointait sur l'ancien objet et
   // devait être « rattrapé » à la main. Trois rattrapages existaient (js/app.js:62, :96,
   // :422) ; un quatrième chemin oublié aurait fait travailler l'app sur des données périmées
