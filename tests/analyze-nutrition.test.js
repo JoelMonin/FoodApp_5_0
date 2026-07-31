@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { analyzeNutrition } from '../js/app.js';
 import { state, defaultAiConfig } from '../src/state.js';
+import { MESSAGE_CLE_API_MANQUANTE } from '../src/constants.js';
 import { setupTestDOM, mockFetchResponse, mockFetchNetworkError, readToasts } from './_helpers/dom-helpers.js';
 
 // LOT 013 — analyzeNutrition (js/app.js:1111) n'avait que 2 tests avant ce lot
@@ -52,7 +53,12 @@ describe('LOT 013 — analyzeNutrition', () => {
         await analyzeNutrition(recette(), 'ai', null);
 
         expect(fetchMock).not.toHaveBeenCalled();
-        expect(readToasts()).toContain("Clé API requise pour l'analyse");
+        // LOT 014 — le message est désormais le MÊME sur les quatre écrans qui réclament la
+        // clé (décision de Joel du 2026-07-31). Ce test ne réécrit plus le texte : il lit la
+        // SSOT, sinon il redeviendrait le cinquième endroit où ce texte est recopié.
+        // La réaction propre à CET écran (ne pas ouvrir les Réglages) est verrouillée par
+        // `tests/api-key-message-ssot.test.js`.
+        expect(readToasts()).toContain(MESSAGE_CLE_API_MANQUANTE);
     });
 
     it('happy path : attache r.nutrition et confirme par toast', async () => {
@@ -65,6 +71,22 @@ describe('LOT 013 — analyzeNutrition', () => {
         await analyzeNutrition(r, 'ai', null);
 
         expect(r.nutrition).toEqual({ score: 'A', kcal: 420, tags: ['Sain', 'Léger'] });
+        expect(readToasts()).toContain('Analyse nutritionnelle terminée !');
+    });
+
+    // LOT 014 — QUATRIÈME extracteur de JSON de l'app, absent de l'inventaire de trois
+    // remonté par l'audit : trouvé en câblant les trois autres. Il portait le même défaut.
+    it('estimation IMBRIQUÉE dans un sous-objet : lue correctement (le motif précédent '
+       + 'coupait au premier « } » et l\'analyse échouait sans raison visible)', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: 'Voici : {"score":"B","detail":{"kcal":510},"tags":["Copieux"]}' }] } }] })
+        }));
+        const r = recette();
+
+        await analyzeNutrition(r, 'ai', null);
+
+        expect(r.nutrition).toEqual({ score: 'B', detail: { kcal: 510 }, tags: ['Copieux'] });
         expect(readToasts()).toContain('Analyse nutritionnelle terminée !');
     });
 

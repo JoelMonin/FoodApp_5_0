@@ -10,6 +10,14 @@ export const AI_ROLES = {
   FAST: 'gemini-3.5-flash-lite'
 };
 
+// SSOT du message affiché quand la clé Gemini manque (LOT 014, décidé par Joel le
+// 2026-07-31). Le même besoin s'annonçait de QUATRE façons différentes selon l'écran
+// (« Clé API manquante. », « Clé API requise pour l'analyse », « Clé API requise »,
+// « Clé API Gemini requise ») : quatre formulations pour une seule et même action à faire,
+// et une seule qui disait quelle clé. C'est celle-là qui est retenue partout.
+// Chaque écran garde en revanche SA réaction : ouvrir les Réglages, ou seulement prévenir.
+export const MESSAGE_CLE_API_MANQUANTE = 'Clé API Gemini requise';
+
 // SSOT des plafonds d'ingrédients imposés à l'IA (LOT 010, casse C9).
 // L'oracle plafonnait SÉPARÉMENT les deux familles — 6 épinglés ET 6 hors stock
 // (`foodapp-v5-Joel.html` l.4737 et l.4916) — et non « 6 au total » comme le

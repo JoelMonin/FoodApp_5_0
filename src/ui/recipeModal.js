@@ -1,7 +1,8 @@
 import { state, saveState } from '../state.js';
 import { toast } from '../utils/dom.js';
-import { AI_ROLES } from '../constants.js';
+import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { callAI } from '../services/gemini.js';
+import { extraireJsonIA } from '../utils/aiJson.js';
 import { renderRecipeDetail } from './recipe.js';
 import { buildIngredientTags } from '../utils/stockMatch.js';
 
@@ -93,7 +94,9 @@ export function openRecipeDetail(idx, source = 'ai') {
 export async function analyzeNutrition(r, source, favId) {
     if (!r || !r.ingredients) return;
     const apiKey = state.aiConfig.apiKey;
-    if (!apiKey) { toast("Clé API requise pour l'analyse", 'error'); return; }
+    // Message unique (LOT 014, `MESSAGE_CLE_API_MANQUANTE`) ; l'action, elle, reste propre à
+    // cet écran : on prévient sans ouvrir les Réglages, pour ne pas fermer la recette ouverte.
+    if (!apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); return; }
 
     const btn = document.getElementById('rd-nutri-btn');
     if (btn) {
@@ -107,10 +110,11 @@ export async function analyzeNutrition(r, source, favId) {
 
         const model = state.aiConfig.models?.nutrition || AI_ROLES.REASONING;
         const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
-        const match = raw.match(/\{[\s\S]*?\}/);
-        if (!match) throw new Error("Réponse IA invalide");
-        
-        const nutrition = JSON.parse(match[0]);
+        // QUATRIÈME extracteur de JSON de l'app — il n'était pas dans l'inventaire des trois
+        // remonté par l'audit, trouvé en câblant les autres. Même motif, même défaut : il
+        // aurait cassé sur une estimation imbriquée (`{"nutrition":{"score":"A"}}`).
+        const nutrition = extraireJsonIA(raw);
+        if (!nutrition) throw new Error("Réponse IA invalide");
         r.nutrition = nutrition;
 
         saveState();

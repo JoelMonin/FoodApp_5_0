@@ -116,9 +116,11 @@ describe('LOT 014 §A — searchEmojiAI (caractérisation avant déplacement)', 
 
     it('DIVERGENCE 1 : sans clé API, Joel voit une ERREUR — là où son jumeau sort en silence', async () => {
         // `searchEmojiAddAI` teste la clé AVANT d'appeler et sort sans rien dire.
-        // Celle-ci ne la teste pas : c'est `callAI` qui lève (« Clé API manquante »),
-        // l'exception est rattrapée, et Joel récolte un message d'erreur générique qui ne
-        // lui dit pas qu'il lui manque simplement une clé.
+        // Celle-ci ne la teste pas : c'est `callAI` qui lève, l'exception est rattrapée, et
+        // Joel récolte un message d'erreur générique qui ne lui dit pas qu'il lui manque
+        // simplement une clé. L'unification des messages de clé API (LOT 014) N'A PAS touché
+        // cet écran : il n'était pas dans les quatre sites validés par Joel, et son message
+        // ne parle pas de clé — c'est justement ce qui reste à trancher.
         state.aiConfig.apiKey = '';
         document.getElementById('emoji-search-input').value = 'tomate';
         const fetchMock = mockFetchResponse(reponseGemini('🍅'));

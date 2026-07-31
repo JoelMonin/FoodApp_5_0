@@ -79,7 +79,7 @@ import {
 import { validateState, isValidRecipe, escapePromptValue } from '../src/utils/validate.js';
 // Composition des textes de partage — extraite d'ici au LOT 014, volet A.
 import { buildClipboardText, writeToClipboard } from '../src/services/exports.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY, PANNEAU_DE_VUE, estVueFavoris, estVueReglages } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY, PANNEAU_DE_VUE, estVueFavoris, estVueReglages, MESSAGE_CLE_API_MANQUANTE } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -578,7 +578,7 @@ function generationDejaEnCours() {
 async function generateSuggestions() {
   if (generationDejaEnCours()) return;
   const apiKey = state.aiConfig.apiKey;
-  if (!apiKey) { toast('Clé API Gemini requise', 'error'); openModal('modal-api-config'); return; }
+  if (!apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); openModal('modal-api-config'); return; }
   const stockItems = state.ingredients.filter(i => i.inStock);
   if (stockItems.length === 0) { toast('Inventaire vide', 'error'); return; }
 
@@ -1289,7 +1289,7 @@ async function transformRecipeAI() {
     const title = document.getElementById('paste-title')?.value || '';
     const content = document.getElementById('paste-content')?.value;
     if (!content) return;
-    if (!state.aiConfig.apiKey) { toast('Clé API requise', 'error'); openModal('modal-api-config'); return; }
+    if (!state.aiConfig.apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); openModal('modal-api-config'); return; }
 
     const btn = document.getElementById('paste-ai-btn');
     btn.disabled = true;

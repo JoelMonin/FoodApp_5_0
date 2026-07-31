@@ -137,6 +137,94 @@ describe('LOT 013 — handleAddInput (js/app.js, accessible via window)', () => 
         expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
     });
 
+    // ─── LOT 014 — extracteur JSON unique (correctif validé par Joel le 2026-07-31) ────────
+    // Avant : la lecture de la réponse s'arrêtait à la première accolade fermante, et c'est
+    // son ÉCHEC qui servait de signal « réponse inutilisable » pour éteindre l'indicateur.
+    // Deux conséquences réelles, verrouillées ci-dessous.
+
+    it('réponse IA contenant un objet IMBRIQUÉ : la suggestion est appliquée (avant ce '
+       + 'correctif, la lecture coupait au premier « } » et la suggestion disparaissait '
+       + 'SANS le moindre message)', async () => {
+        const brut = '{"category":"Fruits","meta":{"source":"db"},"emojis":["🍎"]}';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fetchOk({ candidates: [{ content: { parts: [{ text: brut }] } }] })));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('Fruits');
+        expect(document.getElementById('add-emoji').value).toBe('🍎');
+        expect(document.getElementById('category-suggestion-indicator').textContent)
+            .toBe('✨ Catégorie suggérée par l\'IA');
+    });
+
+    it('réponse LISIBLE mais sans catégorie : « Analyse par l\'IA… » s\'éteint quand même — '
+       + 'sinon le message tournerait indéfiniment sous les yeux de Joel', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            fetchOk(geminiEnveloppe({ erreur: 'je ne sais pas' }))
+        ));
+
+        window.handleAddInput('xyzfoo');
+        expect(document.getElementById('category-suggestion-indicator').textContent)
+            .toBe('✨ Analyse par l\'IA...');   // le message est bien allumé avant la réponse
+
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
+    });
+
+    it('réponse rendue sous forme de TABLEAU : même règle — l\'indicateur s\'éteint. C\'est '
+       + 'le piège exact du correctif : une lecture plus tolérante réussit désormais là où '
+       + 'elle échouait, donc l\'extinction ne peut plus reposer sur son échec', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            fetchOk(geminiEnveloppe([{ category: 'Fruits' }]))
+        ));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('');
+        expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
+    });
+
+    it('catégorie qui n\'est PAS un texte : la garde de type de `sanitizeCategory` fait '
+       + 'toujours autorité (repli sur une catégorie utilisable), la lecture du JSON ne la '
+       + 'court-circuite pas', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            fetchOk(geminiEnveloppe({ category: 42, emojis: ['🛸'] }))
+        ));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('Conserves & bocaux');
+        expect(document.getElementById('category-suggestion-indicator').textContent)
+            .toBe('✨ Catégorie suggérée par l\'IA');
+    });
+
+    it('liste d\'emojis rendue en CHAÎNE au lieu d\'un tableau : elle est ignorée, mais la '
+       + 'catégorie comprise reste acquise (avant, elle faisait lever et effaçait '
+       + 'l\'indicateur qu\'on venait de poser)', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+            fetchOk(geminiEnveloppe({ category: 'Fruits', emojis: '🍎🍏' }))
+        ));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('Fruits');
+        // `display` autant que le texte : sans lui, une exception levée APRÈS la pose de la
+        // catégorie éteignait l'indicateur en laissant son texte en place — et le test
+        // passait quand même (faux verrou trouvé par la preuve par retrait, LOT 014).
+        expect(document.getElementById('category-suggestion-indicator').style.display).toBe('block');
+        expect(document.getElementById('category-suggestion-indicator').textContent)
+            .toBe('✨ Catégorie suggérée par l\'IA');
+    });
+
     it('panne réseau pendant l\'appel IA : n\'écrase rien, ne relève pas d\'exception '
        + 'observable par l\'appelant', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));

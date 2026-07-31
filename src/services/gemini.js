@@ -1,5 +1,6 @@
-import { AI_ROLES } from '../constants.js';
+import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { CATEGORIES } from '../data.js';
+import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
 
 // Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
 // le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
@@ -27,7 +28,7 @@ const RECIPE_SAFETY_SETTINGS = [
  * @returns {Promise<string>} - La réponse textuelle de l'IA.
  */
 export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options = {}) {
-  if (!apiKey) throw new Error("Clé API manquante.");
+  if (!apiKey) throw new Error(MESSAGE_CLE_API_MANQUANTE);
 
   const tokens = options.maxTokens || 4096;
   const isJSON = options.isJSON !== undefined ? options.isJSON : true;
@@ -103,10 +104,11 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
   if (!text) throw new Error("Réponse vide de l'IA");
 
   if (isJSON && !options.schema) {
-    // Extraction robuste pour les modèles sans JSON Mode strict (Markdown blocks)
-    // Utilise un regex non-greedy pour éviter de capturer trop si plusieurs blocs existent
-    const match = text.match(/```json\s*([\s\S]*?)```/) || text.match(/\{[\s\S]*?\}/) || text.match(/\[[\s\S]*?\]/);
-    return match ? (match[1] || match[0]).trim() : text.trim();
+    // Extraction pour les modèles sans JSON Mode strict (bloc Markdown, ou JSON noyé dans
+    // du bavardage). SSOT du découpage : `src/utils/aiJson.js` (LOT 014). Le contrat de
+    // `callAI` ne change pas — on rend une CHAÎNE, et le texte brut si rien n'est trouvé.
+    const bloc = decouperJsonIA(text);
+    return bloc !== null ? bloc : text.trim();
   }
 
   return text.trim();
@@ -292,12 +294,10 @@ Instructions :
     onThinkingFallback: options.onThinkingFallback
   });
 
-  try {
-    return JSON.parse(rawText.trim());
-  } catch (e) {
-    // Basic fallback if JSON is wrapped in markdown
-    const match = rawText.match(/```json\s*([\s\S]*?)```/) || rawText.match(/\{[\s\S]*?\}/);
-    if (match) return JSON.parse((match[1] || match[0]).trim());
-    throw e;
-  }
+  // SSOT de la lecture (LOT 014, `src/utils/aiJson.js`), partagée par les quatre appelants.
+  // L'appelant (`transformRecipeAI`) revalide ensuite la FORME avec `isValidRecipe` : lire
+  // du JSON ne prouve pas que c'est une recette.
+  const recette = extraireJsonIA(rawText);
+  if (!recette) throw new Error("Réponse IA illisible : aucun JSON exploitable");
+  return recette;
 }

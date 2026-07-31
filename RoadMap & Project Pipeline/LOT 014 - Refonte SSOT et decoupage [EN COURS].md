@@ -729,6 +729,63 @@ un remplacement entier d'un document reconstruit de zéro.
 
 ---
 
+### Correctifs IA — un seul lecteur de réponses, un seul message de clé (2026-07-31)
+
+**Décidés par Joel** (« oui, ok, go ») après le passage NotebookLM sur la SSOT. Changement de
+comportement, donc **commit séparé** du reste du volet D, conformément au pare-feu A/B du lot.
+
+**1. Un seul extracteur de JSON (`src/utils/aiJson.js`).**
+
+L'audit en annonçait TROIS ; il y en avait **QUATRE** — le quatrième (`analyzeNutrition`,
+`src/ui/recipeModal.js`) n'a été trouvé qu'en câblant les trois autres. Tous partageaient le
+même motif non gourmand `/\{[\s\S]*?\}/`, qui s'arrête à la première accolade fermante : dès
+que l'IA imbrique un objet, la lecture rend du JSON invalide et **la suggestion disparaît sans
+le moindre message**. La règle unique compte les accolades (chaînes et échappements exclus du
+comptage) et donne la priorité au bloc Markdown quand il y en a un.
+
+**Le piège annoncé était réel, et il y en avait un deuxième.** Le formulaire d'ajout se servait
+de l'ÉCHEC de l'extraction comme signal « réponse inutilisable » pour éteindre le message
+« ✨ Analyse par l'IA… ». Rendre la lecture plus tolérante l'aurait laissé tourner
+indéfiniment. Il est remplacé par une règle explicite : *l'indicateur ne survit que si une
+catégorie a vraiment été posée*. Ce faisant, un défaut **préexistant** se referme — une réponse
+lisible mais sans catégorie (`{"erreur":"je ne sais pas"}`) laissait DÉJÀ le message tourner.
+
+**Deux garde-fous ont été volontairement laissés en place** : `sanitizeCategory` reste seul
+juge de ce qu'est une catégorie utilisable (filtrer le type en amont aurait court-circuité la
+garde posée au volet C et son repli sur la déduction locale) ; et `generateRecipes` garde son
+propre sauvetage, qui ne cherche pas UN bloc valide mais RÉCOLTE les recettes complètes d'une
+réponse tronquée — un autre besoin.
+
+**2. Un seul message de clé API (`MESSAGE_CLE_API_MANQUANTE`).** Quatre formulations pour un
+seul et même besoin, dont une seule disait de quelle clé il s'agissait : c'est
+« Clé API Gemini requise » qui gagne partout. **La réaction de chaque écran est préservée** —
+l'analyse nutritionnelle prévient sans ouvrir les Réglages, ce qui cacherait la recette
+ouverte ; les deux autres écrans les ouvrent. Verrou de source posé : ce texte ne peut plus
+être réécrit ailleurs que dans `src/constants.js`.
+
+**Preuve par retrait — 13 mutations, 13 rouges, témoin vert (719 → 765 tests).**
+
+**Le harnais de mutation a d'abord menti, et c'est le résultat le plus utile de l'étape.** Une
+première salve annonçait « 10 sur 11 attrapées ». En exigeant qu'un échec porte le NOM d'un
+test, les 11 se sont révélés être des plantages au chargement : le harnais lançait l'outil de
+test depuis `c:\…` en minuscule au lieu de `C:\…`, ce qui casse la résolution du projet. **Onze
+preuves valaient zéro.** Une fois corrigé, quatre mutations sont passées au VERT — quatre faux
+verrous chez moi :
+
+| Ce qui ne prouvait rien | Pourquoi | Traitement |
+|---|---|---|
+| « accolade dans un texte » (`Sauce {maison}`) | l'accolade était REFERMÉE : le comptage retombait juste par hasard | test réécrit avec une accolade ouverte |
+| guillemet échappé | aucune accolade après l'échappement : rien ne changeait | test réécrit |
+| liste d'emojis en chaîne | seul le TEXTE de l'indicateur était vérifié, pas son affichage | assertion ajoutée sur `display` |
+| bloc Markdown | le découpage retrouvait le JSON même sans lui | test ajouté : bavardage à accolades AVANT le bloc |
+
+Et **deux bouts de code se sont révélés morts** à la même occasion : l'étape « lire la réponse
+telle quelle d'abord » (annoncée à Joel dans le plan) ne sert plus à rien une fois le comptage
+en place, et la garde « est-ce bien un objet ? » ne peut plus échouer. Les deux ont été
+**supprimés plutôt que gardés** — du code que rien ne distingue est un piège pour la suite.
+
+---
+
 ## Traçabilité
 
 - Fiches d'origine (supprimées à la promotion, contenus repris) :

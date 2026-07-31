@@ -5,6 +5,7 @@ import { CATEGORIES, CATEGORIE_PAR_DEFAUT, DEFAULT_DB } from '../data.js';
 import { guessCategoryLocally, sanitizeCategory } from '../utils/categorize.js';
 import { escapePromptValue } from '../utils/validate.js';
 import { callAI } from '../services/gemini.js';
+import { extraireJsonIA } from '../utils/aiJson.js';
 import { AI_ROLES, GENERIC_EMOJI_FALLBACK } from '../constants.js';
 
 /**
@@ -223,24 +224,43 @@ export function handleAddInput(val) {
             const model = state.aiConfig.models?.categorySuggest || AI_ROLES.FAST;
             const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
             if (myGenId !== _aiSuggestGenId) return; // saisie modifiee entre-temps
-            const match = raw.match(/\{[\s\S]*?\}/);
-            if (!match) { showCategoryIndicator(null); return; }
-            const data = JSON.parse(match[0]);
+
+            // SSOT de la lecture (LOT 014, `src/utils/aiJson.js`) — et surtout : la FORME
+            // de la reponse est verifiee explicitement. Avant, c'est l'ECHEC de l'extraction
+            // qui servait de signal « reponse inutilisable » pour eteindre « Analyse par
+            // l'IA... ». Un raccourci trompeur : une reponse a la bonne syntaxe mais sans
+            // categorie (`{"erreur":"je ne sais pas"}`) laissait DEJA le message tourner
+            // indefiniment sous les yeux de Joel. La regle est desormais explicite —
+            // l'indicateur ne survit que si une categorie a vraiment ete posee.
+            const data = extraireJsonIA(raw);
+            // La categorie est transmise TELLE QUELLE a `sanitizeCategory` : c'est LUI qui
+            // decide ce qu'est une categorie utilisable, y compris quand l'IA renvoie autre
+            // chose qu'un texte (garde de type posee au volet C). Filtrer sur le type ici
+            // court-circuiterait cette regle et son repli sur la deduction locale.
+            const categorieProposee = data ? data.category : null;
+            // `Array.isArray` plutot que `.length` : une liste d'emojis rendue sous forme de
+            // CHAINE (« 🍎🍏 ») passait le test precedent puis faisait lever `.forEach`,
+            // annulant au passage la categorie deja posee. Elle est desormais simplement
+            // ignoree — ce qui a ete compris reste acquis.
+            const emojisProposes = (data && Array.isArray(data.emojis)) ? data.emojis : [];
 
             // Catégorie : l'IA écrase toujours la détection locale (jamais le choix manuel)
-            if (data.category && !_isManualCategory) {
-                const finalCat = sanitizeCategory(data.category, val);
+            let categorieAppliquee = false;
+            if (categorieProposee && !_isManualCategory) {
+                const finalCat = sanitizeCategory(categorieProposee, val);
                 if (finalCat) {
                     catSelect.value = finalCat;
                     showCategoryIndicator('ai');
+                    categorieAppliquee = true;
                 }
             }
+            if (!categorieAppliquee) showCategoryIndicator(null);
 
             // Emojis : ajout dans la grille + auto-sélection si rien de choisi
-            if (data.emojis && data.emojis.length > 0) {
+            if (emojisProposes.length > 0) {
                 const container = document.getElementById('emoji-suggestions');
                 if (container) {
-                    data.emojis.forEach(e => {
+                    emojisProposes.forEach(e => {
                         if (!container.querySelector(`[data-emoji="${e}"]`)) {
                             container.appendChild(h('span', {
                                 class: 'emoji-item emoji-sug-btn',
@@ -250,8 +270,8 @@ export function handleAddInput(val) {
                         }
                     });
                 }
-                if (emojiInput && !emojiInput.value && data.emojis[0]) {
-                    selectEmoji(data.emojis[0]);
+                if (emojiInput && !emojiInput.value && emojisProposes[0]) {
+                    selectEmoji(emojisProposes[0]);
                 }
             }
         } catch (e) {

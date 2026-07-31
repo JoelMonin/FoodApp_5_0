@@ -150,10 +150,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## POINT DE REPRISE — LOT 014 (état au 2026-07-31, 26 commits, arbre propre)
+## POINT DE REPRISE — LOT 014 (état au 2026-07-31, arbre propre)
 
-**Métriques : 719/719 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %).**
-**Dernier commit : `f185dff`.**
+**Métriques : 765/765 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %).**
 
 ### Ce qui est FAIT
 
@@ -168,6 +167,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 | **A — TERMINÉ** | **8 modules extraits** : `exports`, `sync`, `categorize`, `stockMatch`, `addForm`, `cartPicker`, `emojiModal`, `recipeModal`. Modale morte « ajout groupé » retirée (3 recherches convergentes) |
 | **F — TERMINÉ** | **3 verrous** : parité `on*=`↔`window` (à l'EXÉCUTION), imports ESM (22 sites corrigés), durcissement `PROJECT_MAP`. Les 3 portent une garde anti-vide |
 | **D — 2 passes faites** | 13 duplications supprimées + 1 défaut réel (« Autres » absent du menu) + verrou `categories-ssot` |
+| **Correctifs IA — FAITS** | extracteur JSON unique (`src/utils/aiJson.js`, **4** sites et non 3) + message unique de clé API. 13 mutations, 13 rouges. Détail : fiche du lot, § « Correctifs IA » |
 
 **Correctifs de comportement décidés par Joel et livrés** : les 2 défauts de catégorisation ·
 la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icône) ·
@@ -175,24 +175,7 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
 
 ### Ce qui RESTE
 
-1. **DEUX CORRECTIFS IA VALIDÉS PAR JOEL, PAS ENCORE FAITS** — à livrer dans UN commit
-   « correctifs IA » (changement de comportement, donc séparé) :
-   - **Extracteur JSON unique.** Trois extracteurs aujourd'hui : `src/services/gemini.js:108`
-     (dans `callAI`, rend une CHAÎNE — attention au contrat), `:299` (rend du PARSÉ, essaie
-     `JSON.parse` d'abord — c'est la bonne méthode à généraliser), `src/ui/addForm.js:229`
-     (`{…}` seul). Tous utilisent un motif NON GOURMAND qui casse sur un objet imbriqué :
-     mesuré, `{"category":"x","meta":{"a":1},…}` échoue et la suggestion disparaît sans message.
-     ⚠️ **PIÈGE** : `addForm` se sert de l'ÉCHEC de l'extraction comme signal « réponse
-     inutilisable » pour éteindre le message « ✨ Analyse par l'IA… ». En rendant l'extraction
-     plus tolérante, une réponse `[…]` serait parsée avec succès → ce message resterait affiché
-     INDÉFINIMENT. Il faut donc remplacer ce raccourci par une vraie vérification de forme.
-   - **Message unique de clé API manquante.** Quatre textes aujourd'hui : `gemini.js:30`
-     (`throw new Error("Clé API manquante.")`, remonte à l'écran via `js/app.js:616`
-     `toast('Erreur IA : ' + e.message)`), `recipeModal.js:96` (« Clé API requise pour
-     l'analyse »), `js/app.js:567` (« Clé API Gemini requise » + ouvre les réglages),
-     `js/app.js:1269` (« Clé API requise » + ouvre les réglages). Retenu : **« Clé API Gemini
-     requise »**. Unifier le TEXTE ; garder l'action de chaque site (ouvrir ou non les réglages).
-2. **Volet E — CSS, le dernier.** Lire §B7 et §B8 de la découverte. `css/style.css` = 3 785
+1. **Volet E — CSS, le dernier.** Lire §B7 et §B8 de la découverte. `css/style.css` = 3 785
    lignes, chargé par UNE balise (`index.html:12`), 12 sections déjà balisées.
    **Approche retenue, meilleure que la preuve navigateur** : garder `css/style.css` comme
    fichier-chapeau de `@import` dans l'ORDRE ACTUEL (Vite 8 embarque postcss-import), puis
@@ -203,18 +186,27 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
    ⚠️ L'interdiction « ne pas toucher `rd-*` » est trop grossière (7 des 14 sont morts), et un
    commentaire du CSS (`:2882-2883`) **MENT** sur `rc-emoji`/`rc-header` — à corriger.
    Le retrait de CSS mort, lui, change la sortie du build : il exige une vraie preuve.
-3. **Reste ouvert, remonté à Joel, sans décision** : les émojis de repli divergents
-   (`🔸`/`❓`/`🛒`/`📦`) — **Joel a dit « laisse comme ça »**, donc clos.
+2. **Un point signalé à Joel, sans décision** : la recherche d'emoji par IA de la modale
+   d'édition (`src/ui/emojiModal.js`) affiche « Erreur recherche emoji » quand c'est
+   simplement la clé qui manque. Ce n'était pas dans les quatre sites du correctif validé,
+   donc laissé tel quel — c'est un mot à dire, pas un chantier.
+3. **Clos** : les émojis de repli divergents (`🔸`/`❓`/`🛒`/`📦`) — **Joel a dit « laisse
+   comme ça »**.
 
 ### Règles de ce lot à ne pas perdre
 
 - **Un test de caractérisation AVANT tout déplacement** d'une fonction non couverte.
 - **Un déplacement ne change JAMAIS un comportement** — un défaut trouvé en chemin se fige
   d'abord, se corrige dans un commit séparé, et seulement sur décision de Joel.
-- **Preuve par retrait obligatoire.** Sur ce lot : ~60 mutations. Elles ont trouvé **4 faux
+- **Preuve par retrait obligatoire.** Sur ce lot : ~75 mutations. Elles ont trouvé **8 faux
   verrous dans mes propres tests**, et surtout un MOTIF — les tests de modale vérifiaient le
   CONTENU, jamais que la modale S'AFFICHE. Débrancher l'ouverture du sélecteur de courses ou du
   détail de recette ne faisait rougir personne.
+- **EXIGER UN NOM DE TEST DANS LA PREUVE.** Un harnais de mutation qui conclut « rouge » sur un
+  code de sortie non nul peut compter des **plantages au chargement** comme des preuves : c'est
+  arrivé, 11 preuves valaient zéro (l'outil de test était lancé depuis `c:\…` en minuscule au
+  lieu de `C:\…`, ce qui casse la résolution du projet). Une mutation n'est prouvée que si un
+  test NOMMÉ rougit — et le harnais doit toujours porter un témoin non muté qui reste vert.
 - **Vérifier toute piste d'audit sur pièce.** La fiche de découverte contenait 2 affirmations
   FAUSSES (sur `searchEmojiAI`), NotebookLM 2 sur 13. Aucune n'a été appliquée telle quelle.
 - **Traquer les commentaires menteurs.** Mes propres correctifs en ont créé 4 dans la journée
