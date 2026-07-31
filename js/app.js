@@ -26,7 +26,11 @@ import { renderShoppingList } from '../src/ui/shopping.js';
 import { renderRecipeCard, renderRecipeDetail, renderFavoriteCard } from '../src/ui/recipe.js';
 import * as Actions from '../src/actions.js';
 
-let state = moduleState;
+// LOT 014, volet B — `const` : depuis que `src/state.js` MUTE son état au lieu de le
+// remplacer (`Object.assign` dans `setState`/`loadState`), cet alias reste valide pour
+// toujours. Les trois rattrapages `state = moduleState` qui suivaient chaque réassignation
+// (ex-l.62, :96, :422) ont disparu ; `const` interdit qu'un quatrième réapparaisse.
+const state = moduleState;
 let _isManualCategory = false;
 let _localCategoryFill = false; // true = catégorie posée par détection locale faible (IA peut écraser)
 let _addSuggestTimer = null;
@@ -59,7 +63,6 @@ const expose = (fns) => {
 
 window.addEventListener('DOMContentLoaded', async () => {
   loadStateFromModule();
-  state = moduleState;
 
   // Rendu immediat depuis les donnees locales : la vue ne doit jamais attendre le reseau.
   // La synchro cloud part en arriere-plan et re-declenche un rendu via 'stateUpdated'.
@@ -93,7 +96,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('stateUpdated', () => {
-    state = moduleState;
     renderCurrentView();
 });
 
@@ -419,7 +421,6 @@ async function performSyncPull({ manual = false } = {}) {
         const { patch, checkedIds } = extractSyncedState(cloudDoc);
         replaceShoppingChecked(checkedIds);
         applyExternalState(patch, { scheduleSync: false }); // issue de la synchro : ne replanifie JAMAIS d'envoi (§4.5)
-        state = moduleState;
 
         // Reference anti-boucle = le document tel qu'il existe LOCALEMENT apres
         // application (sanitisation comprise) : ainsi une simple sauvegarde d'un

@@ -31,7 +31,16 @@ export function defaultAiConfig() {
   };
 }
 
-export let state = {
+/**
+ * L'ÉTAT GLOBAL — objet unique, jamais remplacé (LOT 014, volet B).
+ *
+ * `const` est ici un VERROU ANTI-RÉCIDIVE, pas un détail de style : il rend impossible
+ * toute réassignation future de `state`. C'est ce qui garantit qu'un alias capturé par un
+ * autre module (`js/app.js:29`) reste valide pour toujours, sans rattrapage manuel. Une
+ * tentative de réassignation devient une erreur de compilation, plus un bug silencieux.
+ * Le contenu, lui, se mute librement (`Object.assign`, cf. `setState`).
+ */
+export const state = {
   ingredients: [],
   customCartItems: [],
   favorites: [],
@@ -47,7 +56,9 @@ export let state = {
   showInCartOnly: false
 };
 
-export let shoppingChecked = new Set();
+// Même verrou que `state` ci-dessus : le Set se vide et se remplit, il ne se remplace pas
+// (contrat de `replaceShoppingChecked`, l.94-97).
+export const shoppingChecked = new Set();
 
 /**
  * Inscription du moteur de synchro (LOT 007, spec §4.2/§4.5).
@@ -96,11 +107,15 @@ export function loadState() {
     const s = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (s) {
       const p = JSON.parse(s);
-      state = { ...state, ...p };
+      Object.assign(state, p); // LOT 014, volet B — mutation en place (voir setState)
     }
-    
+
     const sc = localStorage.getItem(LOCAL_STORAGE_CHECKED_KEY);
-    if (sc) shoppingChecked = new Set(JSON.parse(sc));
+    // LOT 014, volet B — CONTRADICTION INTERNE CORRIGÉE. Cette ligne réassignait
+    // `shoppingChecked` alors que `replaceShoppingChecked` (l.86-89) existe précisément pour
+    // l'éviter, et documente la règle : « on mute le Set en place, jamais par affectation ».
+    // Le seul point du module qui violait son propre contrat.
+    if (sc) replaceShoppingChecked(JSON.parse(sc));
   } catch (e) {
     console.error('Load Error:', e);
   }
@@ -164,7 +179,7 @@ export function sanitizeGlobalState() {
 
   // LOT 015 (audit Gemini Q9) — FILET DE RATTRAPAGE SSOT.
   // Les coches de courses vivent dans le Set `shoppingChecked`, JAMAIS dans `state`.
-  // Mais `setState` fusionne (`{ ...state, ...data }`) : une version qui restaurerait un
+  // Mais `setState` fusionne (`Object.assign(state, data)`) : une version qui restaurerait un
   // fichier neuf SANS extraire le champ absorberait la clé et la figerait ensuite
   // indéfiniment (persistée, puis ré-exportée). On élague donc ici, quel que soit le
   // chemin d'entrée — un aller-retour par une ancienne version se répare de lui-même.
@@ -247,7 +262,22 @@ export function sanitizeGlobalState() {
  *   application issue de la synchro (ne replanifie jamais d'envoi, §4.5).
  */
 export function setState(partialState, { scheduleSync = true } = {}) {
-  state = { ...state, ...partialState };
+  // LOT 014, volet B — MUTATION EN PLACE, jamais de réassignation.
+  //
+  // `state = { ...state, ...partialState }` créait un OBJET NEUF à chaque appel. Or
+  // `js/app.js` garde un alias local (`let state = moduleState`, js/app.js:29) capturé une
+  // fois pour toutes : après chaque réassignation, cet alias pointait sur l'ancien objet et
+  // devait être « rattrapé » à la main. Trois rattrapages existaient (js/app.js:62, :96,
+  // :422) ; un quatrième chemin oublié aurait fait travailler l'app sur des données périmées
+  // SANS AUCUN SIGNAL — le défaut le plus silencieux du projet.
+  //
+  // `Object.assign` est SUPERFICIEL, exactement comme le spread qu'il remplace :
+  //  - une clé du partial écrase entièrement l'ancienne (`aiConfig` est REMPLACÉ, jamais
+  //    fusionné en profondeur — comportement conservé, cf. applyExternalState l.283-286) ;
+  //  - une clé absente du partial est conservée ;
+  //  - l'ordre des clés du JSON produit par `saveState` est identique.
+  // L'équivalence est donc garantie par construction, pas seulement constatée.
+  Object.assign(state, partialState);
   sanitizeGlobalState();
   saveState(true, scheduleSync);
 }

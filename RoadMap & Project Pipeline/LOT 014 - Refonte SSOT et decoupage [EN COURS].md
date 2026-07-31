@@ -464,9 +464,10 @@ localement le bénéfice du LOT 013.
       (`tests/actions-data.test.js`, describe « LOT 014 §C1 »). **559/559 Vitest, 13/13
       Pytest, build OK.** Détail de l'exécution en §RÉALISATION ci-dessous.
 - [ ] `js/app.js` < 700 lignes ; plus aucune variable `_*` de module dans `app.js`
-- [ ] Plus aucun `state = moduleState` compensatoire (**3 suppressions** : `js/app.js:62`,
-      `:96`, `:422` — l'alias `:29` peut rester) **et `loadState` ne réassigne plus**
-      (`src/state.js:99` et `:103`, ce dernier en contradiction avec `replaceShoppingChecked`)
+- [x] **Volet B soldé (2026-07-31)** : plus aucun `state = moduleState` compensatoire (3
+      suppressions), `loadState` et `setState` mutent au lieu de réassigner, `shoppingChecked`
+      passe par `replaceShoppingChecked`. Invariant verrouillé par `const` sur les 3 bindings.
+      6 tests neufs, dont la démonstration d'équivalence exigée par la fiche. **582/582.**
 - [ ] `validate.js` en place sur les 3 portes (cloud, localStorage, IA)
 - [ ] **Volet G soldé** : plus aucune occurrence de `customCartItems` dans `js/` ni `src/`
       (`grep` de contrôle documenté dans le commit) ; paramètre `type` mort retiré de
@@ -576,6 +577,36 @@ et `js/app.js`, autorisé par Joel) avait été justifié en partie par les puce
 **aucun test ne consommait les ancres**. La dérogation avait été prise pour une couverture
 jamais écrite. C'est désormais réparé (FV-9), mais la leçon vaut : **une ancre posée sans test
 qui la consomme est une dérogation gratuite**.
+
+### Étape B — l'état est muté, plus jamais remplacé (2026-07-31)
+
+**Le défaut** : `setState` et `loadState` créaient un **objet neuf** à chaque appel. Or
+`js/app.js` garde un alias local capturé une fois à l'import (`js/app.js:29`). Après chaque
+remplacement, cet alias pointait sur l'ancien objet et devait être « rattrapé » à la main. Trois
+rattrapages existaient (`js/app.js:62`, `:96`, `:422`) ; **un quatrième chemin oublié aurait
+fait travailler l'app sur des données périmées sans aucun signal.**
+
+**Ce qui a été fait** :
+- `setState` et `loadState` : `state = { ...state, ...p }` → `Object.assign(state, p)`.
+- `loadState` : `shoppingChecked = new Set(...)` → `replaceShoppingChecked(...)`. **Contradiction
+  interne corrigée** : cette ligne était le seul point du module à violer le contrat que
+  `replaceShoppingChecked` documente (« on mute le Set en place, jamais par affectation »).
+- Les **3 rattrapages supprimés**.
+- **`export let state` → `export const state`**, idem pour `shoppingChecked`, et l'alias de
+  `js/app.js` passé en `const`. **C'est le vrai gain** : l'invariant n'est plus tenu par la
+  discipline mais par le langage — toute rechute devient une erreur de compilation.
+
+**Preuve** (6 tests neufs, `tests/state.test.js`, 576 → 582) : trois tests figent l'identité de
+l'objet (un alias capturé avant `setState`/`loadState` reste valide), trois démontrent
+l'équivalence exigée par la fiche — `aiConfig` **remplacé en entier** et non fusionné en
+profondeur, tableaux **remplacés** et non concaténés, clé absente du partial **conservée**.
+Vérifié par retrait : en réintroduisant la réassignation, **les 3 tests d'identité virent au
+rouge**. Aucun écart observable trouvé, conformément au « au moindre écart → STOP » de la fiche.
+
+**Ce que la découverte avait vu juste** : aucune comparaison d'identité de `state` n'existe dans
+le dépôt (`Object.is`/`WeakMap`/`=== state` : zéro occurrence), et **tous les tests utilisaient
+déjà `Object.assign(state, …)`** — le changement aligne la production sur ce que les tests
+faisaient déjà. 582/582 Vitest, 13/13 Pytest, build OK.
 
 ---
 
