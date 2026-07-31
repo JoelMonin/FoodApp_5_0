@@ -17,8 +17,16 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 **Objectif dépassé : `js/app.js` passe de 1527 à 625 lignes (−59 %)**, pour une cible
 annoncée à ~700. Six modules extraits (`modals`, `settings`, `favorites`, `topbar`,
-`pasteRecipe`, `aiPanel`) — et le nombre de couplages artificiels **baisse** malgré tout,
-de 5 crochets à 4.
+`pasteRecipe`, `aiPanel`).
+
+**⚠️ RECTIFICATION du 2026-07-31** : j'ai annoncé partout « couplages en baisse, 5 crochets
+→ 4 ». **C'est faux.** Vrai au premier volet, faux dès le suivant (`registerTopbarHooks` a
+rétabli le compte). Mesure réelle : **5 crochets avant, 5 après ; 9 points de couplage avant,
+10 après.** Le couplage n'a pas baissé, il a très légèrement augmenté. Ce qui a changé est sa
+NATURE : les crochets ne retiennent plus du code prisonnier du fourre-tout, ils pointent vers
+l'écran inventaire, qui attend son propre module. Troisième chiffre recopié sans être
+remesuré sur ce lot, après 1523 et 1366 — **une affirmation chiffrée se remesure à chaque
+étape**.
 
 **🔴 LE DÉFAUT À RETENIR DE CE LOT : la construction de production était cassée depuis le
 premier volet, avec 798 tests verts.** `js/app.js` importait deux fonctions supprimées de

@@ -220,9 +220,33 @@ Deux réordonnancements décidés en cours de route, chacun pour éviter un croc
 `modals.js` d'abord (volet A), et `topbar.js` avant `pasteRecipe.js` — ce dernier a besoin de
 `updateBadges`, qui serait sinon resté dans `js/app.js`.
 
-**Bilan des couplages : 5 crochets avant le lot, 4 après**, alors que six modules sont sortis.
-`registerTopbarHooks` en ajoute un (3 entrées, toutes vers l'écran inventaire qui n'a pas
-encore de module) ; `registerCartPickerHooks` et `registerEmojiModalHooks` ont disparu.
+### ⚠️ RECTIFICATION — le bilan des couplages que j'ai annoncé était FAUX
+
+J'ai écrit « 5 crochets → 4 » dans les messages de commit, cette fiche, `CURRENT_GOAL.md`,
+`ROADMAP.md` et mon compte rendu à Joel. **C'était vrai au volet A, et devenu faux au volet
+suivant** : `registerTopbarHooks` a rétabli le compte à 5. Vérifié sur pièce le 2026-07-31.
+
+| | Avant le lot | Après le lot |
+|---|---|---|
+| Nombre de crochets | **5** | **5** |
+| Points de couplage (entrées) | **9** | **10** |
+
+Le détail : `registerCartPickerHooks` (2) et `registerEmojiModalHooks` (2) ont disparu ;
+`registerModalHooks` (2) et `registerTopbarHooks` (3) sont apparus. Restent inchangés
+`registerAddFormNav` (1), `registerRecipeModalHooks` (2), `registerSyncUi` (2).
+
+**Donc le couplage n'a PAS baissé — il a très légèrement augmenté.** Ce qui a réellement
+changé est la NATURE des couplages, et c'est défendable, mais ce n'est pas ce que j'avais
+annoncé :
+
+- **avant**, deux modules déjà extraits dépendaient par injection de code resté prisonnier
+  du fourre-tout, sans perspective de sortie ;
+- **après**, les crochets pointent tous vers du code qui attend son propre module (l'écran
+  inventaire) ou vers de vrais cycles irréductibles (`recipeModal`, `sync`).
+
+La leçon est la même que celle du lot sur les commentaires menteurs : **une affirmation
+chiffrée doit être remesurée à chaque étape, pas recopiée d'une étape à l'autre.** C'est
+exactement l'erreur commise trois fois sur ce lot (1523, 1366, puis ce compte de crochets).
 
 ### Le défaut que 798 tests verts n'ont pas vu 🔴
 
