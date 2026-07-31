@@ -70,6 +70,18 @@ import {
   saveApiKey,
   saveAiConfigFromUI
 } from '../src/ui/settings.js';
+// Barre superieure, puces de filtre et pastilles de comptage — extraites d'ici au LOT 017.
+// Les trois fonctions de filtre sont parties avec : les laisser ici aurait porte le nombre de
+// crochets du module a CINQ, contre TROIS en les emportant.
+import {
+  renderTopbar,
+  renderPantryFilters,
+  updateBadges,
+  setFilter,
+  toggleSpecialFilter,
+  resetFilters,
+  registerTopbarHooks
+} from '../src/ui/topbar.js';
 // Ecran FAVORIS — extrait d'ici au LOT 017, avec `buildRecipeHandlers` que le LOT 014 avait
 // laissee exprès : elle trouve la-bas ses six dependances en simples imports.
 import {
@@ -205,6 +217,10 @@ registerRecipeModalHooks({ openModal, buildRecipeHandlers });
 // `openModal`. Ils partiront avec leurs modules (`pasteRecipe`, `settings`), et ce branchement
 // suivra sans changer de forme.
 registerModalHooks({ resetPasteModal, onApiConfigOpen });
+// Ce que la barre superieure delegue : trois fonctions qui appartiennent a l'ecran INVENTAIRE
+// (`renderPantry`, `switchView`) ou au partage (`exportClipboard`), et qui n'ont pas encore de
+// module a elles. Le jour ou `src/ui/pantryView.js` existera, il n'en restera qu'une.
+registerTopbarHooks({ switchView, exportClipboard, renderPantry });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -316,191 +332,8 @@ function switchView(view) {
     saveState();
 }
 
-/**
- * Compte stock et panier en UNE seule passe sur l'inventaire.
- * Ces deux compteurs etaient recalcules par 4 `filter()` distincts a chaque rendu.
- */
-function countStockAndCart() {
-    let stock = 0, cart = 0;
-    for (const i of state.ingredients) {
-        if (i.inStock) stock++;
-        if (i.inCart) cart++;
-    }
-    return { stock, cart };
-}
-
-// Sous-titre "N recette(s)" — partagé par les deux clés 'fav'/'favorites' (alias de la
-// meme vue, cf. `PANNEAU_DE_VUE`, `src/constants.js`), pour ne pas dupliquer le calcul.
-const _favCountSub = () => {
-    const n = state.favorites.length;
-    return n + ' recette' + (n > 1 ? 's' : '');
-};
-
-/**
- * LOT 012, zone C (oracle `updateTopbar`, l.4520-4579) — barre superieure contextuelle,
- * icones mobiles et sous-titres, restaures au mot pres (table verifiee par l'audit de
- * spec Codex). `.mh-icons` n'est JAMAIS remplace en bloc (contrairement a l'oracle) :
- * `#sync-indicator-mobile` (LOT 007) porte son etat thinking/success/error dans sa
- * classe et son texte, un `innerHTML=` le reinitialiserait silencieusement a chaque
- * changement de vue — l'oracle pouvait se le permettre, son propre voyant est statique.
- */
-function renderTopbar(view) {
-    const titles = {
-        pantry: 'Inventaire',
-        shopping: 'Liste de courses',
-        ai: 'Recettes IA',
-        favorites: 'Recettes favorites',
-        fav: 'Recettes favorites',
-        export: 'Réglages',
-        settings: 'Réglages',
-        add: 'Ajouter un ingrédient'
-    };
-    // Note de portage : l'oracle a un bug d'espace pour n=1 côté "ai" ('ingrédient' +
-    // 'en stock' → « ingrédienten stock », collé) — typo, pas une intention, corrigée
-    // silencieusement (espace ajouté) comme le code mort de la zone A ne l'a pas été.
-    const subs = {
-        pantry: () => countStockAndCart().stock + ' en stock',
-        shopping: () => {
-            const n = countStockAndCart().cart;
-            return n + ' article' + (n > 1 ? 's' : '');
-        },
-        ai: () => {
-            const n = countStockAndCart().stock;
-            return 'basé sur ' + n + ' ingrédient' + (n > 1 ? 's en stock' : ' en stock');
-        },
-        favorites: _favCountSub,
-        fav: _favCountSub
-    };
-
-    // Desktop topbar
-    const titleEl = document.getElementById('topbar-title');
-    if (titleEl) {
-        titleEl.textContent = titles[view] || view;
-        if (subs[view]) {
-            const span = h('span', { id: 'topbar-sub', style: { fontSize: '13px', color: 'var(--txt-soft)', marginLeft: '8px', fontWeight: '400' } }, subs[view]());
-            titleEl.appendChild(span);
-        }
-    }
-
-    // Sous-titre mobile — meme table que le desktop.
-    const mhSub = document.getElementById('mh-subtitle');
-    if (mhSub) mhSub.textContent = (subs[view] ? subs[view]() : null) || titles[view] || view;
-
-    // Barre de recherche desktop masquee hors inventaire (oracle l.4542-4547).
-    const tbSearch = document.getElementById('tb-search-wrap');
-    if (tbSearch) {
-        tbSearch.style.display = (view === 'pantry') ? 'flex' : 'none';
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) searchInput.value = state.search;
-    }
-
-    // Bouton d'action contextuel desktop (oracle l.4549-4563) — classes CSS deja posees
-    // (`.tb-btn-add`, `.tb-btn`, `.tb-btn.terra`, `.tb-icon-btn`, `.tb-btn.primary`),
-    // aucune a creer. Remplacement complet a chaque rendu : sans etat a proteger ici,
-    // contrairement a l'icone mobile ci-dessous.
-    const actionEl = document.getElementById('top-action-btn');
-    if (actionEl) {
-        if (view === 'pantry') {
-            actionEl.replaceChildren(h('button', {
-                class: 'tb-btn-add', title: 'Ajouter un ingrédient', onclick: () => switchView('add')
-            }, '＋'));
-        } else if (view === 'shopping') {
-            actionEl.replaceChildren(
-                h('button', { class: 'tb-btn', onclick: () => exportClipboard('cart') }, '📋 Copier'),
-                h('button', { class: 'tb-btn terra', onclick: () => resetCart() }, '🗑️ Vider')
-            );
-        } else if (view === 'ai') {
-            actionEl.replaceChildren(h('button', {
-                class: 'tb-icon-btn', title: 'Config API', onclick: () => openModal('modal-api-config')
-            }, '⚙️'));
-        } else if (estVueFavoris(view)) {
-            actionEl.replaceChildren(h('button', {
-                class: 'tb-btn primary', onclick: () => openModal('modal-paste-recipe')
-            }, '📋 Coller une recette'));
-        } else {
-            actionEl.replaceChildren();
-        }
-    }
-
-    // Icone mobile contextuelle (oracle l.4565-4578) — mise a jour CHIRURGICALE d'un
-    // noeud STABLE (jamais recree), `.onclick =` et non `addEventListener` : sans ca,
-    // chaque changement de vue empilerait un nouveau gestionnaire sur le meme noeud.
-    const mhIcon = document.getElementById('mh-context-icon');
-    if (mhIcon) {
-        if (view === 'pantry') {
-            mhIcon.textContent = '+';
-            mhIcon.style.cssText = 'background:var(--green);color:white;font-weight:bold';
-            mhIcon.onclick = () => switchView('add');
-        } else if (view === 'ai') {
-            mhIcon.textContent = '⚙️';
-            mhIcon.style.cssText = '';
-            mhIcon.onclick = () => openModal('modal-api-config');
-        } else if (estVueFavoris(view)) {
-            mhIcon.textContent = '📋';
-            mhIcon.style.cssText = '';
-            mhIcon.onclick = () => openModal('modal-paste-recipe');
-        } else {
-            mhIcon.style.cssText = 'display:none';
-            mhIcon.onclick = null;
-        }
-    }
-}
-
-function renderPantryFilters() {
-    const filterEl = document.getElementById('pantry-filters');
-    if (!filterEl) return;
-
-    // Toggles indépendants (combinables avec la catégorie)
-    const toggles = [
-        { key: 'showInStockOnly', label: 'En-Stock',      emoji: '☑ ', cls: 'stock',  onclick: () => toggleSpecialFilter('showInStockOnly') },
-        { key: 'showInCartOnly',  label: 'Liste courses', emoji: '🛒 ', cls: 'terra', onclick: () => toggleSpecialFilter('showInCartOnly') },
-    ];
-
-    // Filtres exclusifs (remplacent la catégorie)
-    const exclusifs = [
-        { val: 'pinned', label: 'Épinglés', emoji: '⭐ ', cls: 'gold' },
-        { val: 'frozen', label: 'Surgelés', emoji: '❄️ ', cls: '' },
-    ];
-
-    // LOT 013 (écart d'ancrage autorisé) : `data-filter` est un attribut de TEST pur, posé
-    // ici pour la première fois — contrairement à `data-val` des puces IA (js/app.js §aiConfig),
-    // aucun code applicatif ne le lit. Ne pas le confondre avec un attribut fonctionnel.
-    const chips = [
-        // "Tous" — remet tout à zéro
-        h('div', {
-            class: `chip ${state.filter === 'all' && !state.showInStockOnly && !state.showInCartOnly ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': 'all',
-            onclick: () => resetFilters()
-        }, 'Tous'),
-
-        // Toggles combinables
-        ...toggles.map(t => h('div', {
-            class: `chip ${t.cls} ${state[t.key] ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': t.key,
-            onclick: t.onclick
-        }, `${t.emoji}${t.label}`)),
-
-        // Filtres exclusifs
-        ...exclusifs.map(s => h('div', {
-            class: `chip ${s.cls} ${state.filter === s.val ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': s.val,
-            onclick: () => setFilter(s.val)
-        }, `${s.emoji}${s.label}`)),
-
-        // Catégories
-        ...CATEGORIES.map(cat => h('div', {
-            class: `chip ${state.filter === cat ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': cat,
-            onclick: () => setFilter(cat)
-        }, `${getCategoryEmoji(cat)} ${cat}`))
-    ];
-
-    filterEl.replaceChildren(...chips);
-}
+// LOT 017 — barre superieure, puces de filtre et pastilles de comptage vivent dans
+// `src/ui/topbar.js`.
 
 function renderPantry() {
     renderPantryFilters();
@@ -581,27 +414,7 @@ function clearSearch() {
     renderPantry();
 }
 
-function setFilter(f) {
-    state.filter = f;
-    renderPantry();
-}
 
-function toggleSpecialFilter(key) {
-    // CORRIGÉ (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait le
-    // contraire du code — les deux toggles « En-Stock » et « Liste courses » sont
-    // INDÉPENDANTS et CUMULABLES, comme le disent déjà `renderPantryFilters` (ligne 412) et
-    // `getFilteredIngredients` (ligne 486), qui les appliquent l'un après l'autre sans
-    // jamais désactiver l'autre.
-    state[key] = !state[key];
-    renderPantry();
-}
-
-function resetFilters() {
-    state.filter = 'all';
-    state.showInStockOnly = false;
-    state.showInCartOnly = false;
-    renderPantry();
-}
 
 // Textes d'attente animés pendant la génération (LOT 011, chantier 5 ; oracle
 // l.5052-5058, littéraux exacts).
@@ -852,39 +665,7 @@ async function exportClipboard(type) {
 
 // LOT 017 — l'ecran des REGLAGES et sa fiche technique vivent dans `src/ui/settings.js`.
 
-function updateBadges() {
-    const { stock: stockCount, cart: cartCount } = countStockAndCart();
-    const favCount = state.favorites?.length || 0;
 
-    // LOT 012, zone C (oracle l.6638-6639) : compteur de la barre laterale, fige depuis
-    // la migration.
-    const sbPrincipal = document.getElementById('sb-label-principal');
-    if (sbPrincipal) sbPrincipal.textContent = `Principal (${state.ingredients.length} ingrédients)`;
-
-    // Sidebar
-    const sbStock = document.getElementById('sb-badge-stock');
-    const sbCart = document.getElementById('sb-badge-cart');
-    const sbFav = document.getElementById('sb-badge-fav');
-    
-    if (sbStock) sbStock.textContent = stockCount || '0';
-    if (sbCart) sbCart.textContent = cartCount || '0';
-    if (sbFav) {
-        sbFav.textContent = favCount || '0';
-        sbFav.classList.toggle('hidden', favCount === 0);
-    }
-
-    // Bottom nav
-    const bnStock = document.getElementById('bn-badge-stock');
-    const bnCart = document.getElementById('bn-badge-cart');
-    if (bnStock) {
-        bnStock.textContent = stockCount || '';
-        bnStock.classList.toggle('hidden', stockCount === 0);
-    }
-    if (bnCart) {
-        bnCart.textContent = cartCount || '';
-        bnCart.classList.toggle('hidden', cartCount === 0);
-    }
-}
 
 /**
  * Active/désactive les boutons d'enregistrement de la fenêtre « Coller une recette ».
