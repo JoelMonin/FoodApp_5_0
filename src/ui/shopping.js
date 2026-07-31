@@ -16,6 +16,8 @@ export function renderShoppingItem(item, isChecked, handlers) {
 
   return h('div', {
     class: `shop-item${isChecked ? ' checked' : ''}`,
+    'data-testid': 'shop-item',
+    'data-item-id': item.id,
     onclick: () => toggleShoppingCheck(item.id, item.type)
   }, [
     h('div', { class: `si-check${isChecked ? ' done' : ''}` }),

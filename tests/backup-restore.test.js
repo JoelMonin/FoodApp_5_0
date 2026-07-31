@@ -10,6 +10,11 @@ import { DEFAULT_DB } from '../src/data.js';
 // Importé pour `window.restoreJSON` : le réarmement du champ fichier vit dans le pont
 // `window` de `js/app.js`, pas dans `src/actions.js`.
 import '../js/app.js';
+// LOT 013 (audit adversarial du diff) : la barrière ci-dessous (chantier 5) prouvait que
+// `importJSON` ATTEND ce que `awaitSyncQuiescence()` lui donne, mais avec une barrière
+// FACTICE — jamais le vrai moteur. Ces imports permettent de rejouer le même test avec
+// `syncEngineBarrier`, le mécanisme RÉELLEMENT inscrit en production par `initSyncEngine`.
+import { syncEngineBarrier, performSyncSend, requestSyncOp, __resetSyncEngineForTests } from '../js/app.js';
 
 // LOT 015, sous-lot C — sauvegarde et restauration.
 //
@@ -403,6 +408,40 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             expect(state.ingredients.map(i => i.id)).toEqual(['ancien']);
 
             leverLaBarriere();
+            await lectureEnCours;
+
+            expect(state.ingredients.map(i => i.id)).toEqual(['restaure']);
+        });
+
+        // LOT 013 (audit adversarial du diff) : le test ci-dessus prouve que `importJSON`
+        // ATTEND ce que la barrière lui renvoie, mais avec une barrière FACTICE — jamais le
+        // vrai moteur (`syncEngineBarrier`, js/app.js). Rejoué ici avec le mécanisme RÉEL et
+        // un envoi RÉELLEMENT en vol (fetch non résolu), pour prouver l'intégration
+        // bout-en-bout, pas seulement le câblage `await`.
+        it('avec le VRAI moteur de synchro : un envoi réellement en vol bloque la '
+           + 'restauration jusqu\'à sa fin, puis la laisse passer', async () => {
+            __resetSyncEngineForTests();
+            registerSyncScheduler(() => {});
+            registerSyncBarrier(syncEngineBarrier);
+            state.ingredients = [ing({ id: 'ancien', inStock: true })];
+
+            let leverLenvoi;
+            vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { leverLenvoi = resolve; })));
+
+            // Démarre un envoi réel — ne PAS attendre : il doit rester « en vol ».
+            const envoiEnCours = requestSyncOp('send');
+            await Promise.resolve(); // laisse `requestSyncOp` lever `_syncInFlight` et partir sur `fetch`
+
+            contenuFichier = JSON.stringify({ ingredients: [ing({ id: 'restaure' })] });
+            importJSON({});
+            await Promise.resolve();
+            await Promise.resolve();
+
+            // L'envoi n'est TOUJOURS PAS résolu : la restauration doit être bloquée.
+            expect(state.ingredients.map(i => i.id)).toEqual(['ancien']);
+
+            leverLenvoi({ ok: true, status: 200, statusText: 'OK' });
+            await envoiEnCours;
             await lectureEnCours;
 
             expect(state.ingredients.map(i => i.id)).toEqual(['restaure']);

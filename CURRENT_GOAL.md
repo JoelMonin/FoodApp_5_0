@@ -9,49 +9,33 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-Aucun — **Version 5.8 publiée le 2026-07-30** (LOT 015, feu vert explicite de Joel après
-vérification navigateur). Prochain chantier à ouvrir : **LOT 013 — Filet de tests UI**.
+**LOT 014 — Refonte SSOT et découpage** — dernier lot de la campagne, à ouvrir sur
+`feat/lot14-refonte-ssot` **après la publication du 5.9**. Niveau d'audit **DUR**. Détail :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [PLANIFIE].md`.
 
-**But en une phrase :** chaque bouton de la page Réglages doit faire exactement ce que son
-titre annonce — aujourd'hui « Copier mon stock » copie la liste de courses, « Données
-techniques (JSON) » ne produit pas de JSON, et « Mise à zéro » annonce d'effacer la clé API
-alors qu'elle la conserve.
+**LOT 013 — Filet de tests UI** : terminé et audité le 2026-07-31, **publié seul en Version
+5.9** — 102 tests neufs (448 → 550), matrice de couverture 84/84, 2 audits adversariaux locaux
+(0 test tautologique confirmé) + audit Gemini (12/12 vérifiées sur pièce). **Arbitrage de Joel
+du 2026-07-31** : rompre avec l'habitude de chaîner les lots par paires, parce que le 013 n'est
+pas le pair du 014 mais sa police d'assurance — la garder sur l'étagère pendant le chantier le
+plus risqué de la campagne, c'était la perdre avec lui en cas d'abandon. Le LOT 014 devient
+donc la **5.10** (et non la 6.0). Détail : `LOT 013 - Filet de tests UI [A PUBLIER].md`.
 
-**Les 10 chantiers — tous faits**
+**But en une phrase :** figer par des tests le comportement de l'app restaurée (LOTS 007-012
+et 015), avant que le LOT 014 déplace le code en masse — exactement ce qui manquait lors de la
+migration Vite, qui a perdu ~30 comportements en silence faute de filet.
 
-| # | Chantier | État |
-|---|---|---|
-| 1 | « Copier mon stock » copie le stock, plus les courses | ✅ |
-| 2 | « Partager par rayons » ne partage que le stock | ✅ |
-| 3 | « Copier ma liste de courses » n'oublie plus les articles libres | ✅ |
-| 4 | Suppression sèche du bouton « Données techniques (JSON) » | ✅ |
-| 5 | Aller-retour cohérent sauvegarde ↔ restauration (coches comprises) | ✅ |
-| 6 | Texte honnête de « Mise à zéro complète » | ✅ |
-| 7 | Non-régressions (LOT 008, panier) | ✅ |
-| 8 | Textes et retours de la page (pas de redesign) | ✅ |
-| 9 | Garde-fou « rien à copier » + repli de copie restaurés | ✅ |
-| 10 | Périmètre du fichier de sauvegarde (4 blocages) | ✅ |
-
-**Ce que la campagne d'audit a coûté et rapporté (dispositif de remplacement de Codex) :**
-- **Phase découverte (4 agents)** : la fiche était juste sur le fond mais fausse sur presque
-  toutes ses références de ligne (+9 à +630), plus 8 erreurs de contenu et 7 pièges.
-- **Audit de spec Gemini** : NO-GO, 4 points — dont l'invalidation du raisonnement central du
-  chantier 9 (le garde-fou porté tel quel ne se serait jamais déclenché).
-- **2 audits adversariaux locaux** : **2 BLOQUANTS** (le trou de la barrière de synchro, qui
-  annulait la restauration quelques secondes après coup ; une garde d'entrée encore
-  contournable menant à l'écrasement de l'inventaire), 5 IMPORTANTS, et **4 tests réécrits
-  parce qu'ils ne prouvaient rien**.
-- **Audit du diff final Gemini** : GO, 0 correction — sa seule critique de test s'est révélée
-  **fausse à la vérification** (la mutation annoncée « verte » casse 4 tests).
-
-**Rappel : la campagne « Restauration & Refonte » est close côté restauration** — les
-LOTS 015/013/014 sont de la **refonte**. L'oracle `foodapp-v5-Joel.html` reste la référence
-de non-régression, mais ce lot assume **QUATRE écarts délibérés** au-dessus de lui : les
-trois décidés par Joel (suppression du bouton JSON, toasts chiffrés, coches dans le fichier
-de sauvegarde) plus le regroupement par rayon de la liste de courses, déclaré à l'audit.
-
-**Arbitrage §G tranché par Joel** : le chemin « Importer uniquement le stock » purge
-désormais les coches devenues sans objet — écart de périmètre autorisé et tracé.
+**Deux arbitrages pris à l'ouverture (2026-07-30) :**
+- **Ancres de test autorisées** : `id` sur les 9 cartes de Réglages + les modales statiques,
+  `data-testid` sur le rendu dynamique (tuiles d'inventaire, lignes de courses — aujourd'hui
+  adressables par leur seule position, alors que le LOT 010 les trie et les déplace). Ajout
+  d'attributs uniquement, aucun changement de structure. Audit relevé à Standard en
+  conséquence (le lot touche `index.html`).
+- **Articles libres (`customCartItems`)** : ni restaurés, ni traités ici. Joel a tranché de
+  les **supprimer** (« et si on effaçait ces articles libres, et qu'on n'en parlait plus »)
+  plutôt que de rebrancher leur affichage/ajout manquants. La suppression est un déplacement
+  de code : elle attend le filet, donc part au **LOT 014 §G** (inventaire des 8 sites déjà
+  rédigé). Aucun test neuf de ce lot ne doit les mentionner.
 
 ## Lot tout juste publié — Version 5.8 (2026-07-30)
 
@@ -59,7 +43,7 @@ désormais les coches devenues sans objet — écart de périmètre autorisé et
   n'avait AUCUN test avant ce lot ; elle en compte désormais 91. Deux défauts BLOQUANTS
   trouvés par les agents adversariaux locaux, dont un trou dans la barrière de quiescence
   du LOT 007 qui annulait une restauration quelques secondes après le message de succès.
-  Quatre écarts assumés au-dessus de l'oracle, tous tracés.
+  Quatre écarts assumés au-dessus de l'oracle, tous tracés. Détail : voir la fiche clôturée.
 
 ## Lots précédents — Version 5.7 (2026-07-30)
 
@@ -105,8 +89,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **011 + 012** — ✅ **PUBLIÉS en Version 5.7 le 2026-07-30** — campagne de restauration
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
-- **013** Filet de tests UI → **014** Refonte SSOT — PLANIFIÉS, ferment la campagne (refonte)
-  (V5.9 — cible ajustée par Joel le 2026-07-30, anciennement V6.0)
+- **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
+- **014** Refonte SSOT et découpage — ⚪ **PLANIFIÉ**, ferme la campagne (V5.10)
 
 ## Vérités à ne pas perdre
 
@@ -146,20 +130,30 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **Un garde-fou « rien à copier » doit porter sur la SOURCE, jamais sur le texte final**
   (leçon LOT 015) : les formats composent leur en-tête avant de regarder les données, donc
   un test sur le texte ne se déclenche jamais.
-- **Auditeur par défaut (budget de tokens serré, 2026-07-30)** : Codex 5.6 Terra, niveau
-  medium — préféré à `/ultra-audit` et à Codex Sol. Discipline confirmée sur toute la
-  campagne : spec ET diff final systématiquement audités avant clôture, même au niveau
-  Standard — chaque audit a trouvé au moins une correction réelle.
+- **Auditeur par défaut (Codex à court de tokens depuis le 2026-07-30)** : Gemini (questions
+  FERMÉES uniquement — OUI/NON + `fichier:ligne` + citation littérale) + agents adversariaux
+  locaux (question de mutation obligatoire) ; NotebookLM = mémoire de corpus, jamais auditeur
+  de code. **Aucun GO ni NO-GO ne se prend sans rouvrir le code** — sur le LOT 015, les
+  quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
+  Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
 ## Prochaine étape
 
-**Version 5.8 en ligne.** Prochain chantier : **LOT 013 — Filet de tests UI** — ouvrir sur
-signal de Joel (`/new-lot 013 filet-tests-ui`), après phase découverte obligatoire.
-⚠️ **Premier geste du LOT 013** : poser des `id` sur les cartes de Réglages — aucune n'en
-porte, ce qui rendrait les sélecteurs du filet fragiles aux changements de libellé (point
-de passage retenu à l'audit final du LOT 015, volontairement non corrigé là-bas pour ne
-pas glisser une modification non auditée après la clôture).
-Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
-une confirmation passée ne vaut pas pour la suivante.
+**LOT 014 — Refonte SSOT et découpage**, le dernier de la campagne. Prérequis rempli : le
+filet est en ligne. Ordre de livraison prévu par la fiche : **B → C → G → A → D → E → F**, un
+commit par étape aboutie, validation unifiée verte à chaque commit — pas de « grand soir »,
+pour qu'une étape qui déraille se revert seule.
+
+**Les deux seuls volets qui changent un comportement** (donc commits séparés, isolés de la
+refonte pure) : **C** — rejet des données invalides (cloud, localStorage, recette IA) — et
+**G** — suppression des « articles libres », décidée par Joel le 2026-07-30. Effet à annoncer
+avant livraison du G : la liste de courses copiée cessera d'inclure le « porc haché » de Joel,
+seul endroit où ce vestige était encore visible.
+
+**Ce que la fiche du 014 doit se voir confirmer en phase découverte** : elle a été écrite le
+2026-07-29, avant les LOTS 013 et 015. La découverte du 013 y a déjà trouvé une erreur de
+taille (`js/app.js` annoncé « ~1500 lignes », mesuré à 2810) — traiter chaque citation
+`fichier:ligne` comme périmée jusqu'à vérification.
+
 Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
 une confirmation passée ne vaut pas pour la suivante.

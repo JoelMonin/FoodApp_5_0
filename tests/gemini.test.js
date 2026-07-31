@@ -62,6 +62,30 @@ describe('Gemini Service', () => {
 
       await expect(callAI('Hi', 'WRONG_KEY')).rejects.toThrow('Invalid Key');
     });
+
+    // LOT 013 — 3 réponses "réussies" côté HTTP (ok:true) mais dégradées côté contenu :
+    // aucune des 3 n'était testée avant ce lot. Les 3 mènent au MÊME comportement
+    // (`src/services/gemini.js:102-103` : un seul `throw`), donc 3 preuves pour 1 garde.
+    it('should throw "Réponse vide de l\'IA" when candidates is missing entirely', async () => {
+      fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+      await expect(callAI('Hi', 'KEY')).rejects.toThrow("Réponse vide de l'IA");
+    });
+
+    it('should throw "Réponse vide de l\'IA" when parts is an empty array', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [] } }] })
+      });
+      await expect(callAI('Hi', 'KEY')).rejects.toThrow("Réponse vide de l'IA");
+    });
+
+    it('should throw "Réponse vide de l\'IA" when text is missing from parts', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [{}] } }] })
+      });
+      await expect(callAI('Hi', 'KEY')).rejects.toThrow("Réponse vide de l'IA");
+    });
   });
 
   // LOT 010 (casse C12) — Joel a constaté en usage réel des quantités sans unité

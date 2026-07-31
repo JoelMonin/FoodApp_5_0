@@ -191,6 +191,23 @@ describe('LOT 011 / chantier 2 — écran de détail complet', () => {
             expect(btn).toBeTruthy();
         });
 
+        // LOT 013 — audit adversarial du diff : le VRAI plein écran natif (`requestFullscreen`)
+        // est bien hors de portée de jsdom (absent), mais le REPLI CSS pur
+        // (`toggleRecipeFullscreen`, js/app.js:1189) est un mécanisme JS+classe testable qui
+        // ne l'était pas encore — l'étiquette « Preuve navigateur » de la matrice de
+        // couverture ne portait donc que sur une PARTIE de l'acquis #33.
+        it('le repli CSS bascule la classe .recipe-fullscreen (mécanisme testable sans '
+           + 'l\'API native, qui reste elle hors de portée de jsdom)', () => {
+            const el = document.getElementById('modal-recipe-detail');
+            expect(el.classList.contains('recipe-fullscreen')).toBe(false);
+
+            window.toggleRecipeFullscreen('modal-recipe-detail');
+            expect(el.classList.contains('recipe-fullscreen')).toBe(true);
+
+            window.toggleRecipeFullscreen('modal-recipe-detail');
+            expect(el.classList.contains('recipe-fullscreen')).toBe(false);
+        });
+
         it('la racine reste `.modal-content` — le glissement pour fermer (LOT 009) en dépend', () => {
             state.aiSuggestions = [recette()];
             openRecipeDetail(0, 'ai');

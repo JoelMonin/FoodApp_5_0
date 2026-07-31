@@ -24,8 +24,8 @@ fonctionnelle à 100 %.
 | 5 | **011 — Recettes IA riches** | Cartes, détail, prompts blindés, favoris, URL | 5.7 |
 | 6 | **012 — Confort d'usage retrouvé** | 🎲 emojis, clavier, topbar contextuelle, ~20 gestes | 5.7 |
 | 7 | **015 — Réglages fiables et cohérents** | Chaque bouton de Réglages fait ce qu'il annonce (copies, sauvegardes, reset) | 5.8 |
-| 8 | **013 — Filet de tests UI** | Figer le comportement restauré AVANT la refonte | 5.8 |
-| 9 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **5.9** |
+| 8 | **013 — Filet de tests UI** | Figer le comportement restauré AVANT la refonte | **5.9** |
+| 9 | **014 — Refonte SSOT et découpage** | Code propre, SSOT partout, verrous anti-récidive | **5.10** |
 
 La check-list de campagne est `Backlog/BACKLOG - Regressions de la migration.md` : chaque lot
 y coche ses points ; à la fin du LOT 012, tout §1-§4 doit être coché ou explicitement reporté.
@@ -60,8 +60,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
-| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BPLANIFIE%5D.md) | Filet de tests UI (promu du backlog) — ⚠️ premier geste : poser des `id` sur les cartes de Réglages (point de passage du LOT 015) | PLANIFIÉ | `feat/lot13-filet-tests-ui` |
-| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ | `feat/lot14-refonte-ssot` |
+| [013](LOT%20013%20-%20Filet%20de%20tests%20UI%20%5BA%20PUBLIER%5D.md) | Filet de tests UI (promu du backlog) — terminé et audité le 2026-07-31 : 102 tests neufs (448 → 550), matrice de couverture des 84 acquis, 2 audits adversariaux + audit Gemini | **À PUBLIER (5.9)** | `feat/lot13-filet-tests-ui` |
+| [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BPLANIFIE%5D.md) | Refonte SSOT et découpage (fusion de 3 fiches backlog) | PLANIFIÉ (5.10) | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
 
@@ -100,6 +100,19 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — le filet publié seul, et non avec la refonte** : arbitrage de Joel à la
+  clôture du LOT 013. La campagne avait pour habitude de chaîner les lots par paires
+  (007+008, 009+010, 011+012) ; ici le 013 n'est pas le pair du 014, c'est sa **police
+  d'assurance** — la laisser sur l'étagère pendant le chantier le plus risqué de la campagne
+  aurait signifié la perdre en même temps que lui en cas d'abandon. Le LOT 013 part donc seul
+  en **5.9** (aucun changement visible : tests + attributs d'ancrage), et le LOT 014 devient
+  la **5.10** (et non la 6.0 — numérotation choisie par Joel).
+- **2026-07-30 — ouverture du LOT 013** : phase découverte (4 agents) a montré que la fiche
+  était périmée (33 tests annoncés vs 448 réels, plusieurs items déjà faits par le LOT 015,
+  la §D reposait sur une prémisse fausse). Fiche réécrite. Deux arbitrages de Joel : ancres
+  de test autorisées dans `index.html` (audit relevé à Standard) ; les « articles libres »
+  (`customCartItems`), trouvés fantômes en cours de découverte, ne sont pas rebranchés mais
+  **supprimés** au LOT 014 (nouveau volet G de sa fiche).
 - **2026-07-29 — refonte « campagne Restauration & Refonte »** : le balayage des régressions
   (4 agents + auditeurs) a montré ~30 comportements perdus par la migration. Création des
   LOTS 008-014, spec 007 passée en v3 (double audit NO-GO intégré), statut `[PLANIFIE]`

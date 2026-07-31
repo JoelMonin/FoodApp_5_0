@@ -46,6 +46,14 @@ describe('Firebase Service', () => {
       fetch.mockResolvedValue({ ok: false, status: 401, statusText: 'Unauthorized' });
       await expect(syncPush({})).rejects.toMatchObject({ status: 401 });
     });
+
+    // LOT 013 — le 5xx n'était testé nulle part (seuls 401/404 l'étaient) alors que c'est
+    // précisément le cas que le moteur (js/app.js, §4.9) traite DIFFÉREMMENT du 4xx : un
+    // 5xx déclenche une nouvelle tentative, un 4xx maintient le drapeau sans retenter.
+    it('un 500 est traité comme les autres échecs HTTP, code exposé sur l\'erreur', async () => {
+      fetch.mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+      await expect(syncPush({})).rejects.toMatchObject({ status: 500 });
+    });
   });
 
   describe('syncPull', () => {
@@ -73,6 +81,22 @@ describe('Firebase Service', () => {
     it('rejet réseau de fetch → erreur remontée, aucune exception non gérée (§6.1)', async () => {
       fetch.mockRejectedValue(new TypeError('Failed to fetch'));
       await expect(syncPull()).rejects.toThrow('Failed to fetch');
+    });
+
+    // LOT 013 — un document cloud illisible (JSON tronqué/corrompu) n'était testé nulle
+    // part. `syncPull` ne l'attrape pas explicitement : la rejection de `res.json()` doit
+    // se propager proprement, pas rester en attente ni planter de façon non gérée.
+    it('un 500 est traité comme les autres échecs HTTP', async () => {
+      fetch.mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+      await expect(syncPull()).rejects.toMatchObject({ status: 500 });
+    });
+
+    it('un JSON invalide (corps illisible) rejette proprement, sans blocage', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input'))
+      });
+      await expect(syncPull()).rejects.toThrow('Unexpected end of JSON input');
     });
 
     it('expiration du délai (15 s) → la requête est interrompue et traitée comme un échec (§4.7)', async () => {

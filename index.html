@@ -24,7 +24,7 @@
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">Ajouter à la liste de courses</div>
-        <button class="modal-close" onclick="closeModal('modal-shopping-bulk')">✕</button>
+        <button class="modal-close" id="modal-shopping-bulk-close" onclick="closeModal('modal-shopping-bulk')">✕</button>
       </div>
       <div class="modal-body">
         <p style="font-size:13px;color:var(--txt-mid);margin-bottom:14px">Décochez les ingrédients que vous ne souhaitez
@@ -32,8 +32,8 @@
         <div class="check-list" id="modal-shopping-bulk-list"></div>
       </div>
       <div class="modal-footer">
-        <button class="modal-btn" onclick="closeModal('modal-shopping-bulk')">Annuler</button>
-        <button class="modal-btn primary" onclick="confirmBulkAdd()">Ajouter à la liste de courses</button>
+        <button class="modal-btn" id="modal-shopping-bulk-cancel" onclick="closeModal('modal-shopping-bulk')">Annuler</button>
+        <button class="modal-btn primary" id="modal-shopping-bulk-confirm" onclick="confirmBulkAdd()">Ajouter à la liste de courses</button>
       </div>
     </div>
   </div>
@@ -43,7 +43,7 @@
     <div class="modal modal-lg">
       <div class="modal-header">
         <div class="modal-title">Coller une recette</div>
-        <button class="modal-close" onclick="closeModal('modal-paste-recipe')">✕</button>
+        <button class="modal-close" id="modal-paste-recipe-close" onclick="closeModal('modal-paste-recipe')">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group"
@@ -73,7 +73,7 @@
         </div>
       </div>
       <div class="modal-footer" id="paste-modal-footer">
-        <button class="modal-btn" onclick="closeModal('modal-paste-recipe')">Annuler</button>
+        <button class="modal-btn" id="modal-paste-recipe-cancel" onclick="closeModal('modal-paste-recipe')">Annuler</button>
         <button class="modal-btn" id="paste-ai-btn" onclick="transformRecipeAI()">Transformer avec l'IA ✨</button>
         <button class="modal-btn primary" id="paste-save-btn" onclick="saveRecipeOnly()">Sauvegarder tel quel</button>
         <button class="modal-btn" id="paste-list-btn" onclick="saveRecipeAndList()" style="display:none">Sauvegarder +
@@ -87,7 +87,7 @@
     <div class="modal modal-lg">
       <div class="modal-header">
         <div class="modal-title">Choisir les articles à acheter</div>
-        <button class="modal-close" onclick="closeModal('modal-recipe-to-cart')">✕</button>
+        <button class="modal-close" id="modal-recipe-to-cart-close" onclick="closeModal('modal-recipe-to-cart')">✕</button>
       </div>
       <div class="modal-body">
         <div class="picker-bulk-actions">
@@ -99,8 +99,8 @@
         <div class="picker-list" id="modal-recipe-cart-list"></div>
       </div>
       <div class="modal-footer">
-        <button class="modal-btn" onclick="closeModal('modal-recipe-to-cart')">Annuler</button>
-        <button class="modal-btn primary" onclick="confirmRecipeToCart()">🛍 Ajouter à ma liste</button>
+        <button class="modal-btn" id="modal-recipe-to-cart-cancel" onclick="closeModal('modal-recipe-to-cart')">Annuler</button>
+        <button class="modal-btn primary" id="modal-recipe-to-cart-confirm" onclick="confirmRecipeToCart()">🛍 Ajouter à ma liste</button>
       </div>
     </div>
   </div>
@@ -116,7 +116,7 @@
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">Configuration API Gemini</div>
-        <button class="modal-close" onclick="closeModal('modal-api-config')">✕</button>
+        <button class="modal-close" id="modal-api-config-close" onclick="closeModal('modal-api-config')">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -139,8 +139,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="modal-btn" onclick="closeModal('modal-api-config')">Annuler</button>
-        <button class="modal-btn primary" onclick="saveApiKey()">Sauvegarder</button>
+        <button class="modal-btn" id="modal-api-config-cancel" onclick="closeModal('modal-api-config')">Annuler</button>
+        <button class="modal-btn primary" id="modal-api-config-save" onclick="saveApiKey()">Sauvegarder</button>
       </div>
     </div>
   </div>
@@ -150,7 +150,7 @@
     <div class="modal" style="max-width:340px">
       <div class="modal-header">
         <div class="modal-title" id="edit-emoji-title">Modifier l'icône</div>
-        <button class="modal-close" onclick="closeModal('modal-edit-emoji')">✕</button>
+        <button class="modal-close" id="modal-edit-emoji-close" onclick="closeModal('modal-edit-emoji')">✕</button>
       </div>
       <div class="modal-body">
         <p style="font-size:12.5px;color:var(--txt-soft);margin-bottom:15px;text-align:center;line-height:1.4">
@@ -175,7 +175,7 @@
     <nav id="sidebar">
       <div class="sb-logo">
         <div class="sb-logo-name">🥘 FoodApp</div>
-        <div class="sb-logo-sub">Version 5.8</div>
+        <div class="sb-logo-sub">Version 5.9</div>
       </div>
       <div class="sb-section-label" id="sb-label-principal">Principal</div>
       <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
@@ -231,7 +231,7 @@
         <div class="mh-top">
           <div>
             <div class="mh-logo">🥘 FoodApp</div>
-            <div class="mh-sub" id="mh-subtitle">Version 5.8</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.9</div>
           </div>
           <div class="mh-icons">
             <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
@@ -503,7 +503,7 @@
           <div class="view-scroll">
             <div class="export-section-title">Recettes</div>
             <div class="export-grid" style="margin-bottom:20px">
-              <button class="export-btn export-backup" onclick="openModal('modal-paste-recipe')"
+              <button class="export-btn export-backup" id="settings-paste-recipe" onclick="openModal('modal-paste-recipe')"
                 style="background:var(--gold-lt);border-color:var(--gold)">
                 <span class="export-btn-icon">📋</span>
                 <div>
@@ -514,21 +514,21 @@
             </div>
             <div class="export-section-title">Partager</div>
             <div class="export-grid">
-              <button class="export-btn export-share" onclick="exportClipboard('simple')">
+              <button class="export-btn export-share" id="settings-copy-stock" onclick="exportClipboard('simple')">
                 <span class="export-btn-icon">📋</span>
                 <div>
                   <div class="export-btn-label">Copier mon stock (liste simple)</div>
                   <div class="export-btn-sub">Liste brute de vos ingrédients disponibles pour un partage rapide.</div>
                 </div>
               </button>
-              <button class="export-btn export-share" onclick="exportClipboard('categorized')">
+              <button class="export-btn export-share" id="settings-copy-stock-categorized" onclick="exportClipboard('categorized')">
                 <span class="export-btn-icon">📑</span>
                 <div>
                   <div class="export-btn-label">Partager mon stock par rayons</div>
                   <div class="export-btn-sub">Liste organisée par catégorie (Fruits, Légumes, etc.) pour plus de clarté.</div>
                 </div>
               </button>
-              <button class="export-btn export-share" onclick="exportClipboard('cart')">
+              <button class="export-btn export-share" id="settings-copy-cart" onclick="exportClipboard('cart')">
                 <span class="export-btn-icon">🛒</span>
                 <div>
                   <div class="export-btn-label">Copier ma liste de courses</div>
@@ -538,21 +538,21 @@
             </div>
             <div class="export-section-title">Sauvegarde</div>
             <div class="export-grid">
-              <button class="export-btn export-backup" onclick="exportJSON()">
+              <button class="export-btn export-backup" id="settings-download-backup" onclick="exportJSON()">
                 <span class="export-btn-icon">💾</span>
                 <div>
                   <div class="export-btn-label">Télécharger une sauvegarde</div>
                   <div class="export-btn-sub">Un fichier (.json) avec votre inventaire, vos favoris et vos réglages. Votre clé API n'y est jamais écrite.</div>
                 </div>
               </button>
-              <button class="export-btn export-danger" onclick="document.getElementById('import-file').click()">
+              <button class="export-btn export-danger" id="settings-restore-backup" onclick="document.getElementById('import-file').click()">
                 <span class="export-btn-icon">📥</span>
                 <div>
                   <div class="export-btn-label">Restaurer une sauvegarde</div>
                   <div class="export-btn-sub">⚠️ REMPLACE TOUT par le contenu d'un fichier de sauvegarde. Votre clé API reste sur cet appareil.</div>
                 </div>
               </button>
-              <button class="export-btn export-backup" onclick="document.getElementById('restore-file').click()">
+              <button class="export-btn export-backup" id="settings-import-stock-only" onclick="document.getElementById('restore-file').click()">
                 <span class="export-btn-icon">🔄</span>
                 <div>
                   <div class="export-btn-label">Importer uniquement le stock</div>
@@ -564,14 +564,14 @@
             <input type="file" id="restore-file" accept=".json" onchange="importStockOnly(event)" hidden>
             <div class="export-section-title" style="color:var(--terra)">Réinitialisation</div>
             <div class="export-grid" style="padding-bottom:20px">
-              <button class="export-btn export-danger" onclick="resetCart()">
+              <button class="export-btn export-danger" id="settings-reset-cart" onclick="resetCart()">
                 <span class="export-btn-icon">🗑️</span>
                 <div>
                   <div class="export-btn-label">Réinitialiser mon panier</div>
                   <div class="export-btn-sub">Vide entièrement votre liste de courses, articles libres compris. Votre stock n'est pas touché.</div>
                 </div>
               </button>
-              <button class="export-btn export-danger" onclick="resetAllData()">
+              <button class="export-btn export-danger" id="settings-reset-all" onclick="resetAllData()">
                 <span class="export-btn-icon">⚠️</span>
                 <div>
                   <div class="export-btn-label">Mise à zéro complète</div>

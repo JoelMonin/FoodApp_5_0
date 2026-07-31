@@ -41,6 +41,15 @@ describe('Helpers Utility', () => {
       const id2 = generateId();
       expect(id1).not.toBe(id2);
     });
+
+    // LOT 013 — le test précédent ne compare que 2 ids, ce qui ne prouve quasiment rien
+    // (generateId = Date.now() + partie aléatoire : deux appels dans la même milliseconde
+    // ne peuvent différer que par le hasard). Preuve renforcée sur un volume réaliste.
+    it('produces 1000 unique ids with no collision', () => {
+      const ids = new Set();
+      for (let i = 0; i < 1000; i++) ids.add(generateId('ing'));
+      expect(ids.size).toBe(1000);
+    });
   });
 
   describe('autoEmoji', () => {

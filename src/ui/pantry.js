@@ -12,6 +12,8 @@ export function renderIngCard(ing, handlers) {
 
   return h('div', {
     class: cls,
+    'data-testid': 'ing-card',
+    'data-ing-id': ing.id,
     onclick: () => toggleStock(ing.id),
     title: `Cliquer pour ${ing.inStock ? 'retirer' : 'ajouter'}`
   }, [

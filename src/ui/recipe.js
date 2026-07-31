@@ -152,12 +152,12 @@ export function renderRecipeDetail(r, source, handlers, scale = 1, tags = []) {
 
   const header = h('div', { class: 'modal-header' }, [
     h('div', { class: 'mh-left' }, [
-      h('button', { class: 'mh-btn', onclick: () => closeModal('modal-recipe-detail') }, '✕'),
+      h('button', { class: 'mh-btn', 'data-testid': 'rd-close', onclick: () => closeModal('modal-recipe-detail') }, '✕'),
       h('div', { class: 'mh-title' }, title)
     ]),
     h('div', { class: 'mh-right' }, [
-      h('button', { class: 'mh-btn', onclick: () => printRecipe(), title: 'Imprimer' }, '🖨️'),
-      h('button', { class: 'mh-btn', onclick: () => toggleRecipeFullscreen('modal-recipe-detail'), title: 'Plein écran' }, '⛶')
+      h('button', { class: 'mh-btn', 'data-testid': 'rd-print', onclick: () => printRecipe(), title: 'Imprimer' }, '🖨️'),
+      h('button', { class: 'mh-btn', 'data-testid': 'rd-fullscreen', onclick: () => toggleRecipeFullscreen('modal-recipe-detail'), title: 'Plein écran' }, '⛶')
     ])
   ]);
 
@@ -255,10 +255,10 @@ export function renderRecipeDetail(r, source, handlers, scale = 1, tags = []) {
                 h('span', { class: 'rd-meta-badge' }, `⏱ ${r.time || '?'}`),
                 h('span', { class: 'rd-meta-badge' }, `${difficultyEmoji} ${r.difficulty || r.diff || 'Normal'}`),
                 h('span', { class: 'rd-meta-badge' }, [
-                    h('button', { class: 'scale-btn', onclick: () => changePplScale(-1) }, '−'),
+                    h('button', { class: 'scale-btn', 'data-testid': 'rd-scale-minus', onclick: () => changePplScale(-1) }, '−'),
                     h('span', { id: 'rd-ppl-count' }, displayedPpl),
                     ' pers.',
-                    h('button', { class: 'scale-btn', onclick: () => changePplScale(1) }, '+')
+                    h('button', { class: 'scale-btn', 'data-testid': 'rd-scale-plus', onclick: () => changePplScale(1) }, '+')
                 ]),
                 h('span', { class: 'rd-meta-badge' }, `🍴 ${r.cuisine || 'Française'}`)
             ])
