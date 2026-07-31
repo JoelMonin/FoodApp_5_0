@@ -25,6 +25,15 @@ import { matchIngredientToStock, buildIngredientTags } from '../src/utils/stockM
 // INJECTES (openModal/closeModal, qui ne sont pas de simples helpers, et
 // buildEmojiEditSuggestions, qui appartient a la modale d'edition d'icone) : voir
 // l'en-tete du module pour le detail du noeud annonce par la phase decouverte.
+// Modale « changer l'icone » — extraite d'ici au LOT 014, volet A.
+import {
+  openEditEmoji,
+  buildEmojiEditSuggestions,
+  renderEmojiEditGrid,
+  applyEditedEmoji,
+  searchEmojiAI,
+  registerEmojiModalHooks
+} from '../src/ui/emojiModal.js';
 import {
   openEnhancedCartPicker,
   confirmRecipeToCart,
@@ -136,7 +145,8 @@ registerSyncUi({ restoreAiForm: restoreAIConfig, refreshSystemInfo: updateSystem
 // Le formulaire d'ajout renvoie a l'inventaire apres un ajout reussi : `switchView` vit
 // ici et lit l'etat du formulaire, d'ou l'injection plutot qu'un import croise.
 registerAddFormNav({ switchView });
-registerCartPickerHooks({ openModal, closeModal, buildEmojiEditSuggestions });
+registerCartPickerHooks({ openModal, closeModal });
+registerEmojiModalHooks({ openModal, closeModal });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -1173,76 +1183,9 @@ function closeModal(id) {
     }
 }
 
-let _currentEditingIngId = null;
-function openEditEmoji(id) {
-    _currentEditingIngId = id;
-    const ing = state.ingredients.find(i => i.id === id);
-    if (!ing) return;
-    document.getElementById('edit-emoji-name').textContent = ing.name;
-    const searchInput = document.getElementById('emoji-search-input');
-    if (searchInput) searchInput.value = '';
-    renderEmojiEditGrid(ing.name);
-    openModal('modal-edit-emoji');
-}
 
-/**
- * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
- * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
- * de table d'emojis dupliquée (SSOT, `GENERIC_EMOJI_FALLBACK` partagé avec
- * `updateEmojiSuggestions`). Complète TOUJOURS avec l'emoji de catégorie puis le
- * socle générique tant qu'il manque des alternatives : un ingrédient dont le nom
- * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
- * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
- * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
- *
- * `category` (LOT 012, zone A) : override optionnel de la source d'emoji de
- * catégorie, pour les appelants qui n'éditent pas l'ingrédient en cours
- * (`_currentEditingIngId`) — ex. `cycleEmoji` sur une ligne du sélecteur de
- * recette. Omis, le comportement est strictement identique à avant (SSOT).
- */
-function buildEmojiEditSuggestions(seed, category) {
-    // CORRECTIF (LOT 014, decide par Joel le 2026-07-31) — MEME COMPARAISON QUE LE RESTE DE
-    // L'APP. Cette grille comparait en minuscules brutes, donc SENSIBLE aux accents : un
-    // ingredient nomme « Boeuf (hache) » sans accent ne retrouvait pas l'emoji de la base et
-    // tombait sur le socle generique. C'est le meme defaut que celui corrige dans le
-    // formulaire d'ajout, sur l'ecran d'edition d'icone.
-    // Mesure faite avant d'appliquer, sur 365 graines : 67 grilles changent, et la seule
-    // correspondance perdue est le FRAGMENT « de terre » seul (`normalizeString` recolle
-    // « pommes de terre » en un mot). Ce n'est pas une regression introduite ici : toutes les
-    // autres recherches de l'app echouent DEJA sur ce fragment. Le nom complet, lui,
-    // fonctionne toujours — et « pdt » trouve desormais la pomme de terre.
-    const s = normalizeString(seed);
-    const matches = s ? DEFAULT_DB.filter(i => normalizeString(i.name).includes(s)) : [];
-    const fromMatches = matches.map(i => i.emoji);
-    let categoryEmoji;
-    if (category) {
-        categoryEmoji = getCategoryEmoji(category);
-    } else {
-        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-        categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
-    }
-    const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
-    return emojis.slice(0, 15);
-}
 
-function renderEmojiEditGrid(seed) {
-    const grid = document.getElementById('edit-emoji-grid');
-    if (!grid) return;
-    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(e =>
-        h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-    ));
-}
 
-/** Applique l'emoji choisi, sauvegarde, ferme — contrat du `updateEmoji` du
- * monolithe : pas d'étape intermédiaire, aucun input libre à valider. */
-function applyEditedEmoji(emoji) {
-    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-    if (ing) {
-        ing.emoji = emoji;
-        saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
-    }
-    closeModal('modal-edit-emoji');
-}
 
 // LOT 014, volet A — le FORMULAIRE D'AJOUT a demenage dans `src/ui/addForm.js`
 // (deplacement pur ; filet pose AVANT, tests/add-form.test.js). Y ont suivi :
@@ -1536,38 +1479,6 @@ function saveApiKey() {
     updateApiStatus();
     closeModal('modal-api-config');
     toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
-}
-async function searchEmojiAI() {
-    const input = document.getElementById('emoji-search-input');
-    const btn = document.getElementById('emoji-search-btn');
-    if (!input || !btn) return;
-    const query = input.value.trim();
-    if (!query) return;
-
-    btn.disabled = true;
-    const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<div class="spinner-small" style="margin:0"></div>';
-
-    try {
-        const prompt = `Suggère 15 emojis pour: ${query}. Réponds uniquement par les emojis.`;
-        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
-        const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
-        if (res) {
-            const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
-            const grid = document.getElementById('edit-emoji-grid');
-            if (grid) {
-                grid.replaceChildren(...emojis.map(e =>
-                    h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-                ));
-            }
-        }
-    } catch (e) {
-        console.error(e);
-        toast('Erreur recherche emoji', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
-    }
 }
 
 function initSwipeToClose(modalId) {

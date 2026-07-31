@@ -223,8 +223,16 @@ représentation canonique**, recopiée 4× · `toLocaleDateString('fr-FR')` ×4.
 > ➡️ **Les 3 normalisations divergentes sont donc soldées** : toutes les recherches dans
 > `DEFAULT_DB` passent maintenant par `normalizeString`. Ce point du volet D est clos.
 
-**Logique** : 2 recherches d'emoji par IA avec 2 prompts et 2 regex (`js/app.js:2316` vs `:2654`,
-la seconde sans garde de clé API et avec une regex qui rate des émojis) · 2 constructeurs de
+**Logique** : 2 recherches d'emoji par IA avec 2 prompts et 2 regex (`js/app.js:2316` vs `:2654`)
+> ⚠️ **CORRECTION 2026-07-31 (étape A)** — les deux qualificatifs de cette ligne étaient FAUX,
+> vérifiés sur pièce en posant `tests/emoji-search-ai.test.js` :
+> · « sans garde de clé API » : l'appel ne part PAS sans clé — `callAI` lève lui-même
+>   (`src/services/gemini.js:2`). La vraie divergence est le RETOUR à Joel : le jumeau du
+>   formulaire d'ajout sort en silence, celui de l'édition d'icône affiche « Erreur recherche
+>   emoji », un message qui ne dit pas qu'il manque simplement une clé.
+> · « une regex qui rate des émojis » : c'est l'INVERSE. Elle ne rate rien, elle DÉCOUPE —
+>   « 👨‍👩‍👧 » produit **5 tuiles dont 2 invisibles** (liaisons de largeur nulle cliquables),
+>   et « 1️⃣ » se réduit au seul caractère d'encadrement. Défaut visible, figé par 2 tests. · 2 constructeurs de
 suggestions d'emoji depuis `DEFAULT_DB` (`:2073` vs `:1947`) · **3 normalisations différentes
 pour chercher dans `DEFAULT_DB` dans le MÊME formulaire** (`:2112` insensible aux accents vs
 `:2081` et `:1949` sensibles — taper « epinard » remplit la liste mais pas la grille) · 2

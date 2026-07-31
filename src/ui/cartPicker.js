@@ -4,6 +4,11 @@ import { generateId, areSimilar, autoEmoji } from '../utils/helpers.js';
 import { DEFAULT_DB, getCategoryEmoji } from '../data.js';
 import { AI_EMOJI_ONLY } from '../constants.js';
 import { matchIngredientToStock } from '../utils/stockMatch.js';
+// LOT 014, volet A : importe DIRECTEMENT depuis la modale d'edition d'icone, une fois
+// celle-ci extraite. Tant qu'elle vivait dans `js/app.js`, il fallait l'injecter — c'est
+// la troisieme injection annoncee en en-tete, desormais supprimee. Pas de cycle : la
+// modale d'edition ne connait pas le selecteur.
+import { buildEmojiEditSuggestions } from './emojiModal.js';
 
 /**
  * SELECTEUR DE COURSES — extrait de `js/app.js` au LOT 014, volet A.
@@ -22,8 +27,10 @@ import { matchIngredientToStock } from '../utils/stockMatch.js';
  * qu'UNE case a cocher. Deplacer la maitresse dans la liste, ou ajouter une seconde case par
  * ligne, decalerait le marquage visuel en silence.
  *
- * TROIS COUPLAGES INJECTES plutot qu'importes (`registerCartPickerHooks`) — c'est le noeud
- * que la phase decouverte annoncait (§B5) :
+ * DEUX COUPLAGES INJECTES plutot qu'importes (`registerCartPickerHooks`) — c'est le noeud
+ * que la phase decouverte annoncait (§B5). Ils etaient TROIS : le troisieme
+ * (`buildEmojiEditSuggestions`) a disparu des que la modale d'edition d'icone est sortie
+ * dans son propre module, d'ou il s'importe maintenant directement.
  *  · `openModal`/`closeModal` vivent dans `js/app.js` et ne sont PAS de simples helpers :
  *    `openModal` porte des cas particuliers pour la modale « coller une recette » et pour
  *    les reglages IA. En extraire un socle propre demanderait deux injections de plus.
@@ -35,8 +42,7 @@ import { matchIngredientToStock } from '../utils/stockMatch.js';
 
 const _hooks = {
     openModal: () => {},
-    closeModal: () => {},
-    buildEmojiEditSuggestions: () => []
+    closeModal: () => {}
 };
 
 export function registerCartPickerHooks(hooks = {}) {
@@ -181,7 +187,7 @@ export function cycleEmoji(idx) {
     const nameInp = document.getElementById(`pick-name-${idx}`);
     if (!emojiInp || !nameInp) return;
     const category = _currentPickerData[idx]?.category;
-    const suggestions = _hooks.buildEmojiEditSuggestions(nameInp.value, category);
+    const suggestions = buildEmojiEditSuggestions(nameInp.value, category);
     const at = suggestions.indexOf(emojiInp.value);
     emojiInp.value = suggestions[(at + 1) % suggestions.length];
 }
