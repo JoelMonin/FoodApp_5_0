@@ -459,9 +459,10 @@ localement le bénéfice du LOT 013.
 
 ## Critères d'acceptation
 
-- [ ] **C1 soldé** : `importStockOnly` refuse un fichier dont `ingredients` n'est pas un
-      tableau d'ingrédients plausibles, sans écriture ni envoi cloud — mêmes cas de test que
-      `importJSON` (`tests/backup-restore.test.js:290-392`)
+- [x] **C1 soldé (2026-07-31)** : `importStockOnly` refuse ce qui n'est pas un inventaire,
+      sans écriture ni envoi cloud. 9 tests calqués sur ceux du bouton voisin
+      (`tests/actions-data.test.js`, describe « LOT 014 §C1 »). **559/559 Vitest, 13/13
+      Pytest, build OK.** Détail de l'exécution en §RÉALISATION ci-dessous.
 - [ ] `js/app.js` < 700 lignes ; plus aucune variable `_*` de module dans `app.js`
 - [ ] Plus aucun `state = moduleState` compensatoire (**3 suppressions** : `js/app.js:62`,
       `:96`, `:422` — l'alias `:29` peut rester) **et `loadState` ne réassigne plus**
@@ -484,6 +485,47 @@ localement le bénéfice du LOT 013.
       géométrie, ni plein écran ; « le texte des règles est présent dans le fichier » n'est
       pas une preuve (incident du commentaire CSS, LOT 005).
 - [ ] Audit DUR final de campagne
+
+---
+
+## RÉALISATION
+
+### Étape C1 — la porte jumelle fermée (2026-07-31)
+
+**Ce qui a été trouvé en codant, et qui a changé le correctif.** Le premier réflexe — réutiliser
+telle quelle la garde du LOT 015 (`estUnIngredientPlausible` : nom **ET** identifiant) — était
+faux : un test existant (`tests/actions-data.test.js:117`) prouve qu'un fichier peut
+légitimement dire « ingrédient `ing_1`, maintenant en stock » **sans répéter son nom**. Appliquer
+la garde stricte aurait refusé des fichiers qui fonctionnent aujourd'hui — une régression
+déguisée en durcissement, exactement ce que la découverte avait anticipé au sujet de
+`isValidIngredient` (§C.1 des arbitrages).
+
+**D'où deux règles distinctes sur un socle unique** (`src/actions.js`, niveau module) :
+`aUnNomExploitable` (socle) · `estUnIngredientPlausible` = socle **ET** id → `importJSON`
+(remplacement total, indexé par id, règle inchangée) · `estFusionnable` = id **OU** nom →
+`importStockOnly` (fusion douce, qui fabrique elle-même les ids manquants).
+
+**Le correctif a deux moitiés, parce que la fuite en avait deux :**
+1. **Filtre d'entrée** (`estFusionnable`) : écarte chaînes, nombres, `null` et objets vides
+   avant la boucle. Sans lui, un `null` faisait *lever* la boucle (`jsonIng.id`) et l'app
+   annonçait « Format JSON invalide » ; et un fichier entièrement illisible annonçait un
+   **succès**.
+2. **Garde de création** (`aUnNomExploitable` dans la branche `else`) : un `id` qui ne
+   correspond à **aucun** ingrédient local et sans nom (`{"id":"zzz"}`) tombait dans la
+   branche d'ajout et **créait** un ingrédient sans nom. Fuite plus discrète que la première,
+   non repérée par la phase découverte, trouvée en lisant la branche.
+
+**Preuve par retrait du correctif** (discipline `feedback_verify_audit_findings` — un test vert
+ne prouve rien tant qu'on n'a pas vu le rouge) : les deux moitiés ont été neutralisées
+**séparément**. Filtre d'entrée neutralisé → **3 tests rouges** (liste de noms, objets vides,
+valeurs aberrantes). Garde de création neutralisée → **1 test rouge** (id inconnu sans nom).
+Aucune moitié n'est redondante ; aucun des 9 tests n'est tautologique.
+
+**Volontairement NON traité ici** (reste au volet C) : `loadState` sans garde de type, la
+validation de recette IA, `escapePromptValue`, et la mutualisation dans `src/utils/validate.js`
+— où les 3 prédicats iront. C1 devait rester minimal et reversible seul.
+
+---
 
 ## Traçabilité
 

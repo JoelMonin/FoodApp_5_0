@@ -5,6 +5,43 @@ import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
 import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS } from './constants.js';
 
+/**
+ * Gardes d'entrée des données de fichier — SSOT des deux portes d'import (LOT 014, §C1).
+ *
+ * Elles vivaient au LOT 015 à l'INTÉRIEUR de `importJSON`, donc inaccessibles à
+ * `importStockOnly` — c'est très exactement pourquoi la porte de la fusion est restée
+ * ouverte pendant que celle de la restauration se fermait. Sorties ici pour qu'il n'y ait
+ * qu'un seul endroit où la notion d'« ingrédient exploitable » soit définie.
+ *
+ * Les deux portes n'ont PAS les mêmes besoins, et les confondre serait une régression :
+ *  - `importJSON` REMPLACE tout et indexe par `id` : il exige nom **ET** identifiant
+ *    (`estUnIngredientPlausible`, règle inchangée depuis le LOT 015).
+ *  - `importStockOnly` FUSIONNE : une entrée `{ id: 'ing_1', inStock: true }` sans nom est
+ *    parfaitement valide (« cet ingrédient-là, maintenant en stock »), et une entrée sans
+ *    `id` l'est aussi (la fusion fabrique un `custom_restore_…`). Il lui faut donc nom **OU**
+ *    identifiant (`estFusionnable`). Exiger les deux refuserait des fichiers qu'elle accepte
+ *    aujourd'hui — ce que le pare-feu A/B interdit (cas couvert par
+ *    `tests/actions-data.test.js:117`).
+ *
+ * `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que `sanitizeGlobalState`
+ * recopie vers `name` — on l'accepte donc au même titre que `name`.
+ */
+const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
+
+export function aUnNomExploitable(i) {
+  if (!i || typeof i !== 'object') return false;
+  return texteNonVide(i.name) || texteNonVide(i.n);
+}
+
+export function estUnIngredientPlausible(i) {
+  return aUnNomExploitable(i) && texteNonVide(i.id);
+}
+
+export function estFusionnable(i) {
+  if (!i || typeof i !== 'object') return false;
+  return texteNonVide(i.id) || aUnNomExploitable(i);
+}
+
 export function switchView(view) {
   state.currentView = view;
   saveState();
@@ -248,14 +285,10 @@ export function importJSON(file) {
       // cette garde doit empêcher (audit adversarial du 2026-07-30). Et `[{}]` passait
       // aussi, remplaçant l'inventaire de Joel par un seul ingrédient fantôme.
       //
-      // Signature minimale d'un vrai ingrédient : un identifiant ET un nom, tous deux non
-      // vides. `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que
-      // `sanitizeGlobalState` recopie vers `name` — on l'accepte donc aussi.
-      const estUnIngredientPlausible = (i) => {
-        if (!i || typeof i !== 'object') return false;
-        const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
-        return texteNonVide(i.id) && (texteNonVide(i.name) || texteNonVide(i.n));
-      };
+      // Signature minimale d'un vrai ingrédient pour le REMPLACEMENT TOTAL : un identifiant
+      // ET un nom, tous deux non vides. Le prédicat vit désormais au niveau du module
+      // (l.8-40), pour que la porte de la fusion puisse s'appuyer sur la même définition —
+      // son enfermement ici est ce qui avait laissé `importStockOnly` sans protection.
       const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
         .filter(estUnIngredientPlausible);
       if (ingredientsDuFichier.length === 0) {
@@ -313,7 +346,21 @@ export function importStockOnly(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.ingredients) {
+
+      // LOT 014, §C1 — LA PORTE JUMELLE, restée ouverte quand le LOT 015 fermait celle de
+      // la restauration totale. L'ancienne garde `if (!data.ingredients)` ne testait que la
+      // PRÉSENCE de la clé : `{"ingredients": ["Tomate","Oignon"]}` la franchissait, et le
+      // `{ ...jsonIng }` de la branche d'ajout (l.371) étalait alors une CHAÎNE en
+      // `{0:'T',1:'o',…}`. Ces objets survivent à `sanitizeGlobalState` (ce SONT des objets,
+      // `src/state.js:181`, et `name` n'y est jamais garanti, `:197-205`) : des ingrédients
+      // fantômes sans nom entraient dans l'inventaire, étaient persistés, puis poussés au
+      // cloud. Même incident que celui corrigé à la porte d'à côté, même remède.
+      //
+      // On filtre au lieu de tout refuser : la fusion est douce par nature, une entrée
+      // illisible n'a pas à faire échouer les entrées valides du même fichier.
+      const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
+        .filter(estFusionnable);
+      if (ingredientsDuFichier.length === 0) {
         toast('Format non reconnu', 'error');
         return;
       }
@@ -321,7 +368,7 @@ export function importStockOnly(file) {
       let updatedCount = 0;
       let addedCount = 0;
 
-      data.ingredients.forEach(jsonIng => {
+      ingredientsDuFichier.forEach(jsonIng => {
         let target = state.ingredients.find(i => i.id === jsonIng.id);
         if (!target) {
           target = state.ingredients.find(i => areSimilar(i.name, jsonIng.name));
@@ -340,6 +387,12 @@ export function importStockOnly(file) {
           if (!target.inCart) shoppingChecked.delete(target.id);
           updatedCount++;
         } else {
+          // LOT 014, §C1 — seconde fuite, plus discrète que celle du filtre d'entrée : une
+          // entrée dont l'`id` ne correspond à AUCUN ingrédient local et qui n'a pas de nom
+          // (`{ "id": "zzz" }`) tombait ici et CRÉAIT un ingrédient sans nom — le fantôme
+          // exact que §C1 ferme. Mettre à jour un id connu sans répéter son nom reste permis
+          // (branche du dessus) ; en CRÉER un sans nom ne l'est plus.
+          if (!aUnNomExploitable(jsonIng)) return;
           const newId = jsonIng.id && jsonIng.id.startsWith('custom_')
             ? jsonIng.id
             : 'custom_restore_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);

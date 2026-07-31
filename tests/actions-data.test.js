@@ -160,6 +160,116 @@ describe('Actions — LOT 008 Données en sécurité', () => {
     });
   });
 
+  // LOT 014, §C1 — LA PORTE JUMELLE. Le LOT 015 a blindé `importJSON` (« Restaurer une
+  // sauvegarde ») contre les fichiers mal formés ; `importStockOnly` (« Importer uniquement
+  // le stock ») est resté avec sa garde d'origine `if (!data.ingredients)`, qui ne testait
+  // que la PRÉSENCE de la clé. Ces tests sont volontairement calqués sur ceux qui protègent
+  // le bouton voisin (`tests/backup-restore.test.js:290-392`), cas pour cas.
+  describe('LOT 014 §C1 — importStockOnly refuse ce qui n\'est pas un inventaire', () => {
+    function importerStock(contenuFichier) {
+      const FakeFileReader = function () {
+        this.readAsText = () => { this.onload({ target: { result: contenuFichier } }); };
+      };
+      vi.stubGlobal('FileReader', FakeFileReader);
+      importStockOnly({});
+    }
+
+    function dernierToast() {
+      const toasts = [...document.querySelectorAll('#toast-container .toast')];
+      return toasts.length ? toasts[toasts.length - 1].textContent : null;
+    }
+
+    beforeEach(() => {
+      document.getElementById('toast-container')?.remove();
+      state.ingredients = [makeIngredient({ id: 'ing_1', name: 'Pomme' })];
+    });
+
+    // Le cas qui a motivé §C1 : le spread d'une CHAÎNE produit {0:'T',1:'o',…}, un objet
+    // qui survit à sanitizeGlobalState et part au cloud sans jamais avoir de nom.
+    it('une liste de simples noms est refusée — aucun ingrédient fantôme, aucun envoi cloud', () => {
+      importerStock(JSON.stringify({ ingredients: ['Tomate', 'Oignon'] }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(state.ingredients[0].name).toBe('Pomme');
+      expect(dernierToast()).toBe('Format non reconnu');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('un inventaire qui n\'est pas un tableau (chaîne) est refusé', () => {
+      importerStock(JSON.stringify({ ingredients: 'abc' }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(dernierToast()).toBe('Format non reconnu');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('des objets vides sont refusés — ils ne deviennent jamais des ingrédients', () => {
+      importerStock(JSON.stringify({ ingredients: [{}, {}] }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(dernierToast()).toBe('Format non reconnu');
+    });
+
+    it('des valeurs aberrantes (nombre, null) sont refusées', () => {
+      importerStock(JSON.stringify({ ingredients: [42, null] }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(dernierToast()).toBe('Format non reconnu');
+    });
+
+    it('un fichier sans clé ingredients reste refusé (comportement d\'origine préservé)', () => {
+      importerStock(JSON.stringify({ favorites: [] }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(dernierToast()).toBe('Format non reconnu');
+    });
+
+    // La fusion est douce par nature : une entrée illisible ne doit pas faire échouer les
+    // entrées valides du même fichier — contrairement à la restauration totale, qui refuse
+    // le fichier en bloc.
+    it('fichier mixte : les entrées valides passent, les illisibles sont écartées', () => {
+      importerStock(JSON.stringify({
+        ingredients: ['Tomate', { id: 'custom_new', name: 'Mangue', inStock: true }, {}]
+      }));
+
+      expect(state.ingredients.some(i => i.name === 'Mangue')).toBe(true);
+      expect(state.ingredients.length).toBe(2);
+      expect(state.ingredients.every(i => typeof i.name === 'string' && i.name !== '')).toBe(true);
+    });
+
+    // Seconde fuite, plus discrète : un id qui ne correspond à RIEN localement tombait dans
+    // la branche de création et fabriquait un ingrédient sans nom.
+    it('un id inconnu SANS nom ne crée pas d\'ingrédient sans nom', () => {
+      importerStock(JSON.stringify({ ingredients: [{ id: 'zzz_inconnu', inStock: true }] }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(state.ingredients[0].name).toBe('Pomme');
+    });
+
+    // GARDE-FOU DE NON-RÉGRESSION : un fichier peut légitimement dire « cet ingrédient-là,
+    // maintenant en stock » sans répéter son nom. Une garde qui exigerait nom ET identifiant
+    // (celle de importJSON) casserait ce cas — c'est pourquoi les deux portes ont des règles
+    // distinctes (`estFusionnable` vs `estUnIngredientPlausible`).
+    it('un id CONNU sans nom met toujours à jour le statut, sans rien créer', () => {
+      importerStock(JSON.stringify({
+        ingredients: [{ id: 'ing_1', inStock: true, pinned: true }]
+      }));
+
+      expect(state.ingredients.length).toBe(1);
+      expect(state.ingredients[0].name).toBe('Pomme');
+      expect(state.ingredients[0].inStock).toBe(true);
+      expect(state.ingredients[0].pinned).toBe(true);
+    });
+
+    // Le champ `n` est l'ancien nom court des sauvegardes de l'ère monolithe : la porte
+    // voisine l'accepte, celle-ci doit l'accepter aussi (même socle `aUnNomExploitable`).
+    it('une entrée au champ monolithe « n » est acceptée', () => {
+      importerStock(JSON.stringify({ ingredients: [{ id: 'custom_vieux', n: 'Céleri' }] }));
+
+      expect(state.ingredients.length).toBe(2);
+    });
+  });
+
   describe('Chantier 2 — exportJSON blanchit la clé API (casse C3a)', () => {
     it('le contenu généré contient "apiKey":"" et jamais la vraie clé', () => {
       state.ingredients = [makeIngredient()];
