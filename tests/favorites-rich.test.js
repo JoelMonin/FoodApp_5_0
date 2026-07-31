@@ -281,5 +281,62 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
             expect(state.favorites.length).toBe(1);
             expect(state.favorites[0].ingredients).toBeDefined();
         });
+
+        // LOT 014, volet C — la réponse de l'IA était lue À L'AVEUGLE : `recipe.name` était
+        // écrit dans le champ sans qu'on vérifie que `recipe` était bien une recette. Une
+        // réponse déraillée verrouillait le texte source de Joel (champ désactivé, bouton
+        // masqué) et devenait sauvegardable en favori.
+        //
+        // Ces tests figent la promesse faite à Joel dans le message : « votre texte est
+        // intact ». Le texte source ET le titre doivent survivre à une réponse invalide.
+        function reponseIA(objet) {
+            fetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({
+                    candidates: [{ content: { parts: [{ text: JSON.stringify(objet) }] } }]
+                })
+            });
+        }
+
+        it('§C — une recette IA SANS NOM est refusée : le texte de Joel reste intact et modifiable', async () => {
+            reponseIA({ ingredients: [], steps: ['Cuire.'] }); // pas de `name`
+
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-content').value).toBe('Texte à transformer');
+            expect(document.getElementById('paste-content').disabled).toBe(false);
+            expect(document.getElementById('paste-title').value).toBe('Titre initial');
+            // Rien ne doit être sauvegardable : la recette n'a pas été mémorisée.
+            savePastedRecipe();
+            expect(state.favorites[0]?.name).not.toBe(undefined);
+        });
+
+        it('§C — une recette IA dont les étapes ne sont pas une liste est refusée', async () => {
+            reponseIA({ name: 'Tarte', steps: 'Cuire au four.' }); // `steps` n'est pas un tableau
+
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-content').value).toBe('Texte à transformer');
+            expect(document.getElementById('paste-content').disabled).toBe(false);
+        });
+
+        it('§C — le bouton reste utilisable après un refus : Joel peut relancer', async () => {
+            reponseIA({ ingredients: [] });
+
+            await transformRecipeAI();
+
+            const btn = document.getElementById('paste-ai-btn');
+            expect(btn.disabled).toBe(false);
+            expect(btn.style.display).not.toBe('none');
+            expect(btn.textContent).toBe('Transformer avec l\'IA ✨');
+        });
+
+        // GARDE-FOU ANTI-SUR-DURCISSEMENT : la garde ne doit rien casser du chemin normal.
+        it('§C — une recette IA VALIDE passe exactement comme avant', async () => {
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-title').value).toBe('Tarte structurée');
+            expect(document.getElementById('paste-content').disabled).toBe(true);
+        });
     });
 });

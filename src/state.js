@@ -1,5 +1,6 @@
 import { AI_ROLES, LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from './constants.js';
 import { DEFAULT_DB } from './data.js';
+import { estUnObjetSimple } from './utils/validate.js';
 
 /**
  * Affectation des modèles IA par rôle métier — représentation canonique unique.
@@ -107,7 +108,15 @@ export function loadState() {
     const s = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (s) {
       const p = JSON.parse(s);
-      Object.assign(state, p); // LOT 014, volet B — mutation en place (voir setState)
+      // LOT 014, volet C — GARDE DE TYPE. Le `try/catch` ne protégeait que du JSON
+      // ILLISIBLE ; un JSON parfaitement lisible mais du mauvais TYPE passait tout droit.
+      // `Object.assign(state, "abc")` colle des clés `0/1/2` dans l'état, `[1,2,3]` fait
+      // de même — puis c'est persisté et poussé au cloud. On garde alors l'état par défaut.
+      if (estUnObjetSimple(p)) {
+        Object.assign(state, p); // volet B — mutation en place (voir setState)
+      } else {
+        console.warn('[State] Stockage local illisible (mauvais format) : ignoré, état par défaut conservé.');
+      }
     }
 
     const sc = localStorage.getItem(LOCAL_STORAGE_CHECKED_KEY);

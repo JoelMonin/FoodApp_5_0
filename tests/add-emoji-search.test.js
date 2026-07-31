@@ -45,6 +45,20 @@ describe('LOT 013 — searchEmojiAddAI (js/app.js, accessible via window)', () =
         expect(JSON.stringify(body)).toContain('Courgette');
     });
 
+    // LOT 014, volet C — la valeur saisie est interpolée ENTRE GUILLEMETS dans la consigne
+    // envoyée à l'IA. Un `"` tapé cassait la consigne ; un texte construit exprès pouvait la
+    // réécrire. Ce test vérifie que l'échappement est réellement appliqué AU PROMPT.
+    it('§C — un guillemet saisi est échappé dans la consigne envoyée à l\'IA', async () => {
+        document.getElementById('add-emoji-search').value = 'tomate "cerise"';
+        const fetchMock = mockFetchResponse(reponseGemini('🍅'));
+
+        await window.searchEmojiAddAI();
+
+        const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text;
+        expect(prompt).toContain('tomate \\"cerise\\"');
+        expect(prompt).not.toContain('"cerise"'); // jamais la forme brute, qui casse la consigne
+    });
+
     it('ni recherche ni nom : ne fait AUCUN appel réseau', async () => {
         document.getElementById('add-emoji-search').value = '';
         document.getElementById('add-name').value = '';

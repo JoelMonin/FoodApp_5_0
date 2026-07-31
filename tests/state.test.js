@@ -98,6 +98,52 @@ describe('State Management', () => {
   // La fiche du lot exigeait explicitement de DÉMONTRER PAR UN TEST l'équivalence stricte
   // sur `aiConfig` et sur les tableaux — c'est l'objet des trois derniers tests.
   // ═══════════════════════════════════════════════════════════════════════════════
+  // LOT 014, volet C — le `try/catch` de `loadState` ne protégeait que du JSON ILLISIBLE.
+  // Un JSON parfaitement lisible mais du mauvais TYPE passait tout droit : `Object.assign`
+  // d'une chaîne colle des clés `0/1/2` dans l'état, qui sont ensuite persistées puis
+  // poussées au cloud. `sanitizeGlobalState` ne les retire jamais (ce ne sont pas des
+  // ingrédients). C'était la porte d'entrée la plus silencieuse du projet.
+  describe('LOT 014 §C — loadState refuse un stockage lisible mais du mauvais type', () => {
+    let warnSpy;
+    beforeEach(() => { warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+    afterEach(() => { warnSpy.mockRestore(); });
+
+    it('une CHAÎNE stockée ne colle pas ses caractères dans l\'état', () => {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify('abc'));
+
+      loadState();
+
+      expect(state['0']).toBeUndefined();
+      expect(state['1']).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('un TABLEAU stocké est refusé (ce n\'est pas un état)', () => {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([1, 2, 3]));
+
+      loadState();
+
+      expect(state['0']).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('un NOMBRE stocké est refusé sans planter', () => {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(42));
+
+      expect(() => loadState()).not.toThrow();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('un état NORMAL passe toujours — la garde ne doit rien casser', () => {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ ingredients: [{ id: '1', name: 'Miel' }] }));
+
+      loadState();
+
+      expect(state.ingredients[0].name).toBe('Miel');
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('LOT 014 §B — identité de l\'état préservée', () => {
     it('setState ne REMPLACE jamais l\'objet d\'état : un alias capturé avant reste valide', () => {
       const aliasCaptureAvant = state; // ce que fait js/app.js:29, une fois pour toutes

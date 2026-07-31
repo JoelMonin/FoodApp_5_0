@@ -608,6 +608,47 @@ le dépôt (`Object.is`/`WeakMap`/`=== state` : zéro occurrence), et **tous les
 déjà `Object.assign(state, …)`** — le changement aligne la production sur ce que les tests
 faisaient déjà. 582/582 Vitest, 13/13 Pytest, build OK.
 
+### Étape C — validation des données externes (2026-07-31)
+
+**`src/utils/validate.js` créé** — SSOT des gardes d'entrée, zéro dépendance. Les prédicats
+sortis d'`actions.js` à l'étape C1 y ont été rapatriés ; `performSyncPull` y puise désormais
+son invariant au lieu de l'écrire en dur (comportement inchangé, une seule définition).
+
+**Trois trous fermés** :
+- **`loadState` n'avait aucune garde de TYPE.** Le `try/catch` ne protégeait que du JSON
+  *illisible* ; un JSON parfaitement lisible mais du mauvais type passait
+  (`Object.assign(state, "abc")` colle des clés `0/1/2` dans l'état, persistées puis poussées
+  au cloud, et `sanitizeGlobalState` ne les retire jamais). Refusé désormais, état par défaut
+  conservé, avertissement console.
+- **`transformRecipeAI` lisait la réponse de l'IA à l'aveugle.** Une réponse déraillée
+  verrouillait le texte source de Joel (champ désactivé, bouton masqué) et devenait
+  sauvegardable en favori. Refusée avec un message explicite ; le texte reste intact et le
+  bouton réarmé.
+- **Aucun échappement avant interpolation dans un prompt.** La saisie est insérée entre
+  guillemets dans une consigne qui décrit elle-même du JSON à guillemets doubles : un `"`
+  cassait la consigne. Appliqué aux **deux** fonctions du formulaire d'ajout
+  (`handleAddInput` et `searchEmojiAddAI`) — la fiche n'en citait qu'une.
+
+**Écarts assumés à la lettre de la fiche, tous deux pour éviter une régression déguisée en
+sécurité :**
+1. `isValidIngredient` **n'exige pas `category`** (`sanitizeGlobalState` la pose ; l'exiger
+   rejetterait des sauvegardes acceptées aujourd'hui, dont celles de l'ère monolithe).
+2. `validateState` **n'exige rien des champs secondaires** (`favorites`, `extraIngredients`,
+   `aiConfig`). Ils sont déjà coercés sans perte en aval ; les exiger ferait rejeter un
+   document ENTIER — donc perdre un inventaire sain — à cause d'un détail. Les deux écarts
+   sont figés par des tests d'anti-sur-durcissement.
+
+**Preuve** : 32 tests neufs (582 → 614), dont `tests/validate.test.js` (22 tests figeant la
+frontière de chaque prédicat). Les 4 branchements vérifiés par retrait : garde de `loadState`,
+garde de recette IA, échappement dans les deux prompts → **8 tests virent au rouge**.
+
+**Incident évité de justesse, à retenir** : le remplacement de `"${val}"` par sa version
+échappée a d'abord touché **deux boîtes de dialogue affichées à Joel** (`js/app.js:2372`,
+`:2378`) — qui n'ont rien à échapper et surtout rien à tronquer à 100 caractères. Les tests
+restaient verts (`confirm` est simulé). Détecté par relecture du `grep` de contrôle, pas par la
+suite de tests. **Un remplacement textuel global se vérifie site par site, jamais au compteur
+de tests verts.**
+
 ---
 
 ## Traçabilité

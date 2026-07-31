@@ -205,6 +205,21 @@ describe('LOT 013 — handleAddInput (js/app.js, accessible via window)', () => 
         expect(document.getElementById('add-emoji').value).toBe('');
     });
 
+    // LOT 014, volet C — même règle que `searchEmojiAddAI` : la saisie de Joel est interpolée
+    // entre guillemets dans une consigne qui décrit elle-même du JSON à guillemets doubles.
+    // C'est le prompt le plus exposé de l'app, puisqu'il part à chaque frappe.
+    it('§C — un guillemet saisi est échappé dans la consigne de catégorisation', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(fetchOk(geminiEnveloppe({ category: 'Légumes', emojis: ['🥕'] })));
+        vi.stubGlobal('fetch', fetchMock);
+
+        window.handleAddInput('xyz"foo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text;
+        expect(prompt).toContain('xyz\\"foo');
+    });
+
     // FAUX VERROU FV-5 (audit adversarial du 2026-07-31, mutation M26) : la garde
     // `!emojiInput.value` de js/app.js:2189 empêche l'IA d'écraser un emoji que Joel a déjà
     // choisi. La retirer laissait les 559 tests verts. La règle jumelle de searchEmojiAddAI

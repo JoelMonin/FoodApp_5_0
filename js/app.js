@@ -18,6 +18,8 @@ import {
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
+// Gardes d'entrée des données externes — SSOT (LOT 014, volet C).
+import { validateState, isValidRecipe, escapePromptValue } from '../src/utils/validate.js';
 import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
@@ -402,8 +404,11 @@ async function performSyncPull({ manual = false } = {}) {
             if (manual) toast('Aucune donnée dans le cloud', 'error');
             return true;
         }
-        if (!Array.isArray(cloudDoc.ingredients)) {
+        if (!validateState(cloudDoc)) {
             // GARDE-FOU ENTRANT (§4.9.2) : document malforme ignore, erreur discrete.
+            // LOT 014, volet C : l'invariant (« inventaire present et sous forme de
+            // tableau ») est desormais DEFINI dans src/utils/validate.js, plus ecrit en
+            // dur ici — meme regle, un seul endroit. Comportement inchange.
             console.warn('[Sync] Document cloud malformé : ignoré, rien n\'est modifié.');
             setSyncStatus('error');
             if (manual) toast('Données cloud illisibles — rien n\'a été modifié', 'error');
@@ -2155,7 +2160,11 @@ function handleAddInput(val) {
         const myGenId = ++_aiSuggestGenId;
 
         try {
-            const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${val}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
+            // LOT 014, volet C — la saisie de Joel est interpolee ENTRE GUILLEMETS dans une
+            // consigne qui decrit elle-meme du JSON a guillemets doubles. Un `"` tape casse
+            // la consigne ; un texte construit expres peut la reecrire. `escapePromptValue`
+            // n'est applique QU'ICI, a la valeur du prompt — jamais a la donnee elle-meme.
+            const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${escapePromptValue(val)}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
             const model = state.aiConfig.models?.categorySuggest || AI_ROLES.FAST;
             const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
             if (myGenId !== _aiSuggestGenId) return; // saisie modifiee entre-temps
@@ -2314,7 +2323,9 @@ async function searchEmojiAddAI() {
     if (btn) btn.textContent = '...';
 
     try {
-        const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${target}". Réponds uniquement par les emojis séparés par des espaces.`;
+        // LOT 014, volet C — meme formulaire d'ajout que `handleAddInput`, meme traitement :
+        // la valeur vient de `#add-emoji-search` ou, a defaut, de `#add-name`.
+        const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${escapePromptValue(target)}". Réponds uniquement par les emojis séparés par des espaces.`;
         const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
         const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
         if (res) {
@@ -2558,6 +2569,15 @@ async function transformRecipeAI() {
         const recipe = await transformRecipeFromText(title, content, stockItems, state.aiConfig.apiKey, model, {
             onThinkingFallback: () => toast('Recette transformée sans le mode réflexion approfondie (temporairement indisponible).')
         });
+        // LOT 014, volet C — la réponse de l'IA était lue À L'AVEUGLE : `recipe.name` était
+        // écrit dans le champ sans qu'on sache si `recipe` était bien une recette. Une
+        // réponse déraillée (objet sans nom, `steps` qui n'est pas une liste, titre d'un
+        // paragraphe entier) était acceptée, verrouillait le texte source de Joel et
+        // devenait sauvegardable en favori.
+        if (!isValidRecipe(recipe)) {
+            toast('Réponse de l\'IA inexploitable — votre texte est intact', 'error');
+            return; // le `finally` réarme le bouton : Joel peut relancer
+        }
         _lastTransformedRecipe = recipe;
         document.getElementById('paste-title').value = recipe.name;
         // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche

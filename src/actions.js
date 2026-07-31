@@ -4,43 +4,10 @@ import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
 import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS } from './constants.js';
-
-/**
- * Gardes d'entrée des données de fichier — SSOT des deux portes d'import (LOT 014, §C1).
- *
- * Elles vivaient au LOT 015 à l'INTÉRIEUR de `importJSON`, donc inaccessibles à
- * `importStockOnly` — c'est très exactement pourquoi la porte de la fusion est restée
- * ouverte pendant que celle de la restauration se fermait. Sorties ici pour qu'il n'y ait
- * qu'un seul endroit où la notion d'« ingrédient exploitable » soit définie.
- *
- * Les deux portes n'ont PAS les mêmes besoins, et les confondre serait une régression :
- *  - `importJSON` REMPLACE tout et indexe par `id` : il exige nom **ET** identifiant
- *    (`estUnIngredientPlausible`, règle inchangée depuis le LOT 015).
- *  - `importStockOnly` FUSIONNE : une entrée `{ id: 'ing_1', inStock: true }` sans nom est
- *    parfaitement valide (« cet ingrédient-là, maintenant en stock »), et une entrée sans
- *    `id` l'est aussi (la fusion fabrique un `custom_restore_…`). Il lui faut donc nom **OU**
- *    identifiant (`estFusionnable`). Exiger les deux refuserait des fichiers qu'elle accepte
- *    aujourd'hui — ce que le pare-feu A/B interdit (cas couvert par
- *    `tests/actions-data.test.js:117`).
- *
- * `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que `sanitizeGlobalState`
- * recopie vers `name` — on l'accepte donc au même titre que `name`.
- */
-const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
-
-export function aUnNomExploitable(i) {
-  if (!i || typeof i !== 'object') return false;
-  return texteNonVide(i.name) || texteNonVide(i.n);
-}
-
-export function estUnIngredientPlausible(i) {
-  return aUnNomExploitable(i) && texteNonVide(i.id);
-}
-
-export function estFusionnable(i) {
-  if (!i || typeof i !== 'object') return false;
-  return texteNonVide(i.id) || aUnNomExploitable(i);
-}
+// Gardes d'entrée : SSOT dans src/utils/validate.js (LOT 014, volet C). Les deux portes
+// d'import n'ont pas les mêmes exigences — `estUnIngredientPlausible` (nom ET id) pour le
+// remplacement total, `aUnNomExploitable`/`estFusionnable` pour la fusion douce.
+import { estUnIngredientPlausible, estFusionnable, aUnNomExploitable } from './utils/validate.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -286,9 +253,9 @@ export function importJSON(file) {
       // aussi, remplaçant l'inventaire de Joel par un seul ingrédient fantôme.
       //
       // Signature minimale d'un vrai ingrédient pour le REMPLACEMENT TOTAL : un identifiant
-      // ET un nom, tous deux non vides. Le prédicat vit désormais au niveau du module
-      // (l.8-40), pour que la porte de la fusion puisse s'appuyer sur la même définition —
-      // son enfermement ici est ce qui avait laissé `importStockOnly` sans protection.
+      // ET un nom, tous deux non vides. Le prédicat vit dans `src/utils/validate.js`, pour
+      // que la porte de la fusion puisse s'appuyer sur la même définition — son enfermement
+      // ici est ce qui avait laissé `importStockOnly` sans protection (LOT 014, §C1).
       const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
         .filter(estUnIngredientPlausible);
       if (ingredientsDuFichier.length === 0) {

@@ -19,6 +19,7 @@
 - `src/ui/shopping.js` : UI et liste de courses.
 - `src/utils/dom.js` : Utilitaires de manipulation du DOM.
 - `src/utils/helpers.js` : Helpers algorithmiques et formatage.
+- `src/utils/validate.js` : SSOT des gardes d'entrée des données externes (localStorage, cloud, fichier de sauvegarde, réponses IA) + échappement des valeurs interpolées dans un prompt. Zéro dépendance : ne rejette jamais ce que `sanitizeGlobalState` sait réparer.
 
 ---
 
@@ -36,6 +37,7 @@
 - `tests/state.test.js` : Tests unitaires du moteur d'état.
 - `tests/actions-data.test.js` : Tests des actions données (LOT 008 — import/export/reset).
 - `tests/helpers.test.js` : Tests des utilitaires algorithmiques.
+- `tests/validate.test.js` : Tests des gardes d'entrée (`src/utils/validate.js`) — fige la FRONTIÈRE de chaque prédicat, y compris ce qu'il doit continuer d'ACCEPTER (anti-sur-durcissement).
 - `tests/dom.test.js` : Tests de manipulation DOM.
 - `tests/firebase.test.js` : Mocks et tests du service Firebase (transport, délai d'expiration).
 - `tests/sync-scope.test.js` : Périmètre du document synchronisé (LOT 007 §4.1) et application clé par clé.
