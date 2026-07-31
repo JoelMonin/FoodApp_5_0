@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { stripAccents, normalizeString, generateId, autoEmoji, debounce, areSimilar } from '../src/utils/helpers';
-import { getCategoryEmoji, CATEGORIES, CATEGORIES_WITH_EMOJI } from '../src/data';
+import { stripAccents, normalizeString, generateId, autoEmoji, debounce, areSimilar } from '../src/utils/helpers.js';
+import { getCategoryEmoji, CATEGORIES, CATEGORIES_WITH_EMOJI } from '../src/data.js';
 
 describe('Helpers Utility', () => {
   describe('stripAccents', () => {

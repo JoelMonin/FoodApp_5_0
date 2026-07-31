@@ -1,5 +1,6 @@
 import { FB_URL, FB_USER } from '../constants.js';
 import { defaultAiConfig } from '../state.js';
+import { estUnObjetSimple } from '../utils/validate.js';
 
 /**
  * PÉRIMÈTRE du document synchronisé (LOT 007, spec §4.1) — SSOT : rien ne part au
@@ -16,7 +17,11 @@ import { defaultAiConfig } from '../state.js';
  * - `lastSync`          : métadonnée LOCALE (localStorage), hors document — dans le
  *                         document, chaque succès réamorçait la boucle (audit Codex v2).
  */
-const SYNC_ARRAY_KEYS = ['ingredients', 'favorites', 'extraIngredients', 'customCartItems'];
+// LOT 014, volet G : `customCartItems` retiré du périmètre. Conséquence à connaître —
+// `buildSyncDocument` reconstruit le document DE ZÉRO et `syncPush` fait un PUT (remplacement
+// entier) : le champ est donc EFFACÉ du cloud dès le premier envoi suivant, pas seulement
+// ignoré. Annoncé à Joel le 2026-07-31, décision maintenue.
+const SYNC_ARRAY_KEYS = ['ingredients', 'favorites', 'extraIngredients'];
 
 // Une requête pendante bloquait indéfiniment (F9) : délai d'expiration unique (§4.7).
 const SYNC_TIMEOUT_MS = 15000;
@@ -75,7 +80,10 @@ export function extractSyncedState(cloudDoc) {
   for (const key of SYNC_ARRAY_KEYS) {
     patch[key] = Array.isArray(cloudDoc[key]) ? cloudDoc[key] : [];
   }
-  const cloudAi = (cloudDoc.aiConfig && typeof cloudDoc.aiConfig === 'object') ? cloudDoc.aiConfig : {};
+  // LOT 014, volet C — `typeof [] === 'object'` : l'ancienne garde laissait passer un
+  // TABLEAU, dont le spread colle des clés `0/1/2` dans les réglages IA (même famille que
+  // le trou d'`importStockOnly`). `estUnObjetSimple` exclut aussi les tableaux.
+  const cloudAi = estUnObjetSimple(cloudDoc.aiConfig) ? cloudDoc.aiConfig : {};
   const { apiKey, models, ...aiRest } = cloudAi;
   // Forme toujours complète : sous-champ absent → défaut. La clé API de ce patch est
   // vide et sera de toute façon remplacée par la clé LOCALE (applyExternalState) ;

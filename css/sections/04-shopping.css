@@ -1,0 +1,133 @@
+    /* ═══════════ SHOPPING VIEW ═══════════ */
+    .shop-progress-bar {
+      background: var(--green);
+      border-radius: var(--r);
+      padding: 14px 18px;
+      margin-bottom: 18px;
+      color: white;
+    }
+
+    .spb-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px
+    }
+
+    .spb-title {
+      font-family: 'Lora', serif;
+      font-size: 15px;
+      font-weight: 600
+    }
+
+    .spb-count {
+      font-size: 12px;
+      opacity: .7
+    }
+
+    .spb-track {
+      height: 5px;
+      background: rgba(255, 255, 255, .25);
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .spb-fill {
+      height: 100%;
+      background: white;
+      border-radius: 3px;
+      transition: width .4s ease
+    }
+
+    .shop-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: white;
+      border-radius: var(--r-sm);
+      border: 1.5px solid var(--border);
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .shop-item.checked {
+      opacity: .45
+    }
+
+    .shop-item.checked .si-name {
+      text-decoration: line-through
+    }
+
+    .shop-item:hover {
+      border-color: var(--green-mid)
+    }
+
+    .si-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+
+    .si-check.done {
+      background: var(--green);
+      border-color: var(--green)
+    }
+
+    .si-check.done::after {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: 700
+    }
+
+    .si-emoji {
+      font-size: 18px;
+      flex-shrink: 0
+    }
+
+    .si-name {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1
+    }
+
+    .si-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500
+    }
+
+    .si-tag.blue {
+      background: var(--blue-lt);
+      color: var(--blue)
+    }
+
+    .si-tag.gold {
+      background: var(--gold-lt);
+      color: var(--gold)
+    }
+
+    .si-del {
+      font-size: 14px;
+      color: var(--txt-soft);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all .15s;
+      flex-shrink: 0
+    }
+
+    .si-del:hover {
+      background: var(--terra-lt);
+      color: var(--terra)
+    }
+

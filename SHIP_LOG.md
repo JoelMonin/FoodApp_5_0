@@ -1,13 +1,38 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.9.0
+- **Version actuelle** : 5.10.0
 - **Dernière mise à jour** : 31/07/2026
-- **Statut** : Version 5.9 publiée (LOT 013) — le filet de tests est en place et en ligne.
-  Prochain et dernier chantier de la campagne « Restauration & Refonte » : LOT 014
-  (refonte SSOT et découpage), visé en 5.10
+- **Statut** : Version 5.10 publiée (LOT 014) — la campagne « Restauration & Refonte » est
+  achevée et en ligne. Prochain chantier pressenti : second rangement de `js/app.js`
+  (fiche prête au backlog), plus le point CSS `.r-tag` à regarder à froid
 
 ## Historique des modifications
+- [x] [VERSION 5.10 - OnLine] 31/07/2026 : Publication du lot 014
+    - Lot 014 — Refonte SSOT et découpage : dernier lot de la campagne. Aucun changement
+      voulu à l'écran ; tout le travail est sous le capot pour rendre le code sûr à modifier
+    - **Découpage** : `js/app.js` réduit de 2823 à 1523 lignes (−46 %), 8 modules extraits
+      (`exports`, `sync`, `categorize`, `stockMatch`, `addForm`, `cartPicker`, `emojiModal`,
+      `recipeModal`) ; feuille de style découpée en 13 sections, produite identique octet
+      pour octet, puis allégée de 62 règles mortes (−10,9 %)
+    - **SSOT** : lecteur unique des réponses JSON de l'IA (`src/utils/aiJson.js`, 4 sites
+      alignés + un 5e trouvé en route), message unique de clé API manquante (5 écrans),
+      gardes d'entrée centralisées (`src/utils/validate.js`), 13 duplications supprimées,
+      articles libres retirés (10 sites, décision de Joel)
+    - **Verrous anti-récidive** : parité `on*=`↔`window` à l'exécution, imports ESM
+      (22 sites corrigés), durcissement `PROJECT_MAP`, anti-duplication de sélecteurs CSS,
+      `categories-ssot` — chacun avec garde anti-vide
+    - **Preuve par retrait généralisée** : ~75 mutations sur le lot. Elles ont démasqué
+      12 faux verrous hérités (le « 0 test tautologique » du LOT 013 était faux — addendum
+      posé) puis 8 dans les tests neufs du lot lui-même
+    - **Audit DUR final** : 6 agents adversariaux locaux en parallèle, chaque finding
+      re-vérifié sur pièce. 1 bloquant (l'extracteur JSON unique recréait le symptôme qu'il
+      devait éliminer, sur un autre chemin), 3 moyens et 3 mineurs — tous corrigés et prouvés
+      par retrait. 1 mineur (`.r-tag`) documenté et volontairement reporté par Joel
+    - Check-list des 41 régressions de la campagne reparcourue point par point (1 trou
+      trouvé et comblé). Vérification visuelle des 5 vues et modales par Joel : « tout m'a
+      l'air ok »
+    - Métriques : 784/784 Vitest + 16/16 Pytest verts, build OK — Tests: 800 passed
 - [x] [VERSION 5.9 - OnLine] 31/07/2026 : Publication du lot 013
     - Lot 013 — Filet de tests UI : un lot **sans aucun changement visible**, et c'est le but.
       La campagne a restauré ~30 comportements perdus par la migration ; ce lot les décrit

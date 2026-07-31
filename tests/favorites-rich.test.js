@@ -257,6 +257,13 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
                 })
             });
             state.aiConfig.apiKey = 'MOCK_KEY';
+            // ISOLATION (LOT 014) : `_lastTransformedRecipe` est une variable de MODULE de
+            // js/app.js, purgée uniquement par `openModal` (js/app.js:1867). Sans cette
+            // ouverture, une recette transformée par un test précédent survivait dans le
+            // module et se faisait sauvegarder à la place de la recette du test courant —
+            // ce qui est aussi ce que fait l'app en vrai : on ouvre la fenêtre avant de
+            // s'en servir. Le test reproduit donc le parcours réel, il ne le contourne pas.
+            openModal('modal-paste-recipe');
             document.getElementById('paste-title').value = 'Titre initial';
             document.getElementById('paste-content').value = 'Texte à transformer';
         });
@@ -280,6 +287,70 @@ describe('LOT 011 / chantier 7 — « Sauvegarder tel quel » restauré (arbitra
 
             expect(state.favorites.length).toBe(1);
             expect(state.favorites[0].ingredients).toBeDefined();
+        });
+
+        // LOT 014, volet C — la réponse de l'IA était lue À L'AVEUGLE : `recipe.name` était
+        // écrit dans le champ sans qu'on vérifie que `recipe` était bien une recette. Une
+        // réponse déraillée verrouillait le texte source de Joel (champ désactivé, bouton
+        // masqué) et devenait sauvegardable en favori.
+        //
+        // Ces tests figent la promesse faite à Joel dans le message : « votre texte est
+        // intact ». Le texte source ET le titre doivent survivre à une réponse invalide.
+        function reponseIA(objet) {
+            fetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({
+                    candidates: [{ content: { parts: [{ text: JSON.stringify(objet) }] } }]
+                })
+            });
+        }
+
+        it('§C — une recette IA SANS NOM est refusée : le texte de Joel reste intact et modifiable', async () => {
+            reponseIA({ ingredients: [], steps: ['Cuire.'] }); // pas de `name`
+
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-content').value).toBe('Texte à transformer');
+            expect(document.getElementById('paste-content').disabled).toBe(false);
+            expect(document.getElementById('paste-title').value).toBe('Titre initial');
+
+            // La recette refusée ne doit PAS avoir été mémorisée : sauvegarder retombe sur
+            // le chemin « tel quel » (le texte brut de Joel), jamais sur la réponse invalide.
+            savePastedRecipe();
+            expect(state.favorites).toHaveLength(1);
+            // Forme « texte brut » (`title`/`content`), pas la forme « recette structurée »
+            // (`name`/`ingredients`) — la preuve que la réponse refusée n'a pas été retenue.
+            expect(state.favorites[0].title).toBe('Titre initial');
+            expect(state.favorites[0].name).toBeUndefined();
+            expect(state.favorites[0].ingredients).toBeUndefined();
+        });
+
+        it('§C — une recette IA dont les étapes ne sont pas une liste est refusée', async () => {
+            reponseIA({ name: 'Tarte', steps: 'Cuire au four.' }); // `steps` n'est pas un tableau
+
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-content').value).toBe('Texte à transformer');
+            expect(document.getElementById('paste-content').disabled).toBe(false);
+        });
+
+        it('§C — le bouton reste utilisable après un refus : Joel peut relancer', async () => {
+            reponseIA({ ingredients: [] });
+
+            await transformRecipeAI();
+
+            const btn = document.getElementById('paste-ai-btn');
+            expect(btn.disabled).toBe(false);
+            expect(btn.style.display).not.toBe('none');
+            expect(btn.textContent).toBe('Transformer avec l\'IA ✨');
+        });
+
+        // GARDE-FOU ANTI-SUR-DURCISSEMENT : la garde ne doit rien casser du chemin normal.
+        it('§C — une recette IA VALIDE passe exactement comme avant', async () => {
+            await transformRecipeAI();
+
+            expect(document.getElementById('paste-title').value).toBe('Tarte structurée');
+            expect(document.getElementById('paste-content').disabled).toBe(true);
         });
     });
 });

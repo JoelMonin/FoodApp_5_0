@@ -1,0 +1,99 @@
+    /* ═══════════ FAVORITES VIEW ═══════════ */
+    .fav-card {
+      background: white;
+      border-radius: var(--r);
+      border: 1.5px solid var(--border);
+      padding: 16px;
+      margin-bottom: 10px;
+      transition: all .18s;
+    }
+
+    .fav-card:hover {
+      border-color: var(--green-mid);
+      box-shadow: var(--shadow)
+    }
+
+    .fav-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px
+    }
+
+    .fav-title {
+      font-family: 'Lora', serif;
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1
+    }
+
+    .fav-date {
+      font-size: 11px;
+      color: var(--txt-soft);
+      margin-bottom: 8px
+    }
+
+    .fav-excerpt {
+      font-size: 13px;
+      color: var(--txt-mid);
+      line-height: 1.5;
+      margin-bottom: 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden
+    }
+
+    .fav-actions {
+      display: flex;
+      gap: 7px
+    }
+
+    .fav-btn {
+      padding: 6px 12px;
+      border-radius: var(--r-xs);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1.5px solid var(--border);
+      background: white;
+      color: var(--txt-mid);
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .15s;
+    }
+
+    .fav-btn:hover {
+      background: var(--green-lt);
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    .fav-btn.del {
+      color: var(--terra);
+      border-color: var(--terra-lt)
+    }
+
+    .fav-btn.del:hover {
+      background: var(--terra-lt);
+      border-color: var(--terra)
+    }
+
+    .fav-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--txt-soft)
+    }
+
+    .fav-empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px
+    }
+
+    .fav-empty-title {
+      font-family: 'Lora', serif;
+      font-size: 17px;
+      color: var(--txt);
+      margin-bottom: 6px
+    }
+

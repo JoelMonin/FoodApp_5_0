@@ -9,9 +9,24 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 014 — Refonte SSOT et découpage** — dernier lot de la campagne, à ouvrir sur
-`feat/lot14-refonte-ssot` **après la publication du 5.9**. Niveau d'audit **DUR**. Détail :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [PLANIFIE].md`.
+**Aucun.** La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014
+a été **publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff`
+dans `main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
+
+**Prochain chantier pressenti (décidé par Joel, pas encore ouvert)** : le second rangement
+de `js/app.js` — fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir
+via `/new-lot`, avec phase découverte obligatoire. Reste aussi le point CSS
+`.r-tag.red`/`.r-tag.green`, à regarder à froid, séparément, « sans tout casser ».
+
+**Ordre arrêté : C1 → B → C → G → A → D → E → F.**
+
+**Deux points signalés à Joel le 2026-07-31, décision inchangée :**
+- La suppression des articles libres **efface** aussi le champ du cloud dès le premier envoi
+  suivant (la fiche annonçait à tort qu'une copie périmée y resterait). Action de Joel avant la
+  livraison du volet G : copier sa liste de courses s'il veut garder trace du « porc haché ».
+- Deux libellés de Réglages qu'il lit (`index.html:535`, `:571`, « articles libres compris »)
+  deviendront faux et seront réécrits dans le même volet.
 
 **LOT 013 — Filet de tests UI** : terminé et audité le 2026-07-31, **publié seul en Version
 5.9** — 102 tests neufs (448 → 550), matrice de couverture 84/84, 2 audits adversariaux locaux
@@ -90,7 +105,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   achevée
 - **015** — ✅ **PUBLIÉ en Version 5.8 le 2026-07-30**
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
-- **014** Refonte SSOT et découpage — ⚪ **PLANIFIÉ**, ferme la campagne (V5.10)
+- **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
+  campagne « Restauration & Refonte ».
 
 ## Vérités à ne pas perdre
 
@@ -137,23 +153,88 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
   quatre passages d'audit ont chacun trouvé quelque chose, y compris le dernier passage GO/0.
   Détail : mémoire `feedback_avoid_ultra_audit` / `feedback_verify_audit_findings`.
 
-## Prochaine étape
+## LOT 014 CLOS — PUBLIÉ en V5.10 le 2026-07-31 (bilan conservé pour mémoire)
 
-**LOT 014 — Refonte SSOT et découpage**, le dernier de la campagne. Prérequis rempli : le
-filet est en ligne. Ordre de livraison prévu par la fiche : **B → C → G → A → D → E → F**, un
-commit par étape aboutie, validation unifiée verte à chaque commit — pas de « grand soir »,
-pour qu'une étape qui déraille se revert seule.
+**Métriques : 784/784 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
+· feuille de style 49,5 → 43,96 Ko.**
 
-**Les deux seuls volets qui changent un comportement** (donc commits séparés, isolés de la
-refonte pure) : **C** — rejet des données invalides (cloud, localStorage, recette IA) — et
-**G** — suppression des « articles libres », décidée par Joel le 2026-07-30. Effet à annoncer
-avant livraison du G : la liste de courses copiée cessera d'inclure le « porc haché » de Joel,
-seul endroit où ce vestige était encore visible.
+### Ce qui est FAIT
 
-**Ce que la fiche du 014 doit se voir confirmer en phase découverte** : elle a été écrite le
-2026-07-29, avant les LOTS 013 et 015. La découverte du 013 y a déjà trouvé une erreur de
-taille (`js/app.js` annoncé « ~1500 lignes », mesuré à 2810) — traiter chaque citation
-`fichier:ligne` comme périmée jusqu'à vérification.
+| Étape | Résultat |
+|---|---|
+| Ouverture + découverte | 4 agents ; 3 points de la fiche déjà soldés ; 40+ citations corrigées |
+| **C0** — faux verrous | **12 trouvés** (49 mutations) et comblés. Addendum à la fiche du LOT 013, dont le « 0 test tautologique » était faux |
+| **C1** | `importStockOnly` refuse enfin ce qui n'est pas un inventaire |
+| **B** | mutation de l'état ; 3 rattrapages supprimés, invariant verrouillé par `const` |
+| **C** | `src/utils/validate.js` (SSOT des gardes d'entrée) |
+| **G** | articles libres supprimés (10 sites) |
+| **A — TERMINÉ** | **8 modules extraits** : `exports`, `sync`, `categorize`, `stockMatch`, `addForm`, `cartPicker`, `emojiModal`, `recipeModal`. Modale morte « ajout groupé » retirée (3 recherches convergentes) |
+| **F — TERMINÉ** | **3 verrous** : parité `on*=`↔`window` (à l'EXÉCUTION), imports ESM (22 sites corrigés), durcissement `PROJECT_MAP`. Les 3 portent une garde anti-vide |
+| **D — 2 passes faites** | 13 duplications supprimées + 1 défaut réel (« Autres » absent du menu) + verrou `categories-ssot` |
+| **Correctifs IA — FAITS** | extracteur JSON unique (`src/utils/aiJson.js`, **4** sites et non 3) + message unique de clé API. 13 mutations, 13 rouges. Détail : fiche du lot, § « Correctifs IA » |
+| **E — TERMINÉ** | CSS découpé en 13 sections (**feuille produite identique octet pour octet**, contre-épreuve incluse) + **62 règles mortes retirées (−10,9 %)**. Les 3 recherches convergentes ont évité de casser le Nutri-Score. Verrou `css-sections` (5 mutations / 5 rouges) |
+| **Check-list régressions — RE-PARCOURUE** | 41 points, un par un. 1 trou trouvé (retour auto 500 ms non verrouillé) + comblé |
+| **Audit DUR final — FAIT** | 6 agents adversariaux locaux en parallèle (un bloquant, trois moyens, trois mineurs corrigés — 10 tests neufs, tous prouvés par retrait). Détail : fiche du lot, § « Audit DUR final de campagne » |
 
-Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même —
-une confirmation passée ne vaut pas pour la suivante.
+**Correctifs de comportement décidés par Joel et livrés** : les 2 défauts de catégorisation ·
+la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icône) ·
+`sanitize()` supprimée (addendum posé sur la fiche du LOT 003).
+
+### Les 2 points de sortie — **tous deux clos par Joel le 2026-07-31**
+
+1. **Coup d'œil de Joel sur les 5 vues et les modales** (le retrait des 62 règles CSS mortes
+   change forcément le fichier produit, même si la preuve au niveau du build est solide) —
+   **fait, « tout m'a l'air ok »**.
+2. **Décision de Joel sur `.r-tag.red`/`.r-tag.green`** (probablement dupliquées entre
+   `05-ai.css` et `12-utilities.css`, même mécanisme que `.recipe-detail-section` déjà
+   corrigé — mais `.r-tag` figure sur la liste des classes protégées « CSS REBRANCHÉ par la
+   campagne », donc remonté plutôt que tranché seul) — **Joel a choisi de clôturer le lot
+   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. Reste donc
+   ouvert, sciemment, hors du lot 014 : ne pas le re-décider seul si le sujet revient, c'est
+   déjà un choix de Joel.
+
+**Publication : FAITE.** Après une première clôture en `[A PUBLIER]` (Joel ne voulait pas
+publier tout de suite), le feu vert explicite est arrivé le 2026-07-31 au soir
+(« tu peux publier la dernière version ») : version montée en 5.10.0 (SSOT +
+`sync_version.py`), validation re-passée verte, fusion `--no-ff` dans `main`, mise en ligne.
+
+**SECOND RANGEMENT de `js/app.js` (2823 → 1523 lignes, −46 %, cible 700 non atteinte)** :
+tranché par Joel le 2026-07-31 — ni abandonné, ni empilé sur ce lot déjà énorme, un lot
+séparé à froid. Fiche prête avec l'inventaire mesuré : `Backlog/BACKLOG - Second rangement de
+app.js.md`.
+
+**Un point signalé, sans décision** : la recherche d'emoji par IA de la modale d'édition
+(`src/ui/emojiModal.js`) affiche « Erreur recherche emoji » quand c'est simplement la clé qui
+manque. Hors des quatre sites du correctif validé — **corrigé par Joel le 2026-07-31** malgré
+tout, cinquième site aligné sur `MESSAGE_CLE_API_MANQUANTE`.
+**Clos** : les émojis de repli divergents (`🔸`/`❓`/`🛒`/`📦`) — Joel a dit « laisse comme ça ».
+
+### Règles de ce lot à ne pas perdre
+
+- **Un test de caractérisation AVANT tout déplacement** d'une fonction non couverte.
+- **Un déplacement ne change JAMAIS un comportement** — un défaut trouvé en chemin se fige
+  d'abord, se corrige dans un commit séparé, et seulement sur décision de Joel.
+- **Preuve par retrait obligatoire.** Sur ce lot : ~75 mutations. Elles ont trouvé **8 faux
+  verrous dans mes propres tests**, et surtout un MOTIF — les tests de modale vérifiaient le
+  CONTENU, jamais que la modale S'AFFICHE. Débrancher l'ouverture du sélecteur de courses ou du
+  détail de recette ne faisait rougir personne.
+- **EXIGER UN NOM DE TEST DANS LA PREUVE.** Un harnais de mutation qui conclut « rouge » sur un
+  code de sortie non nul peut compter des **plantages au chargement** comme des preuves : c'est
+  arrivé, 11 preuves valaient zéro (l'outil de test était lancé depuis `c:\…` en minuscule au
+  lieu de `C:\…`, ce qui casse la résolution du projet). Une mutation n'est prouvée que si un
+  test NOMMÉ rougit — et le harnais doit toujours porter un témoin non muté qui reste vert.
+- **Vérifier toute piste d'audit sur pièce.** La fiche de découverte contenait 2 affirmations
+  FAUSSES (sur `searchEmojiAI`), NotebookLM 2 sur 13. Aucune n'a été appliquée telle quelle.
+- **Traquer les commentaires menteurs.** Mes propres correctifs en ont créé 4 dans la journée
+  (dont 2 blocs de doc orphelins laissés par un déplacement) ; l'audit DUR final en a trouvé
+  2 de plus, dont un qui affirmait l'EXACT INVERSE du code (`toggleSpecialFilter`). Balayer
+  après chaque geste ne suffit pas — un second regard, indépendant, en trouve encore.
+- **Un audit final rouvre TOUJOURS le code, même sur du travail déjà auto-audité.** L'audit
+  DUR de clôture a trouvé un défaut BLOQUANT (l'extracteur JSON unique recréait le symptôme
+  qu'il devait éliminer, sur un chemin différent) dans du code livré le jour même avec ses
+  propres mutations vertes. Les mutations prouvent ce qu'elles testent, pas ce à quoi
+  personne n'a pensé — un regard adversarial indépendant reste irremplaçable.
+- **`PROJECT_MAP.md` à chaque nouveau module ou fichier de test** (le verrou pytest l'exige,
+  et il est désormais durci : une mention en passant ne suffit plus).
+
+Rappel VERROU PRODUCTION : aucun merge/push vers `main` sans confirmation au moment même.

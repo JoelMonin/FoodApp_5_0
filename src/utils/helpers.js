@@ -1,6 +1,19 @@
 /**
+ * Date au format français — SSOT (LOT 014, volet D). `toLocaleDateString('fr-FR')` était
+ * écrit à 4 endroits : 3 chemins d'enregistrement de favori et l'en-tête des textes copiés.
+ * Le paramètre rend la date INJECTABLE, seule façon de tester un rendu daté sans dépendre
+ * du jour où tourne la suite.
+ */
+export function formatDateFr(date = new Date()) {
+  return date.toLocaleDateString('fr-FR');
+}
+
+/**
  * Supprime les accents d'une chaîne de caractères et la met en minuscules.
- * @param {string} str 
+ *
+ * SSOT du retrait d'accents (LOT 014, volet D) : `normalizeString` recopiait la même
+ * opération en ligne, ce qui laissait cette fonction sans aucun appelant en production.
+ * @param {string} str
  * @returns {string}
  */
 export function stripAccents(str) {
@@ -21,7 +34,11 @@ export function normalizeString(str) {
   n = n.replace(/pommes? de terre/g, 'pommedeterre');
   n = n.replace(/pdt/g, 'pommedeterre');
 
-  n = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // LOT 014, volet D \u2014 SSOT : le retrait d'accents \u00e9tait recopi\u00e9 ici \u00e0 l'identique de
+  // `stripAccents`, qui n'avait alors plus aucun appelant en production. Le brancher
+  // supprime la duplication ET rend \u00e0 cette fonction son unique raison d'exister.
+  // \u00c9quivalence v\u00e9rifi\u00e9e sur les 297 noms du catalogue + 11 cas limites : 0 diff\u00e9rence.
+  n = stripAccents(n);
   n = n.replace(/œ/g, 'oe');
   // Remplacement de la ponctuation par des espaces
   n = n.replace(/[.,\#!$%\^&\*;:{}=\-_`~()'"\/]/g, " ");

@@ -19,25 +19,6 @@
 
   <!-- ═══════════ MODALS ═══════════ -->
 
-  <!-- Shopping List Modal (bulk add) -->
-  <div class="modal-overlay" id="modal-shopping-bulk">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Ajouter à la liste de courses</div>
-        <button class="modal-close" id="modal-shopping-bulk-close" onclick="closeModal('modal-shopping-bulk')">✕</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size:13px;color:var(--txt-mid);margin-bottom:14px">Décochez les ingrédients que vous ne souhaitez
-          pas ajouter à la liste de courses.</p>
-        <div class="check-list" id="modal-shopping-bulk-list"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="modal-btn" id="modal-shopping-bulk-cancel" onclick="closeModal('modal-shopping-bulk')">Annuler</button>
-        <button class="modal-btn primary" id="modal-shopping-bulk-confirm" onclick="confirmBulkAdd()">Ajouter à la liste de courses</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Paste Recipe Modal -->
   <div class="modal-overlay" id="modal-paste-recipe">
     <div class="modal modal-lg">
@@ -175,7 +156,7 @@
     <nav id="sidebar">
       <div class="sb-logo">
         <div class="sb-logo-name">🥘 FoodApp</div>
-        <div class="sb-logo-sub">Version 5.9</div>
+        <div class="sb-logo-sub">Version 5.10</div>
       </div>
       <div class="sb-section-label" id="sb-label-principal">Principal</div>
       <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
@@ -231,7 +212,7 @@
         <div class="mh-top">
           <div>
             <div class="mh-logo">🥘 FoodApp</div>
-            <div class="mh-sub" id="mh-subtitle">Version 5.9</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.10</div>
           </div>
           <div class="mh-icons">
             <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
@@ -532,7 +513,7 @@
                 <span class="export-btn-icon">🛒</span>
                 <div>
                   <div class="export-btn-label">Copier ma liste de courses</div>
-                  <div class="export-btn-sub">Tout ce qu'il vous reste à acheter, rangé par rayon, articles libres compris.</div>
+                  <div class="export-btn-sub">Tout ce qu'il vous reste à acheter, rangé par rayon.</div>
                 </div>
               </button>
             </div>
@@ -555,8 +536,8 @@
               <button class="export-btn export-backup" id="settings-import-stock-only" onclick="document.getElementById('restore-file').click()">
                 <span class="export-btn-icon">🔄</span>
                 <div>
-                  <div class="export-btn-label">Importer uniquement le stock</div>
-                  <div class="export-btn-sub">Le MÊME fichier, mais en douceur : reprend stock, à acheter, épinglés et surgelés, ajoute les ingrédients inconnus, et ne touche ni aux favoris ni aux réglages.</div>
+                  <div class="export-btn-label">Fusionner le catalogue</div>
+                  <div class="export-btn-sub">Le MÊME fichier, mais en douceur : fusionne la base d'ingrédients, l'inventaire et les courses. Ajoute les inconnus sans toucher aux favoris ni aux réglages.</div>
                 </div>
               </button>
             </div>
@@ -568,7 +549,7 @@
                 <span class="export-btn-icon">🗑️</span>
                 <div>
                   <div class="export-btn-label">Réinitialiser mon panier</div>
-                  <div class="export-btn-sub">Vide entièrement votre liste de courses, articles libres compris. Votre stock n'est pas touché.</div>
+                  <div class="export-btn-sub">Vide entièrement votre liste de courses. Votre stock n'est pas touché.</div>
                 </div>
               </button>
               <button class="export-btn export-danger" id="settings-reset-all" onclick="resetAllData()">
@@ -663,6 +644,7 @@
                   <option value="Sucres & sirops">🍬 Sucres & sirops</option>
                   <option value="Bouillons & bases">🍲 Bouillons & bases</option>
                   <option value="Plats & Préparations">🍱 Plats & Préparations</option>
+                  <option value="Autres">📦 Autres</option>
                 </select>
                 <p id="category-suggestion-indicator"
                   style="font-size:11.5px;color:var(--green);margin-top:5px;display:none">✨ Catégorie suggérée par l'IA

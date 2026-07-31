@@ -472,8 +472,25 @@ existant qui pourrait être affecté.
 comblés** (items 3, 17, 22, 33, 78 — détail dans chaque ligne de la matrice ci-dessus) et
 1 trou identifié mais volontairement non comblé (item 1, backlog §8).
 
+> ### ⚠️ ADDENDUM DU 2026-07-31 — CETTE CONCLUSION ÉTAIT FAUSSE
+>
+> Question de Joel après la publication : « est-tu sûr qu'on a pas de faux-verrous ? ».
+> Un audit adversarial dédié a rejoué l'exercice à **49 mutations réelles** sur `js/app.js`
+> (au lieu de 11) : **12 ont survécu**, dont **un test formellement tautologique**
+> (`tests/export-clipboard.test.js`, restauration du focus — jsdom ne vole jamais le focus,
+> l'assertion était vraie par construction).
+>
+> **La conclusion « 0 test tautologique » reflétait la taille de l'échantillon, pas l'état du
+> filet.** Elle a été présentée à Joel comme plus solide qu'elle ne l'était. Les 12 trous ont
+> été comblés au LOT 014 (17 tests neufs, 559 → 576), chacun prouvé en réappliquant sa
+> mutation d'origine — détail dans `LOT 014 … [EN COURS].md` §RÉALISATION.
+>
+> **Leçon gravée** : un compte de mutations n'est une preuve que si l'échantillon est
+> annoncé ET suffisant. « 0 sur 11 » ne se résume jamais en « 0 ».
+
 **Mutations réelles (2ᵉ agent, 14 fichiers, ~95 cas, 11 mutations tentées)** : **0 test
-tautologique confirmé** — chaque mutation (retirer le `??` de la créativité, désactiver le
+tautologique confirmé** *(⚠️ conclusion invalidée le 2026-07-31, voir l'addendum ci-dessus)* —
+chaque mutation (retirer le `??` de la créativité, désactiver le
 jeton anti-course, réintroduire un tri dans `renderPantryGrid`, avaler l'erreur JSON de
 `callAI`…) a fait échouer son test. 2 findings mineurs traités : précision de la garde
 « sans clé API » de `searchEmojiAddAI` (masquée par une garde en aval, corrigée) ;

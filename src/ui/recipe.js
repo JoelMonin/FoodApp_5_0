@@ -101,7 +101,12 @@ export function renderFavoriteCard(fav, handlers, tags = []) {
 
 const DIFFICULTY_EMOJI = { Facile: '😊', Moyen: '🧑‍🍳' };
 const NUTRI_SCORE_LETTERS = ['A', 'B', 'C', 'D', 'E'];
-const NUTRI_BTN_LABEL = '🔍 Estimer la valeur nutritionnelle (IA)';
+// EXPORTÉE (trouvé par audit adversarial, LOT 014, 2026-07-31) : `recipeModal.js` doit
+// réafficher EXACTEMENT ce même texte après un échec d'analyse (LOT 011, chantier 2), et le
+// recopiait en dur — un commentaire y citait pourtant déjà cette constante comme la source
+// de vérité, sans jamais l'importer. Si Joel reformule un jour ce bouton, un seul endroit
+// à changer désormais.
+export const NUTRI_BTN_LABEL = '🔍 Estimer la valeur nutritionnelle (IA)';
 
 /**
  * Écran de détail de recette complet (LOT 011, chantier 2). Restauré à l'identique de

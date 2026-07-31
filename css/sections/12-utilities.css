@@ -1,0 +1,426 @@
+    /* ═══════════ UTILITIES ═══════════ */
+    .hidden {
+      display: none !important
+    }
+
+    .two-col-settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    @media(max-width:400px) {
+      .two-col-settings {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Fullscreen Modal */
+    .modal-overlay.recipe-fullscreen {
+      padding: 0;
+    }
+
+    .modal-overlay.recipe-fullscreen .modal-content {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+    }
+
+    .modal-overlay.recipe-fullscreen .modal-body {
+      height: calc(100vh - 120px);
+    }
+
+    /* Cooking Mode Optimizations */
+    .modal-overlay.recipe-fullscreen .mh-title {
+      font-size: 1.4rem;
+    }
+
+    /* Support for native Fullscreen API */
+    .modal-overlay:fullscreen {
+      background: var(--cream);
+      overflow-y: auto;
+    }
+
+    .modal-overlay:fullscreen .modal-content {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      border: none;
+    }
+
+    .modal-overlay:fullscreen .modal-body {
+      flex: 1;
+      height: auto;
+      max-height: none;
+    }
+
+    .r-tag.green {
+      background: #e8f5e9;
+      color: var(--green);
+      border: 1px solid #c8e6c9;
+    }
+
+    .r-tag.red {
+      background: #fee;
+      color: #d63031;
+      border: 1px solid #ffcdd2;
+    }
+
+    .r-tag.orange {
+      background: #fff3e0;
+      color: #ef6c00;
+      border: 1px solid #ffe0b2;
+    }
+
+    .picker-badge {
+      background: var(--green-lt);
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+
+    .picker-match-info {
+      font-size: 11px;
+      color: var(--txt-mid);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+
+    .si-source {
+      font-size: 11px;
+      color: var(--green);
+      margin-top: 4px;
+      padding: 2px 8px;
+      background: var(--green-lt);
+      border-radius: 4px;
+      display: inline-block;
+      width: fit-content;
+      font-weight: 600;
+    }
+
+    .spinner-small {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Print Styling */
+    @media print {
+
+      body,
+      html {
+        background: white !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        position: static !important;
+      }
+
+      #app,
+      #topbar,
+      #sidebar,
+      #mobile-header,
+      #bottom-nav,
+      .modal-overlay,
+      #toast-container {
+        display: none !important;
+      }
+
+      #modal-recipe-detail {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        background: white !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      #modal-recipe-detail .modal-content {
+        position: static !important;
+        height: auto !important;
+        max-height: none !important;
+        width: 100% !important;
+        max-width: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+      }
+
+      #modal-recipe-detail .mh-right,
+      #modal-recipe-detail .mh-left .mh-btn,
+      #modal-recipe-detail .modal-footer,
+      #modal-recipe-detail .scale-btn {
+        display: none !important;
+      }
+
+      .modal-header {
+        border-bottom: 2px solid #000 !important;
+        margin-bottom: 20px !important;
+        padding-bottom: 10px !important;
+        background: transparent !important;
+      }
+
+      .mh-title {
+        color: #000 !important;
+        font-size: 24px !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+      }
+
+      .modal-body {
+        overflow: visible !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        padding: 0 !important;
+        color: #000 !important;
+      }
+
+      .r-tag {
+        border: 1px solid #ccc !important;
+        color: #000 !important;
+        background: #fff !important;
+      }
+
+      * {
+        visibility: visible !important;
+      }
+    }
+
+    /* AI Accordion & Glassmorphism */
+    .ai-accordion {
+      border: 1.5px solid var(--border);
+      border-radius: var(--r);
+      margin-bottom: 12px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .ai-accordion-header {
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: var(--cream-dk);
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .ai-accordion-header:hover {
+      background: var(--border);
+    }
+
+    .ai-accordion-title {
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--txt);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ai-accordion-icon {
+      font-size: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    .ai-accordion.open .ai-accordion-icon {
+      transform: rotate(180deg);
+    }
+
+    .ai-accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      background: white;
+      padding: 0 16px;
+    }
+
+    .ai-accordion.open .ai-accordion-content {
+      max-height: 1000px;
+      padding: 16px;
+    }
+
+    /* Glassmorphism Sticky CTA */
+    .ai-sticky-cta {
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.75) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+      position: sticky;
+      bottom: 0;
+    }
+
+    /* Generate Button Polish */
+    /* Surcouche du bouton « Générer » : relief, animation, voile de chargement. L'aspect de
+       base vit en section AI VIEW. Ce bloc DOIT rester après lui — c'est l'ordre, pas les
+       `!important`, qui décide en premier lieu. Voir le commentaire jumeau là-bas. */
+    .generate-btn {
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(43, 74, 60, 0.2) !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(43, 74, 60, 0.3) !important;
+    }
+
+    .generate-btn.loading {
+      color: transparent !important;
+      pointer-events: none;
+    }
+
+    .generate-btn.loading::after {
+      content: attr(data-loading-text);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      animation: pulseText 1.5s infinite;
+    }
+
+    /* Spinner inner */
+    .generate-spinner {
+      position: absolute;
+      left: 20px;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    .generate-btn.loading .generate-spinner {
+      display: block;
+    }
+
+    @keyframes pulseText {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    /* AI Empty State Enhance */
+    .ai-empty-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100%;
+      padding: 0 24px;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .ai-empty-hero-icon {
+      font-size: 54px;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+    }
+
+    .ai-empty-hero-title {
+      font-family: 'Lora', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--txt);
+      margin-bottom: 8px;
+    }
+
+    .ai-empty-hero-desc {
+      font-size: 14px;
+      color: var(--txt-mid);
+      max-width: 320px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .magic-btn {
+      background: var(--gold-lt);
+      border: 1.5px solid var(--gold);
+      color: var(--gold);
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .magic-btn:hover {
+      background: var(--gold);
+      color: white;
+      transform: scale(1.02);
+    }
+
+    /* Chips labels in imposed zone */
+
+    .pz-chip,
+    .ez-chip {
+      padding: 6px 12px 6px 10px;
+      border-radius: var(--r-sm);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      transition: transform 0.15s;
+    }
+
+    .pz-chip:hover,
+    .ez-chip:hover {
+      transform: translateY(-1px);
+    }
+

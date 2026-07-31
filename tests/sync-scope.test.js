@@ -1,13 +1,13 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildSyncDocument, extractSyncedState } from '../src/services/firebase';
+import { buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import {
   state,
   shoppingChecked,
   replaceShoppingChecked,
   applyExternalState,
   defaultAiConfig
-} from '../src/state';
+} from '../src/state.js';
 
 // LOT 007 — périmètre du document synchronisé (spec §4.1) et application clé par
 // clé (§4.3). Ces tests verrouillent CE QUI part au cloud et CE QUI en revient :
@@ -16,7 +16,6 @@ import {
 function fullTestState(overrides = {}) {
   return {
     ingredients: [{ id: 'ing_1', name: 'Pomme', emoji: '🍎', category: 'Fruits', inStock: true }],
-    customCartItems: [{ id: 'cci_1', name: 'Pain' }],
     favorites: [{ id: 'fav_1', name: 'Tarte' }],
     extraIngredients: [{ name: 'Safran' }],
     aiConfig: {
@@ -63,10 +62,13 @@ describe('buildSyncDocument — ce qui part au cloud (§4.1)', () => {
     expect(doc.shoppingChecked).toEqual(['ing_1', 'cci_1']);
   });
 
-  it('contient les quatre tableaux de données et les réglages IA', () => {
+  // LOT 014, volet G : `customCartItems` est sorti du périmètre synchronisé — ils ne sont
+  // plus TROIS tableaux et non quatre. Le test vérifie aussi, désormais, que la clé retirée
+  // ne repart PAS au cloud : c'est ce qui l'efface du document de Joel au premier envoi.
+  it('contient les trois tableaux de données et les réglages IA, et plus les articles libres', () => {
     const doc = buildSyncDocument(fullTestState(), []);
     expect(doc.ingredients).toHaveLength(1);
-    expect(doc.customCartItems).toHaveLength(1);
+    expect(doc).not.toHaveProperty('customCartItems');
     expect(doc.favorites).toHaveLength(1);
     expect(doc.extraIngredients).toHaveLength(1);
     expect(doc.aiConfig.diet).toEqual(['vegetarien']);
@@ -88,7 +90,8 @@ describe('extractSyncedState — ce qui revient du cloud (§4.3)', () => {
     const { patch } = extractSyncedState({ ingredients: [] });
     expect(patch.favorites).toEqual([]);
     expect(patch.extraIngredients).toEqual([]);
-    expect(patch.customCartItems).toEqual([]);
+    // volet G : la clé n'est plus du périmètre, donc jamais reconstruite dans le patch.
+    expect(patch).not.toHaveProperty('customCartItems');
   });
 
   it('document sans shoppingChecked (ancien client) → « aucune coche », jamais une erreur', () => {
@@ -115,6 +118,26 @@ describe('extractSyncedState — ce qui revient du cloud (§4.3)', () => {
     });
     expect(patch.aiConfig.apiKey).toBe(''); // remplacée ensuite par la clé LOCALE
     expect(patch.aiConfig.diet).toEqual(['vegan']);
+    expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
+  });
+
+  // LOT 014, volet C (trouvé à l'auto-audit) — l'ancienne garde était
+  // `cloudDoc.aiConfig && typeof cloudDoc.aiConfig === 'object'`, or `typeof [] === 'object'`.
+  // Un TABLEAU passait, et son spread collait des clés `0/1/2` dans les réglages IA, ensuite
+  // persistées puis renvoyées au cloud. Même famille que le trou d'`importStockOnly` (§C1).
+  it('des réglages IA en TABLEAU ne polluent pas le patch avec des clés 0/1/2', () => {
+    const { patch } = extractSyncedState({ ingredients: [], aiConfig: ['a', 'b'] });
+
+    expect(patch.aiConfig).not.toHaveProperty('0');
+    expect(patch.aiConfig).not.toHaveProperty('1');
+    // Et on retombe proprement sur la forme complète par défaut.
+    expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
+  });
+
+  it('des réglages IA en CHAÎNE ne polluent pas non plus le patch', () => {
+    const { patch } = extractSyncedState({ ingredients: [], aiConfig: 'cassé' });
+
+    expect(patch.aiConfig).not.toHaveProperty('0');
     expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
   });
 });
@@ -180,7 +203,7 @@ describe('replaceShoppingChecked + applyExternalState — application locale', (
   it('applyExternalState({scheduleSync:false}) ne déclenche PAS le planificateur inscrit (§4.5)', async () => {
     // Le planificateur est global au module state : on l'inscrit, on vérifie,
     // puis on le désinscrit pour ne pas polluer les autres tests.
-    const { registerSyncScheduler } = await import('../src/state');
+    const { registerSyncScheduler } = await import('../src/state.js');
     const scheduler = vi.fn();
     registerSyncScheduler(scheduler);
     try {

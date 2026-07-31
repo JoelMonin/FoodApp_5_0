@@ -12,13 +12,74 @@ import {
 import { h, toast } from '../src/utils/dom.js';
 import {
   generateId,
+  formatDateFr,
   normalizeString,
   autoEmoji,
   areSimilar,
   debounce
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS } from '../src/constants.js';
+import { guessCategoryLocally, sanitizeCategory } from '../src/utils/categorize.js';
+// SSOT du calcul « en stock / manquant » — extrait d'ici au LOT 014, volet A.
+import { matchIngredientToStock, buildIngredientTags } from '../src/utils/stockMatch.js';
+// Selecteur de courses — extrait d'ici au LOT 014, volet A. Trois couplages lui sont
+// INJECTES (openModal/closeModal, qui ne sont pas de simples helpers, et
+// buildEmojiEditSuggestions, qui appartient a la modale d'edition d'icone) : voir
+// l'en-tete du module pour le detail du noeud annonce par la phase decouverte.
+// Modale « detail de recette » — extraite d'ici au LOT 014, volet A. `buildRecipeHandlers`
+// reste ici : c'est du cablage vers la zone favoris, pas du rendu.
+import {
+  renderRecipeModal,
+  openRecipeDetail,
+  analyzeNutrition,
+  isDocumentFullscreen,
+  exitDocumentFullscreen,
+  quitterPleinEcranSiBesoin,
+  toggleRecipeFullscreen,
+  syncRecipeFullscreenClass,
+  initRecipeFullscreenListeners,
+  changePplScale,
+  registerRecipeModalHooks
+} from '../src/ui/recipeModal.js';
+// Modale « changer l'icone » — extraite d'ici au LOT 014, volet A.
+import {
+  openEditEmoji,
+  buildEmojiEditSuggestions,
+  renderEmojiEditGrid,
+  applyEditedEmoji,
+  searchEmojiAI,
+  registerEmojiModalHooks
+} from '../src/ui/emojiModal.js';
+import {
+  openEnhancedCartPicker,
+  confirmRecipeToCart,
+  cycleEmoji,
+  updatePickerRow,
+  toggleAllPickerItems,
+  registerCartPickerHooks
+} from '../src/ui/cartPicker.js';
+// Formulaire d'ajout — extrait d'ici au LOT 014, volet A. Son état (catégorie choisie à la
+// main, temporisations, jeton anti-course) est désormais PRIVÉ au module : la seule écriture
+// possible depuis ici passe par `resetManualCategory`, appelée par `switchView`.
+import {
+  renderAdd,
+  showCategoryIndicator,
+  selectEmoji,
+  updateEmojiSuggestions,
+  updateEmojiSuggestionsDebounced,
+  handleAddInput,
+  onManualCategoryChange,
+  addIngredient,
+  addIngredientFromDb,
+  searchEmojiAddAI,
+  resetManualCategory,
+  registerAddFormNav
+} from '../src/ui/addForm.js';
+// Gardes d'entrée des données externes — SSOT (LOT 014, volet C).
+import { validateState, isValidRecipe, escapePromptValue } from '../src/utils/validate.js';
+// Composition des textes de partage — extraite d'ici au LOT 014, volet A.
+import { buildClipboardText, writeToClipboard } from '../src/services/exports.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY, PANNEAU_DE_VUE, estVueFavoris, estVueReglages, MESSAGE_CLE_API_MANQUANTE } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -26,28 +87,17 @@ import { renderShoppingList } from '../src/ui/shopping.js';
 import { renderRecipeCard, renderRecipeDetail, renderFavoriteCard } from '../src/ui/recipe.js';
 import * as Actions from '../src/actions.js';
 
-let state = moduleState;
-let _isManualCategory = false;
-let _localCategoryFill = false; // true = catégorie posée par détection locale faible (IA peut écraser)
-let _addSuggestTimer = null;
-// Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
-// d'appliquer sa reponse (cf. handleAddInput).
-let _aiSuggestGenId = 0;
+// LOT 014, volet B — `const` : depuis que `src/state.js` MUTE son état au lieu de le
+// remplacer (`Object.assign` dans `setState`/`loadState`), cet alias reste valide pour
+// toujours. Les trois rattrapages `state = moduleState` qui suivaient chaque réassignation
+// (ex-l.62, :96, :422) ont disparu ; `const` interdit qu'un quatrième réapparaisse.
+const state = moduleState;
 // LOT 011 (trouve par l'audit du sous-lot 11A) : deux generations de recettes concurrentes
 // (bouton normal + 🎲, ou deux clics rapides sur 🎲) pouvaient se marcher dessus — chacune
 // restaure "sa" creativite sauvegardee dans un finally, et la derniere a finir l'emporte
 // meme si elle a lu une valeur deja corrompue par l'autre. Un seul point d'entree
 // (generateSuggestions) refuse desormais tout lancement pendant qu'un autre est en cours.
 let _generationInFlight = false;
-
-// Filet de sécurité emoji ingrédient (LOT 010, casse C12, durci après audit Codex Terra) :
-// un prompt IA sans indication de format a pu, par le passé, faire dériver du texte (une
-// unité comme "g") dans le champ emoji. Ancré sur la chaîne ENTIÈRE (`.test()` cherche
-// n'importe où par défaut — une valeur mixte comme "g🐟" passait sinon). `\p{Emoji}️`
-// (sélecteur de variante 16) couvre en plus les emojis à présentation texte par défaut,
-// explicitement forcés en emoji. SSOT (LOT 011) : partagé par le sélecteur de courses et
-// le détail de recette — un correctif de sécurité ne doit vivre qu'à un seul endroit.
-const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
 
@@ -59,7 +109,6 @@ const expose = (fns) => {
 
 window.addEventListener('DOMContentLoaded', async () => {
   loadStateFromModule();
-  state = moduleState;
 
   // Rendu immediat depuis les donnees locales : la vue ne doit jamais attendre le reseau.
   // La synchro cloud part en arriere-plan et re-declenche un rendu via 'stateUpdated'.
@@ -69,7 +118,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initRecipeFullscreenListeners();
 
   // Initialize swipe-to-close and overlay click for all modals
-  ['modal-shopping-bulk', 'modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
+  ['modal-paste-recipe', 'modal-recipe-to-cart', 'modal-recipe-detail', 'modal-api-config', 'modal-edit-emoji']
     .forEach(id => {
         initSwipeToClose(id);
         const overlay = document.getElementById(id);
@@ -93,445 +142,28 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('stateUpdated', () => {
-    state = moduleState;
     renderCurrentView();
 });
+// LOT 014, volet A — LE MOTEUR DE SYNCHRO A DEMENAGE dans `src/services/sync.js`
+// (deplacement pur, 438 lignes). Les noms restent republies a l'identique par le bloc
+// `export {}` plus bas : les tests du LOT 007 n'ont pas eu a etre touches, ce qui est
+// exactement la garantie recherchee pendant un deplacement de code.
+import {
+  initSyncEngine, scheduleSyncPush, requestSyncOp, performSyncSend, performSyncPull,
+  setSyncStatus, isSyncPending, syncEngineBarrier, __resetSyncEngineForTests,
+  updateNetworkInfo, SYNC_LAST_KEY, registerSyncUi
+} from '../src/services/sync.js';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MOTEUR DE SYNCHRO BIDIRECTIONNELLE (LOT 007, spec v3)
-//
-// Restauration du `saveState(push = true)` du monolithe (l.4336-4340), perdu par
-// la migration, avec les ameliorations VOLONTAIRES de la spec : temporisation 2 s,
-// drapeau « EN ATTENTE » persiste, anti-boucle par reference « dernier document
-// cloud connu », pulls periodiques, delai d'expiration et retry unique.
-// Le perimetre du document vit dans src/services/firebase.js (SSOT, §4.1).
-// ═══════════════════════════════════════════════════════════════════════════
-
-const SYNC_PENDING_KEY = 'pantry_v5_sync_pending'; // drapeau persiste (§4.3) : couvre aussi le rechargement de page
-const SYNC_LAST_KEY = 'pantry_v5_last_sync';       // metadonnee locale, HORS document (§4.1, audit Codex v2)
-const SYNC_PUSH_DELAY_MS = 2000;
-const SYNC_RETRY_DELAY_MS = 10000;
-const SYNC_PULL_INTERVAL_MS = 60000;
-const SYNC_STATUS_RESET_MS = 2000;
-
-let _syncSendTimer = null;      // il n'existe JAMAIS qu'un timer d'envoi : debounce 2 s OU retry 10 s (§4.4)
-let _syncRetryUsed = false;     // une seule nouvelle tentative par echec, puis arret (§4.7)
-let _syncSendBlocked = false;   // apres un 4xx ou l'epuisement du retry : les cycles AUTOMATIQUES
-                                // n'essaient plus d'envoyer (audit Sol, durcissement) — un geste,
-                                // un clic manuel ou le retour reseau reautorisent l'envoi
-let _syncInFlight = false;      // une seule operation a la fois (§4.4)
-let _syncQueuedOp = null;       // une demande en attente, jamais accumulees (§4.4)
-let _syncIdleWaiters = [];      // barriere de quiescence (contre-verif Sol C3) : resolus
-                                // des que l'operation en vol se termine
-let _syncDirtyGen = 0;          // generation de modification : ne jamais baisser le drapeau
-                                // pour des changements survenus PENDANT l'envoi en vol
-let _lastCloudDocJson = null;   // reference anti-boucle « dernier document cloud connu » (§4.5) —
-                                // miroir memoire de LOCAL_STORAGE_SYNC_REF_KEY, PERSISTEE (audit
-                                // Sol C1 : elle doit survivre au rechargement pour que le drapeau
-                                // ne se leve que sur une VRAIE modification du document synchronise)
-let _lastCloudHadIngredients = false; // pour le garde-fou sortant (§4.9.1)
-let _syncStatusTimer = null;    // retour du voyant a l'etat neutre (annulable, contrairement a l'oracle)
-
-function readSyncReference() {
-    try { return localStorage.getItem(LOCAL_STORAGE_SYNC_REF_KEY); } catch { return null; }
-}
-function setSyncReference(docJson) {
-    _lastCloudDocJson = docJson;
-    try { localStorage.setItem(LOCAL_STORAGE_SYNC_REF_KEY, docJson); } catch { /* miroir memoire seulement */ }
-}
-
-// Le document synchronise tel qu'il serait envoye MAINTENANT (perimetre §4.1).
-function currentSyncDocJson() {
-    return JSON.stringify(buildSyncDocument(moduleState, Array.from(shoppingChecked)));
-}
-
-function isSyncPending() {
-    try { return localStorage.getItem(SYNC_PENDING_KEY) === '1'; } catch { return false; }
-}
-function raiseSyncPending() {
-    try { localStorage.setItem(SYNC_PENDING_KEY, '1'); } catch { /* stockage indisponible : drapeau memoire seulement */ }
-}
-function clearSyncPending() {
-    try { localStorage.removeItem(SYNC_PENDING_KEY); } catch { /* idem */ }
-}
-
-// Champs libres du formulaire IA : enregistres seulement au clic « Sauvegarder ».
-// Une saisie en cours ne doit jamais etre reecrite par le retour d'un pull (LOT 005).
-const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
-const aiFormFingerprint = () => JSON.stringify(
-    AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
-);
-
-/**
- * Voyant d'etat — porte du monolithe (l.4348-4368), classes CSS deja presentes
- * (.thinking/.success/.error, F7). Differences assumees par la spec (§4.8) :
- * libelles francais de la spec, etat « Hors ligne », timer de retour annulable
- * (l'oracle empilait les setTimeout), et l'erreur reste affichee (pas de retour
- * automatique : « voyant erreur persistant », §4.9).
- */
-function setSyncStatus(status, message = null) {
-    const indicators = [
-        document.getElementById('sync-indicator-desktop'),
-        document.getElementById('sync-indicator-mobile')
-    ].filter(Boolean);
-
-    const cssState = status === 'offline' ? 'error' : (status === 'idle' ? '' : status);
-    indicators.forEach(el => {
-        el.className = ('sync-indicator ' + cssState).trim();
-        const label = el.querySelector('.sync-label');
-        if (label) {
-            if (status === 'thinking') label.textContent = 'Synchro…';
-            else if (status === 'success') label.textContent = message || 'À jour ✓';
-            else if (status === 'error') label.textContent = message || 'Échec — réessayer';
-            else if (status === 'offline') label.textContent = 'Hors ligne';
-            else label.textContent = 'Cloud Sync';
-        }
-    });
-
-    clearTimeout(_syncStatusTimer);
-    if (status === 'success') {
-        _syncStatusTimer = setTimeout(() => setSyncStatus('idle'), SYNC_STATUS_RESET_MS);
-    }
-}
-
-function recordSyncSuccess() {
-    try { localStorage.setItem(SYNC_LAST_KEY, new Date().toISOString()); } catch { /* affichage seulement */ }
-    updateSystemInfo();
-}
-
-/**
- * Inscrit dans saveState via registerSyncScheduler. Une modification pendant un
- * retry programme ANNULE le retry — un seul timer d'envoi, toujours (§4.4).
- *
- * CORRECTION AUDIT SOL (C1) : le drapeau « EN ATTENTE » ne represente QUE une
- * modification du DOCUMENT SYNCHRONISE. Une sauvegarde qui ne le change pas
- * (navigation, cle API, suggestion IA) ne leve ni drapeau ni timer — sinon un
- * simple changement d'ecran hors ligne forcait, au retour du reseau, l'envoi
- * d'un vieil inventaire PAR-DESSUS un cloud plus recent.
- */
-function scheduleSyncPush() {
-    if (currentSyncDocJson() === _lastCloudDocJson) {
-        return; // rien de synchronise n'a change : le cloud n'a rien a recevoir
-    }
-    raiseSyncPending();
-    _syncDirtyGen++;
-    _syncRetryUsed = false;
-    _syncSendBlocked = false; // une vraie modification reautorise l'envoi
-    clearTimeout(_syncSendTimer);
-    _syncSendTimer = setTimeout(() => {
-        _syncSendTimer = null;
-        requestSyncOp('send');
-    }, SYNC_PUSH_DELAY_MS);
-}
-
-/**
- * Point d'entree unique des operations : UNE seule a la fois. Une demande arrivant
- * pendant une operation en vol est mise en attente (une seule case, jamais
- * accumulees) et executee apres ; un clic manuel n'est jamais retrograde (§4.4).
- */
-async function requestSyncOp(op) {
-    if (_syncInFlight) {
-        if (_syncQueuedOp !== 'manual') _syncQueuedOp = op;
-        return;
-    }
-    _syncInFlight = true;
-    try {
-        if (op === 'send') {
-            await performSyncSend();
-        } else if (op === 'pull') {
-            // §4.4 : drapeau leve → ENVOI D'ABORD, recuperation seulement si l'envoi
-            // a reussi — jamais de pull destructif par-dessus des modifs non envoyees.
-            if (isSyncPending()) {
-                // Envoi bloque (4xx, retry epuise) : un cycle AUTOMATIQUE ne retente
-                // pas — sinon le pull periodique devenait un retry toutes les 60 s
-                // (audit Sol). Le pull est aussi abandonne : il ne pourrait de toute
-                // facon pas etre applique par-dessus des modifs non envoyees.
-                if (_syncSendBlocked) return;
-                const sent = await performSyncSend();
-                if (!sent) return;
-            }
-            await performSyncPull({ manual: false });
-        } else if (op === 'manual') {
-            // Clic « Cloud Sync » : recuperation PUIS envoi, immediatement (§4.4) —
-            // precede d'un envoi si des modifications attendent (meme regle que pull).
-            // Un clic manuel est un GESTE : il reautorise toujours l'envoi.
-            _syncSendBlocked = false;
-            if (isSyncPending()) {
-                const sent = await performSyncSend({ manual: true });
-                if (!sent) return;
-            }
-            const pulled = await performSyncPull({ manual: true });
-            if (pulled) await performSyncSend({ manual: true, quiet: true });
-        }
-    } finally {
-        _syncInFlight = false;
-        const queued = _syncQueuedOp;
-        _syncQueuedOp = null;
-        const attendaitLaQuiescence = _syncIdleWaiters.length > 0;
-        while (_syncIdleWaiters.length) _syncIdleWaiters.shift()();
-        // LOT 015 (audit adversarial du 2026-07-30) — TROU DE LA BARRIERE DE QUIESCENCE.
-        // `resolve()` ci-dessus ne fait que PROGRAMMER la reprise du chemin explicite
-        // (reset, restauration de fichier) en microtache, alors que `requestSyncOp` demarre
-        // SYNCHRONIQUEMENT et construit son document des ses premieres lignes
-        // (`performSyncSend`, l.293-294). Une operation mise en attente PENDANT la barriere
-        // partait donc AVANT que le chemin explicite ait ecrit, avec l'etat d'AVANT — puis
-        // le pull qui la suit reappliquait ce vieux document par-dessus la restauration,
-        // sans declencher le garde-fou d'empreinte (celle-ci etant prise apres coup).
-        // Une operation demandee avant que le chemin explicite ecrive est PERIMEE par
-        // construction : on ne la relance pas. Le chemin explicite planifie son propre
-        // envoi via `saveState`, rien n'est perdu.
-        if (queued && !attendaitLaQuiescence) requestSyncOp(queued);
-    }
-}
-
-/**
- * Barriere de quiescence (contre-verification d'audit Sol, C3), inscrite via
- * registerSyncBarrier : annule tout envoi temporise, vide la file, et attend la
- * fin de l'operation en vol. Garantit qu'aucun PUT du moteur ANTERIEUR a un
- * chemin explicite (reset) ne peut ecrire APRES le PUT de ce chemin.
- */
-function syncEngineBarrier() {
-    clearTimeout(_syncSendTimer);
-    _syncSendTimer = null;
-    _syncQueuedOp = null;
-    if (!_syncInFlight) return Promise.resolve();
-    return new Promise(resolve => _syncIdleWaiters.push(resolve));
-}
-
-/**
- * ENVOI (§4.3). Retourne true si le cloud est a jour (envoi reussi ou rien a envoyer).
- */
-async function performSyncSend({ manual = false, quiet = false } = {}) {
-    const checkedIds = Array.from(shoppingChecked);
-    const doc = buildSyncDocument(moduleState, checkedIds);
-    const genAtBuild = _syncDirtyGen;
-
-    // GARDE-FOU SORTANT (§4.9.1) : jamais d'envoi d'un etat non exploitable. Un
-    // document invalide n'a rien de valide a proteger : drapeau BAISSE, sinon il
-    // bloquerait les pulls et verrouillerait l'appareil a jamais (constat Flash).
-    // La vidange volontaire (reinitialisation, LOT 008) passe par syncPush directement.
-    if (!Array.isArray(doc.ingredients) || (doc.ingredients.length === 0 && _lastCloudHadIngredients)) {
-        clearSyncPending();
-        setSyncStatus('error');
-        toast('Synchro refusée : inventaire local vide ou illisible — le cloud est protégé', 'error');
-        return false;
-    }
-
-    // ANTI-BOUCLE (§4.5) : identique au dernier document cloud connu → rien a faire,
-    // abandon AVANT la requete reseau. La reference est mise a jour a chaque envoi
-    // reussi ET a chaque pull applique.
-    const docJson = JSON.stringify(doc);
-    if (docJson === _lastCloudDocJson) {
-        if (_syncDirtyGen === genAtBuild) clearSyncPending();
-        if (manual && !quiet) toast('Déjà à jour ✓');
-        return true;
-    }
-
-    setSyncStatus('thinking');
-    try {
-        await syncPush(moduleState, checkedIds);
-        setSyncReference(docJson);
-        _lastCloudHadIngredients = doc.ingredients.length > 0;
-        // Ne baisser le drapeau que si RIEN n'a change pendant le vol de la requete :
-        // une modification pendant l'envoi doit rester protegee jusqu'a SON envoi.
-        if (_syncDirtyGen === genAtBuild) clearSyncPending();
-        _syncRetryUsed = false;
-        recordSyncSuccess();
-        setSyncStatus('success');
-        if (manual && !quiet) toast('Données envoyées au cloud ✓');
-        return true;
-    } catch (e) {
-        console.error('[Sync] Envoi échoué', e);
-        const status = e && e.status;
-        if (status >= 400 && status < 500) {
-            // REFUS SERVEUR 4xx (§4.9) : les donnees locales sont VALIDES et jamais
-            // parties — drapeau MAINTENU (aucun pull ne les ecrasera), AUCUN retry
-            // automatique, cycles automatiques suspendus (audit Sol). Toute nouvelle
-            // modification, un clic manuel ou le retour reseau retenteront.
-            _syncSendBlocked = true;
-            setSyncStatus('error');
-            toast('Envoi refusé par le serveur — vos données restent protégées sur cet appareil', 'error');
-        } else if (!_syncRetryUsed) {
-            // ECHEC RECUPERABLE (reseau, delai, 5xx) : drapeau maintenu, UNE seule
-            // nouvelle tentative a 10 s (§4.7).
-            _syncRetryUsed = true;
-            setSyncStatus('error');
-            if (manual) toast('Envoi impossible — nouvelle tentative dans 10 s', 'error');
-            clearTimeout(_syncSendTimer);
-            _syncSendTimer = setTimeout(() => {
-                _syncSendTimer = null;
-                requestSyncOp('send');
-            }, SYNC_RETRY_DELAY_MS);
-        } else {
-            // Retry unique epuise : arret des tentatives AUTOMATIQUES (§4.7 tenu
-            // meme avec les pulls periodiques actifs — audit Sol, durcissement).
-            _syncSendBlocked = true;
-            setSyncStatus('error');
-            toast('Synchronisation impossible — vos données restent sur cet appareil', 'error');
-        }
-        return false;
-    }
-}
-
-/**
- * RECUPERATION (§4.3). Retourne true si le pull s'est conclu sans echec reseau
- * (y compris « base vide » et « photo ecartee », qui ne sont pas des erreurs).
- */
-async function performSyncPull({ manual = false } = {}) {
-    // GARDE-FOU D'EMPREINTE (LOT 005, generalise du demarrage a TOUS les pulls) :
-    // la reponse du cloud est une photo prise AVANT les gestes faits pendant
-    // l'attente reseau. Si les donnees locales ont bouge entre l'envoi de la
-    // requete et sa reponse, la photo est ecartee — les donnees locales sont plus
-    // recentes, par construction. Le drapeau (leve par ces gestes) enverra ensuite.
-    // CORRECTION AUDIT SOL (C2) : l'empreinte couvre le document synchronise
-    // ENTIER (perimetre §4.1, reglages IA compris) — l'ancienne, limitee aux
-    // quatre tableaux + coches, laissait un reglage de creativite modifie pendant
-    // le vol se faire ecraser par la photo cloud, puis passer pour « deja envoye ».
-    const fingerprintBefore = currentSyncDocJson();
-    const aiFormBefore = aiFormFingerprint();
-
-    setSyncStatus('thinking');
-    try {
-        const cloudDoc = await syncPull();
-
-        if (!cloudDoc) {
-            // Base vide : rien a appliquer, ce n'est pas une erreur (§4.3).
-            setSyncStatus('idle');
-            if (manual) toast('Aucune donnée dans le cloud', 'error');
-            return true;
-        }
-        if (!Array.isArray(cloudDoc.ingredients)) {
-            // GARDE-FOU ENTRANT (§4.9.2) : document malforme ignore, erreur discrete.
-            console.warn('[Sync] Document cloud malformé : ignoré, rien n\'est modifié.');
-            setSyncStatus('error');
-            if (manual) toast('Données cloud illisibles — rien n\'a été modifié', 'error');
-            return false;
-        }
-        if (currentSyncDocJson() !== fingerprintBefore) {
-            console.warn('[Sync] Modifications locales pendant la récupération : '
-                + 'données cloud écartées (aucune perte locale).');
-            setSyncStatus('idle');
-            return true;
-        }
-
-        // Application CLE PAR CLE du perimetre (§4.3) — cle API locale preservee
-        // sans condition (§4.6), coches reconstruites en Set AVANT le rendu.
-        const { patch, checkedIds } = extractSyncedState(cloudDoc);
-        replaceShoppingChecked(checkedIds);
-        applyExternalState(patch, { scheduleSync: false }); // issue de la synchro : ne replanifie JAMAIS d'envoi (§4.5)
-        state = moduleState;
-
-        // Reference anti-boucle = le document tel qu'il existe LOCALEMENT apres
-        // application (sanitisation comprise) : ainsi une simple sauvegarde d'un
-        // champ NON synchronise redonne exactement ce document → aucun envoi (§4.5).
-        setSyncReference(currentSyncDocJson());
-        _lastCloudHadIngredients = (moduleState.ingredients || []).length > 0;
-
-        recordSyncSuccess();
-        setSyncStatus('success');
-
-        // Ne pas reecrire une saisie en cours dans le formulaire de config IA.
-        if (aiFormFingerprint() === aiFormBefore) {
-            restoreAIConfig();
-        } else {
-            console.warn('[Sync] Saisie en cours dans la configuration IA : champs non réécrits.');
-        }
-        if (manual) toast('☁️ Données chargées du Cloud');
-        return true;
-    } catch (e) {
-        console.error('[Sync] Récupération échouée', e);
-        setSyncStatus('error');
-        if (manual) toast('Synchronisation impossible', 'error');
-        return false;
-    }
-}
-
-function updateNetworkInfo() {
-    const netEl = document.getElementById('info-network');
-    if (netEl) netEl.textContent = navigator.onLine ? '🌐 Connecté' : '🚫 Hors-ligne';
-}
-
-/**
- * Demarrage du moteur (§4.4) : inscription dans saveState, ecouteurs reseau et
- * visibilite, pull periodique, puis recuperation initiale — qui ENVOIE D'ABORD
- * si le drapeau persiste est leve (modifications faites juste avant une fermeture).
- */
-function initSyncEngine() {
-    registerSyncScheduler(scheduleSyncPush);
-    registerSyncBarrier(syncEngineBarrier);
-
-    // La reference « dernier cloud connu » survit au rechargement (audit Sol C1) :
-    // sans elle, toute sauvegarde d'un demarrage hors ligne (meme une simple
-    // navigation) passait pour une modification a envoyer.
-    _lastCloudDocJson = readSyncReference();
-
-    // AMORCAGE (contre-verification Sol, C1) : reference ABSENTE = premiere
-    // execution de cette version. Elle devient l'etat local TEL QUEL : ainsi une
-    // sauvegarde qui ne change rien (navigation) ne passe JAMAIS pour une
-    // modification a envoyer — seul un vrai geste posterieur levera le drapeau.
-    // EXCEPTION : drapeau deja leve = des modifications attendent reellement leur
-    // envoi ; on n'amorce pas, sinon elles passeraient pour « deja envoyees » et
-    // seraient ecrasees par le premier pull (garantie du drapeau persiste, §4.3).
-    if (_lastCloudDocJson === null && !isSyncPending()) {
-        setSyncReference(currentSyncDocJson());
-    }
-
-    // Etat reseau affiche DES le demarrage (§4.4), pas au premier evenement.
-    updateNetworkInfo();
-    if (!navigator.onLine) setSyncStatus('offline');
-
-    window.addEventListener('online', () => {
-        updateNetworkInfo();
-        setSyncStatus('idle');
-        // Un retry programme est ANNULE et absorbe par ce cycle (§4.4) : jamais
-        // deux envois pour la meme cause. Le pull enverra d'abord si necessaire.
-        // Le retour du reseau est une cause NOUVELLE : il reautorise l'envoi.
-        _syncSendBlocked = false;
-        clearTimeout(_syncSendTimer);
-        _syncSendTimer = null;
-        requestSyncOp('pull');
-    });
-    window.addEventListener('offline', () => {
-        updateNetworkInfo();
-        setSyncStatus('offline');
-    });
-
-    // Retour sur l'application (§4.4).
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && navigator.onLine) requestSyncOp('pull');
-    });
-
-    // Recuperation periodique, application visible et en ligne seulement (§4.4).
-    setInterval(() => {
-        if (document.visibilityState === 'visible' && navigator.onLine) requestSyncOp('pull');
-    }, SYNC_PULL_INTERVAL_MS);
-
-    // Pas de pull initial hors ligne (audit Sol, benin) : son echec assure
-    // remplacait le voyant « Hors ligne » par « Échec — réessayer ». L'ecouteur
-    // `online` declenchera la recuperation au retour du reseau.
-    if (navigator.onLine) requestSyncOp('pull');
-}
-
-/**
- * Remise a zero complete du moteur — reserve aux tests unitaires
- * (tests/sync-engine.test.js) : le moteur est un singleton de module.
- */
-function __resetSyncEngineForTests() {
-    clearTimeout(_syncSendTimer);
-    _syncSendTimer = null;
-    clearTimeout(_syncStatusTimer);
-    _syncStatusTimer = null;
-    _syncRetryUsed = false;
-    _syncSendBlocked = false;
-    _syncInFlight = false;
-    _syncQueuedOp = null;
-    _syncIdleWaiters = [];
-    _syncDirtyGen = 0;
-    _lastCloudDocJson = null;
-    _lastCloudHadIngredients = false;
-    try { localStorage.removeItem(LOCAL_STORAGE_SYNC_REF_KEY); } catch { /* tests */ }
-    clearSyncPending();
-}
+// Les DEUX dependances d'interface du moteur, injectees ici pour eviter un import
+// circulaire (cf. en-tete de sync.js) : re-lecture du formulaire IA apres un pull applique,
+// et rafraichissement du panneau systeme apres un succes.
+registerSyncUi({ restoreAiForm: restoreAIConfig, refreshSystemInfo: updateSystemInfo });
+// Le formulaire d'ajout renvoie a l'inventaire apres un ajout reussi : `switchView` vit
+// ici et lit l'etat du formulaire, d'ou l'injection plutot qu'un import croise.
+registerAddFormNav({ switchView });
+registerCartPickerHooks({ openModal, closeModal });
+registerEmojiModalHooks({ openModal, closeModal });
+registerRecipeModalHooks({ openModal, buildRecipeHandlers });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -561,6 +193,8 @@ export {
     refreshImposedZone,
     removeExtraIngredient,
     getFilteredIngredients,
+    guessCategoryLocally,
+    sanitizeCategory,
     openRecipeDetail,
     analyzeNutrition,
     changePplScale,
@@ -580,12 +214,21 @@ export {
     deleteFav,
     savePastedRecipe,
     savePastedRecipeAndList,
+    // LOT 014, volet A — exporte pour les tests unitaires : `matchIngredientToStock` est le
+    // coeur du calcul « en stock / manquant » et n'avait AUCUN test direct (zone aveugle
+    // §B10). Exporter ne change aucun comportement.
+    matchIngredientToStock,
     buildIngredientTags,
     transformRecipeAI,
     generateSuggestions,
     // LOT 012 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
     cycleEmoji,
     confirmRecipeToCart,
+    // LOT 014, volet A — exporte pour les tests unitaires (meme raison que les blocs
+    // LOT 009/010 ci-dessus) : `initKeyboardShortcuts` n'est cablee qu'au demarrage, et
+    // `DOMContentLoaded` ne se declenche jamais sous Vitest. Sans cet export, les 4
+    // raccourcis clavier restaient une zone aveugle.
+    initKeyboardShortcuts,
     initFieldEnterShortcuts,
     initChipsRowTouchScroll,
     initSearchAutofillGuard,
@@ -599,8 +242,8 @@ export {
 function renderCurrentView() {
     const view = state.currentView || 'pantry';
     // Show the correct view panel, hide all others
-    const viewMap = { pantry: 'pantry', shopping: 'shopping', ai: 'ai', fav: 'favorites', favorites: 'favorites', add: 'add', export: 'export', settings: 'export' };
-    const activePanel = viewMap[view] || view;
+    // LOT 014, volet D — la table vit desormais dans `src/constants.js` (PANNEAU_DE_VUE).
+    const activePanel = PANNEAU_DE_VUE[view] || view;
     document.querySelectorAll('.view-panel').forEach(panel => {
         panel.classList.toggle('active', panel.id === `view-${activePanel}`);
     });
@@ -612,9 +255,9 @@ function renderCurrentView() {
     if (view === 'pantry') renderPantry();
     else if (view === 'shopping') renderShopping();
     else if (view === 'ai') { renderAI(); refreshImposedZone(); renderImposedCapHint(); }
-    else if (view === 'fav' || view === 'favorites') renderFavorites();
+    else if (estVueFavoris(view)) renderFavorites();
     else if (view === 'add') renderAdd();
-    else if (view === 'export' || view === 'settings') updateSystemInfo();
+    else if (estVueReglages(view)) updateSystemInfo();
 
     document.getElementById('fab-add')?.classList.toggle('hidden', view !== 'pantry');
     document.querySelectorAll('.sb-item, .bn-item').forEach(el => {
@@ -625,7 +268,9 @@ function renderCurrentView() {
 // toast function moved to dom.js
 
 function switchView(view) {
-    if (view === 'add') _isManualCategory = false;
+    // Voir le defaut connu n°1 de `src/ui/addForm.js` : ce reset est redondant avec
+    // `renderAdd` dans le parcours normal, et conserve tel quel (pare-feu A/B).
+    if (view === 'add') resetManualCategory();
     state.currentView = view;
     saveState();
 }
@@ -644,7 +289,7 @@ function countStockAndCart() {
 }
 
 // Sous-titre "N recette(s)" — partagé par les deux clés 'fav'/'favorites' (alias de la
-// meme vue, cf. `viewMap` de `renderCurrentView`), pour ne pas dupliquer le calcul.
+// meme vue, cf. `PANNEAU_DE_VUE`, `src/constants.js`), pour ne pas dupliquer le calcul.
 const _favCountSub = () => {
     const n = state.favorites.length;
     return n + ' recette' + (n > 1 ? 's' : '');
@@ -727,7 +372,7 @@ function renderTopbar(view) {
             actionEl.replaceChildren(h('button', {
                 class: 'tb-icon-btn', title: 'Config API', onclick: () => openModal('modal-api-config')
             }, '⚙️'));
-        } else if (view === 'favorites' || view === 'fav') {
+        } else if (estVueFavoris(view)) {
             actionEl.replaceChildren(h('button', {
                 class: 'tb-btn primary', onclick: () => openModal('modal-paste-recipe')
             }, '📋 Coller une recette'));
@@ -749,7 +394,7 @@ function renderTopbar(view) {
             mhIcon.textContent = '⚙️';
             mhIcon.style.cssText = '';
             mhIcon.onclick = () => openModal('modal-api-config');
-        } else if (view === 'favorites' || view === 'fav') {
+        } else if (estVueFavoris(view)) {
             mhIcon.textContent = '📋';
             mhIcon.style.cssText = '';
             mhIcon.onclick = () => openModal('modal-paste-recipe');
@@ -901,8 +546,12 @@ function setFilter(f) {
 }
 
 function toggleSpecialFilter(key) {
+    // CORRIGÉ (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait le
+    // contraire du code — les deux toggles « En-Stock » et « Liste courses » sont
+    // INDÉPENDANTS et CUMULABLES, comme le disent déjà `renderPantryFilters` (ligne 412) et
+    // `getFilteredIngredients` (ligne 486), qui les appliquent l'un après l'autre sans
+    // jamais désactiver l'autre.
     state[key] = !state[key];
-    // Si on active un toggle, désactiver l'autre pour la cohérence panier/stock
     renderPantry();
 }
 
@@ -917,10 +566,23 @@ function resetFilters() {
 // l.5052-5058, littéraux exacts).
 const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
 
+/**
+ * Garde partagee (LOT 014, volet D) : deux points d'entree refusent une generation quand
+ * une autre tourne deja — `generateSuggestions` et `generateRandomWithStock`. Ce dernier
+ * verifie AVANT de toucher a `state.aiConfig` (LOT 011, audit du sous-lot 11A) : c'est
+ * volontaire, et c'est pourquoi la garde existe a deux endroits plutot qu'un. Seul le
+ * message etait duplique.
+ */
+function generationDejaEnCours() {
+    if (!_generationInFlight) return false;
+    toast('Une génération est déjà en cours…', 'error');
+    return true;
+}
+
 async function generateSuggestions() {
-  if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
+  if (generationDejaEnCours()) return;
   const apiKey = state.aiConfig.apiKey;
-  if (!apiKey) { toast('Clé API Gemini requise', 'error'); openModal('modal-api-config'); return; }
+  if (!apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); openModal('modal-api-config'); return; }
   const stockItems = state.ingredients.filter(i => i.inStock);
   if (stockItems.length === 0) { toast('Inventaire vide', 'error'); return; }
 
@@ -1046,18 +708,6 @@ function saveAiConfigFromUI() {
     saveState(false);
 }
 
-let _currentPickerData = [];
-let _currentPickerRecipeName = '';
-
-// LOT 010 (casse C12) — état du modal recette ouvert, module-level comme dans l'oracle
-// (`_originalPpl`/`_currentScale`, `foodapp-v5-Joel.html` l.5357-5359). `_originalPpl`
-// est LA référence : `_currentScale` en est toujours dérivé, jamais accumulé, ce qui
-// évite toute dérive d'arrondi d'un changement à l'autre.
-let _currentRecipeDetail = null;
-let _currentRecipeSource = 'ai';
-let _currentRecipeFavId = null;
-let _originalPpl = 2;
-let _currentScale = 1;
 
 function buildRecipeHandlers(r, source, favId) {
     return {
@@ -1074,155 +724,17 @@ function buildRecipeHandlers(r, source, favId) {
     };
 }
 
-/**
- * Re-rend le modal recette avec l'échelle courante (LOT 010, casse C12).
- * Point d'entrée UNIQUE du rendu du modal : `openRecipeDetail` (nouvelle ouverture,
- * échelle réinitialisée), `changePplScale` (échelle changée) et `analyzeNutrition`
- * (échelle PRÉSERVÉE — l'analyse ne doit jamais remettre à 1 un choix déjà fait) s'y
- * appellent tous, jamais un `replaceChildren` direct.
- */
-function renderRecipeModal() {
-    const modal = document.getElementById('modal-recipe-detail');
-    if (!modal || !_currentRecipeDetail) return;
-    const tags = buildIngredientTags(_currentRecipeDetail.ingredients, 'detail');
-    modal.replaceChildren(renderRecipeDetail(
-        _currentRecipeDetail,
-        _currentRecipeSource,
-        buildRecipeHandlers(_currentRecipeDetail, _currentRecipeSource, _currentRecipeFavId),
-        _currentScale,
-        tags
-    ));
-}
 
-function openRecipeDetail(idx, source = 'ai') {
-    let r = null;
-    let favId = null;
-    if (source === 'ai') {
-        r = state.aiSuggestions[idx];
-    } else if (source === 'fav') {
-        const fav = state.favorites.find(f => f.id === idx);
-        if (fav) {
-            r = fav.recipe || fav;
-            favId = fav.id;
-        }
-    }
 
-    if (!r) return;
 
-    _currentRecipeDetail = r;
-    _currentRecipeSource = source;
-    _currentRecipeFavId = favId;
-    _originalPpl = parseInt(r.people || r.ppl) || 2;
-    _currentScale = 1;
 
-    renderRecipeModal();
-    openModal('modal-recipe-detail');
-}
 
-async function analyzeNutrition(r, source, favId) {
-    if (!r || !r.ingredients) return;
-    const apiKey = state.aiConfig.apiKey;
-    if (!apiKey) { toast("Clé API requise pour l'analyse", 'error'); return; }
 
-    const btn = document.getElementById('rd-nutri-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Analyse...';
-    }
-
-    try {
-        const ingList = (r.ingredients || []).map(i => (i.q || i.amount || '') + ' ' + (i.n || i.name)).join(', ');
-        const prompt = `Tu es un nutritionniste expert. Analyse cette recette:\nNom: ${r.name}\nIngrédients: ${ingList}\nInstructions: ${(r.steps || r.instructions || []).join(' ')}\n\nEstime le Nutri-Score (A à E) et le nombre de kilocalories (kcal) pour UNE portion (la recette est pour ${r.people || r.ppl || 1} pers.), et propose 2 tags courts. Réponds UNIQUEMENT en JSON: {"score": "A", "kcal": 450, "tags": ["Sain", "Léger"]}`;
-
-        const model = state.aiConfig.models?.nutrition || AI_ROLES.REASONING;
-        const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
-        const match = raw.match(/\{[\s\S]*?\}/);
-        if (!match) throw new Error("Réponse IA invalide");
-        
-        const nutrition = JSON.parse(match[0]);
-        r.nutrition = nutrition;
-
-        saveState();
-        // LOT 010 (casse C12) : re-rend via le point d'entrée unique, qui PRÉSERVE
-        // l'échelle courante — une analyse ne doit jamais remettre le nombre de
-        // personnes à sa valeur d'origine si l'utilisateur l'avait déjà changé.
-        renderRecipeModal();
-        toast('Analyse nutritionnelle terminée !');
-    } catch (e) {
-        console.error(e);
-        toast("Erreur analyse nutrition", 'error');
-        if (btn) {
-            btn.disabled = false;
-            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton
-            // (`src/ui/recipe.js`, NUTRI_BTN_LABEL) — sans ce rappel, un échec laissait
-            // un texte plus court que celui rendu la première fois.
-            btn.textContent = '🔍 Estimer la valeur nutritionnelle (IA)';
-        }
-    }
-}
-
-/**
- * Vrai plein écran d'appareil (LOT 009, casse C6) : la classe CSS
- * `recipe-fullscreen` assure le repli visuel même si l'API navigateur refuse
- * (contexte non interactif, permission absente) — la classe est posée AVANT
- * l'appel API et ne dépend jamais de sa réussite.
- */
-function isDocumentFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement ||
-        document.mozFullScreenElement || document.msFullscreenElement);
-}
-
-function requestElementFullscreen(el) {
-    const request = el.requestFullscreen || el.webkitRequestFullscreen ||
-        el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (!request) return Promise.reject(new Error('Fullscreen API indisponible'));
-    return request.call(el);
-}
-
-function exitDocumentFullscreen() {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen ||
-        document.mozCancelFullScreen || document.msExitFullscreen;
-    if (!exit) return Promise.resolve();
-    return exit.call(document);
-}
-
-function toggleRecipeFullscreen(id) {
-    const el = typeof id === 'string' ? document.getElementById(id) : id;
-    if (!el) return;
-    if (el.classList.contains('recipe-fullscreen')) {
-        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
-        else el.classList.remove('recipe-fullscreen');
-    } else {
-        el.classList.add('recipe-fullscreen');
-        requestElementFullscreen(el).catch(() => { /* repli CSS pur, cf. commentaire ci-dessus */ });
-    }
-}
 
 // Resynchronise la classe si l'utilisateur sort par Échap ou un geste système —
 // les 4 variantes préfixées de l'évènement (oracle l.5457-5464).
-function syncRecipeFullscreenClass() {
-    const el = document.getElementById('modal-recipe-detail');
-    if (el && !isDocumentFullscreen()) el.classList.remove('recipe-fullscreen');
-}
 
-function initRecipeFullscreenListeners() {
-    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
-        .forEach(evt => document.addEventListener(evt, syncRecipeFullscreenClass));
-}
 
-/**
- * Recalcule les quantités affichées selon le nombre de personnes (LOT 010, casse
- * C12). Porté depuis l'oracle (`foodapp-v5-Joel.html` l.5467-5472) : la nouvelle
- * échelle se calcule TOUJOURS depuis `_originalPpl`, jamais en cumulant sur la
- * précédente — c'est ce qui garantit l'absence de dérive d'arrondi. Bornes 1-20 :
- * au-delà, le clic est sans effet.
- */
-function changePplScale(delta) {
-    const newPpl = (_originalPpl * _currentScale) + delta;
-    if (newPpl < 1 || newPpl > 20) return;
-    _currentScale = newPpl / _originalPpl;
-    renderRecipeModal();
-}
 
 /**
  * Confronte un ingrédient de recette à l'inventaire.
@@ -1235,199 +747,11 @@ function changePplScale(delta) {
  *
  * @returns {{inStock: boolean, matchedName: string|null, isExact: boolean}}
  */
-function matchIngredientToStock(ingredient) {
-    const name = ingredient.n || ingredient.name || '';
-    const aiStatus = ingredient.s;
+// LOT 014, volet A — `matchIngredientToStock` et `buildIngredientTags` ont demenage
+// dans `src/utils/stockMatch.js` (deplacement pur ; filet pose AVANT,
+// tests/stock-match.test.js). C'est le SSOT du calcul « en stock / manquant ».
 
-    const inventoryMatch = state.ingredients.find(i => areSimilar(name, i.name));
-    const isExact = !!inventoryMatch
-        && normalizeString(inventoryMatch.name) === normalizeString(name);
-    // LOT 011 (décision D3) : ajouts PURS pour les tags colorés des cartes/détail —
-    // `isPinned` (préfixe 📌) et `allMatchesInStock` (info-bulle « Correspond à… »).
-    // La sémantique de inStock/matchedName/isExact n'est pas touchée : figée par le
-    // sélecteur de liste de courses et ses tests (pare-feu A/B).
-    const isPinned = state.ingredients.some(i => i.pinned && areSimilar(name, i.name));
-    const allMatchesInStock = state.ingredients.filter(i => i.inStock && areSimilar(name, i.name));
 
-    // L'IA annonce l'ingrédient comme déjà possédé : on la croit, mais on affiche
-    // quand même à quoi il correspond dans l'inventaire si on le retrouve.
-    if (aiStatus === 'stock' || aiStatus === 'pinned') {
-        return { inStock: true, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
-    }
-    if (aiStatus === 'missing') {
-        return { inStock: false, matchedName: inventoryMatch?.name || null, isExact, isPinned, allMatchesInStock };
-    }
-
-    return {
-        inStock: !!inventoryMatch?.inStock,
-        matchedName: inventoryMatch?.name || null,
-        isExact,
-        isPinned,
-        allMatchesInStock
-    };
-}
-
-/**
- * Construit les tags colorés d'ingrédients (LOT 011, chantiers 1/2/7). Réutilise
- * `matchIngredientToStock` (SSOT, LOT 006 étendue au LOT 011) plutôt que de dupliquer
- * une logique de correspondance. Deux styles d'info-bulle, vérifiés distincts dans
- * l'oracle (fiche LOT 011 §10-G) : les cartes précisent le statut, le détail non plus
- * concis.
- * @param {Array} ingredients
- * @param {'card'|'detail'} tooltipStyle
- */
-function buildIngredientTags(ingredients, tooltipStyle) {
-    return (ingredients || []).map(ing => {
-        const name = ing.n || ing.name || '';
-        const category = ing.c || ing.category || 'Autres';
-        const status = matchIngredientToStock(ing);
-        // Ordre significatif, trouvé en testant : `isExact` (LOT 006) se calcule
-        // INDÉPENDAMMENT du stock (le nom le plus proche, même sur un ingrédient épuisé) —
-        // sans `inStock` en premier filtre, un nom exact mais épuisé ressortait vert.
-        const cls = !status.inStock ? 'red' : (status.isExact ? 'green' : 'orange');
-        const matches = (status.allMatchesInStock || []).map(m => m.name).join(', ');
-        // Même filet de sécurité que le sélecteur de courses (SSOT, `AI_EMOJI_ONLY`) :
-        // un ingrédient de recette peut porter le même défaut de format.
-        const aiEmoji = ing.e && AI_EMOJI_ONLY.test(ing.e.trim()) ? ing.e : null;
-
-        let tooltip = name;
-        if (tooltipStyle === 'card') {
-            if (status.isExact) tooltip += ` (En stock : ${status.matchedName})`;
-            else if (status.inStock) tooltip += ` (Estimation basée sur : ${matches})`;
-            else tooltip += ' (Manquant)';
-        } else if (status.inStock) {
-            tooltip += ` (Stock : ${matches})`;
-        }
-
-        return {
-            name,
-            cls,
-            tooltip,
-            isPinned: status.isPinned,
-            emoji: aiEmoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category))
-        };
-    });
-}
-
-function openEnhancedCartPicker(recipe) {
-    closeModal('modal-recipe-detail');
-    _currentPickerRecipeName = recipe.name || 'Recette';
-    _currentPickerData = (recipe.ingredients || []).map(i => {
-        const name = i.n || i.name;
-        const category = i.c || i.category || 'Autres';
-        const status = matchIngredientToStock(i);
-        // Filet de sécurité emoji : cf. la constante module-level `AI_EMOJI_ONLY`
-        // (LOT 010, casse C12 ; remontée au niveau module par le LOT 011, chantier 2,
-        // pour rester SSOT avec le détail de recette).
-        const aiEmoji = i.e && AI_EMOJI_ONLY.test(i.e.trim()) ? i.e : null;
-        return {
-            name,
-            category,
-            // Emoji : celui de l'IA (validé), sinon celui de la base d'ingredients,
-            // sinon celui de la categorie.
-            emoji: aiEmoji || i.emoji || autoEmoji(name, DEFAULT_DB, getCategoryEmoji(category)),
-            isMissing: !status.inStock,
-            matchedName: status.matchedName,
-            isExact: status.isExact
-        };
-    });
-
-    const listEl = document.getElementById('modal-recipe-cart-list');
-    if (listEl) {
-        listEl.replaceChildren(..._currentPickerData.map((it, idx) => {
-            // Coche par defaut ce qui manque uniquement : ce que Joel a deja en stock
-            // n'a pas a retourner dans la liste de courses.
-            const checked = it.isMissing;
-            // Correspondance approximative (ex. « Tomates cerises » vs « Tomate ») :
-            // signalee visuellement, car la deduction peut se tromper.
-            const softMatch = !!it.matchedName && !it.isExact;
-
-            // Edition par ligne (LOT 012, zone A) : pas de <label> autour du contenu
-            // (contrairement à l'ancien rendu) — fidèle à la structure de l'oracle, et
-            // ça évite tout risque de double-déclenchement de la case au clic sur les
-            // champs édités désormais imbriqués. Seule la case à cocher coche/décoche.
-            const contentChildren = [
-                h('input', { class: 'picker-name-inp', id: `pick-name-${idx}` , value: it.name }),
-                h('div', { class: 'picker-cat-label' }, it.category)
-            ];
-            if (it.matchedName) {
-                contentChildren.push(h('div', { class: 'picker-match-info' },
-                    it.isMissing
-                        ? `Correspond à « ${it.matchedName} », pas en stock`
-                        : `Déjà en stock : « ${it.matchedName} »`));
-            }
-            contentChildren.push(h('input', { type: 'hidden', id: `pick-cat-${idx}`, value: it.category }));
-
-            // `h()` pose les props via setAttribute : pour un booleen HTML comme "checked",
-            // la seule PRESENCE de l'attribut coche la case, meme passe `false` (defaut
-            // preexistant du LOT 006, trouve par les tests de non-regression de ce chantier
-            // — un seul point d'appel dans toute la base, corrige ici). Affectation directe
-            // de la propriete IDL pour un rendu initial fidele a `it.isMissing`.
-            const checkboxEl = h('input', {
-                id: `pick-${idx}`,
-                type: 'checkbox',
-                onchange: () => updatePickerRow(idx)
-            });
-            checkboxEl.checked = checked;
-
-            return h('div', {
-                class: `picker-item ${checked ? 'checked' : ''} ${softMatch ? 'soft-match' : ''}`,
-                id: `pitem-${idx}`
-            }, [
-                checkboxEl,
-                h('div', { class: 'picker-emoji-wrap' }, [
-                    h('input', { class: 'picker-emoji-inp', id: `pick-emoji-${idx}`, value: it.emoji, readonly: true }),
-                    h('button', { class: 'picker-magic-btn', title: "Changer l'émoji", onclick: () => cycleEmoji(idx) }, '🎲')
-                ]),
-                h('div', { class: 'picker-content' }, contentChildren),
-                it.isMissing ? null : h('span', { class: 'picker-badge' }, 'En stock')
-            ].filter(Boolean));
-        }));
-    }
-
-    // La case maitresse reflete l'etat reel des lignes plutot que de rester cochee.
-    const selectAll = document.getElementById('picker-select-all');
-    if (selectAll) selectAll.checked = _currentPickerData.every(it => it.isMissing);
-
-    openModal('modal-recipe-to-cart');
-}
-
-function confirmRecipeToCart() {
-    const list = document.getElementById('modal-recipe-cart-list');
-    if (!list) return;
-    const checks = list.querySelectorAll('input[type="checkbox"]');
-    checks.forEach((chk, i) => {
-        if (!chk.checked) return;
-        const original = _currentPickerData[i];
-        const nameInp = document.getElementById(`pick-name-${i}`);
-        const emojiInp = document.getElementById(`pick-emoji-${i}`);
-        const catInp = document.getElementById(`pick-cat-${i}`);
-        // Lit les valeurs EDITEES (LOT 012, zone A) plutot que l'original. Distinction
-        // (audit Codex) entre "input absent" (repli defensif sur l'original, ne devrait
-        // pas arriver) et "nom vide par un input present" (Joel a efface le champ :
-        // refus propre de cette ligne, jamais de repli silencieux sur l'ancien nom).
-        if (nameInp && !nameInp.value.trim()) return;
-        const name = nameInp ? nameInp.value.trim() : original.name;
-        const emoji = (emojiInp ? emojiInp.value.trim() : '') || original.emoji;
-        const category = catInp ? catInp.value : original.category;
-
-        const existing = state.ingredients.find(ing => areSimilar(ing.name, name));
-        if (existing) {
-            existing.inCart = true;
-            existing.shoppingSource = _currentPickerRecipeName;
-        } else {
-            const id = generateId('ing');
-            state.ingredients.push({
-                name, category, emoji, id,
-                inStock: false, inCart: true,
-                shoppingSource: _currentPickerRecipeName
-            });
-        }
-    });
-    saveState();
-    closeModal('modal-recipe-to-cart');
-    toast('Course ajoutée !');
-}
 
 /**
  * Favoris riches (LOT 011, chantier 7). Composant DÉDIÉ (`renderFavoriteCard`), distinct
@@ -1470,16 +794,25 @@ function deleteFav(id) {
     toast('Recette supprimée');
 }
 
+/**
+ * SSOT de l'ajout aux favoris (LOT 014, volet D) : la meme ligne etait ecrite a
+ * l'identique dans deux fonctions. Le jour ou un champ s'ajoute a un favori, il ne doit
+ * y avoir qu'un seul endroit a modifier.
+ */
+function pousserFavori(recette) {
+    state.favorites.push({ ...recette, id: generateId('fav'), date: formatDateFr() });
+}
+
 function saveSuggestionToFavDirect(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
+    pousserFavori(r);
     saveState();
     toast('Ajouté aux favoris !');
 }
 
 function saveRecipeOnly(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
+    pousserFavori(r);
     saveState();
     toast('Recette sauvegardée !');
     closeModal('modal-paste-recipe');
@@ -1507,7 +840,7 @@ function buildPastedFavorite() {
         toast('Titre et contenu requis', 'error');
         return null;
     }
-    const date = new Date().toLocaleDateString('fr-FR');
+    const date = formatDateFr();
     return _lastTransformedRecipe
         ? { ..._lastTransformedRecipe, id: generateId('fav'), date }
         : { id: generateId('fav'), title, content, date };
@@ -1540,177 +873,10 @@ function savePastedRecipeAndList() {
     }
 }
 
-/**
- * Regroupe des ingredients par categorie en UNE passe, categories triees alphabetiquement.
- * Remplace le balayage complet de l'inventaire repete pour chaque categorie.
- * @returns {Array<[string, Array]>} paires [categorie, ingredients] triees.
- */
-function groupByCategory(ingredients) {
-    const grouped = new Map();
-    for (const i of ingredients) {
-        if (!grouped.has(i.category)) grouped.set(i.category, []);
-        grouped.get(i.category).push(i);
-    }
-    // Tri par defaut volontaire (et non localeCompare) : conserve a l'identique
-    // l'ordre des rubriques dans le texte exporte.
-    return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
-}
-
-// LOT 015, chantier 3 : rubrique des articles libres de la liste de courses.
-// Nom volontairement NON collidable avec une vraie categorie -- `Autres` en est une
-// (src/data.js:32) ET le repli impose a tout ingredient sans categorie (src/state.js:173),
-// donc y verser les articles libres les melangerait a de vrais ingredients.
-const FREE_ITEMS_SECTION = '[ ARTICLES LIBRES ]';
-
-/**
- * Nom affichable d'un article, ou null s'il n'en a pas (LOT 015, audit Gemini Q12 puis
- * audit adversarial). Vaut pour les DEUX sources :
- *  - `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js ne
- *    garantit que l'existence du tableau) ;
- *  - `state.ingredients` l'est, mais `sanitizeGlobalState` garantit `category` et `emoji`,
- *    PAS `name` (il ne recopie que l'ancien champ court `n`). Un ingredient venu du cloud
- *    sans nom produisait « 🥩 undefined » dans le texte copie, avec un toast annoncant
- *    « 1 ingredient » : le compte mentait.
- * Un article sans nom exploitable est ignore, jamais rendu.
- */
-function itemDisplayName(item) {
-    const name = typeof item?.name === 'string' ? item.name.trim() : '';
-    return name || null;
-}
-
-/** Ne garde que les elements reellement affichables, dans l'ordre. */
-function copyableItems(source) {
-    return (Array.isArray(source) ? source : []).filter(i => itemDisplayName(i));
-}
-
-const clipboardCount = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
-// Les sources de rubrique viennent toujours de state.ingredients (categorie garantie par
-// sanitizeGlobalState) ; le repli reste par prudence, car cat.toUpperCase() planterait
-// SILENCIEUSEMENT -- l'appel est hors du try/catch de la copie.
-const clipboardSectionLabel = (cat) => String(cat || 'Autres').toUpperCase();
-
-/**
- * Compose le texte d'un format de partage, ou null si le format est inconnu.
- *
- * Renvoie l'en-tete et le corps SEPAREMENT, et le nombre d'elements de la SOURCE : c'est
- * ce qui permet au garde-fou « rien a copier » de porter sur les donnees et non sur le
- * texte final (LOT 015, chantier 9 + audit Gemini Q1).
- */
-function buildClipboardText(type) {
-    const date = new Date().toLocaleDateString('fr-FR');
-
-    // Chantier 1 : le bouton promet le STOCK. Il copiait la liste de courses
-    // (oracle foodapp-v5-Joel.html l.6466-6468 : `inStock`, confirme).
-    if (type === 'simple') {
-        const items = copyableItems(state.ingredients).filter(i => i.inStock);
-        return {
-            count: items.length,
-            emptyMessage: 'Votre stock est vide — rien à copier',
-            successMessage: `Stock copié (${clipboardCount(items.length, 'ingrédient')})`,
-            header: `✅ MON STOCK (${date})\n\n`,
-            body: items.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
-        };
-    }
-
-    // Chantier 2 : le partage par rayons emportait TOUT l'inventaire, absents compris
-    // (oracle l.6469-6475 : `inStock` seul, avec l'emoji de rubrique).
-    // Le marqueur de statut est RETIRE : la source etant restreinte a `inStock`, il
-    // vaudrait toujours « ✅ » -- information morte (arbitrage tranche, audit Gemini Q2).
-    if (type === 'categorized') {
-        const items = copyableItems(state.ingredients).filter(i => i.inStock);
-        const sections = groupByCategory(items).map(([cat, catItems]) =>
-            `--- ${getCategoryEmoji(cat)} ${clipboardSectionLabel(cat)} ---\n` +
-            catItems.map(i => `${i.emoji || '🔸'} ${i.name}`).join('\n')
-        );
-        return {
-            count: items.length,
-            emptyMessage: 'Votre stock est vide — rien à copier',
-            successMessage: `Stock copié par rayon (${clipboardCount(items.length, 'ingrédient')})`,
-            header: `📦 MON STOCK PAR RAYON (${date})\n\n`,
-            body: sections.join('\n\n')
-        };
-    }
-
-    // Chantier 3 : la liste de courses ignorait les articles libres (oracle l.6476-6479 :
-    // les deux sources). La rubrique dediee est concatenee APRES la boucle, jamais via
-    // groupByCategory : son tri par defaut (l.1533) placerait `[` avant les categories
-    // accentuees, donc un simple choix de nom ne suffirait pas a la mettre en fin.
-    if (type === 'cart') {
-        const items = copyableItems(state.ingredients).filter(i => i.inCart);
-        // `copyableItems` protege aussi du TYPE : `customCartItems` arrivait parfois en
-        // objet (forme d'un tableau creux renvoyee par Firebase) ou en chaine, et le `.map`
-        // levait alors une exception HORS du try/catch -- le bouton ne faisait plus rien,
-        // sans le moindre message (audit adversarial du 2026-07-30).
-        const freeItems = copyableItems(state.customCartItems)
-            .map(item => ({ name: itemDisplayName(item), emoji: item.emoji || '🔸' }));
-        const sections = groupByCategory(items).map(([cat, catItems]) =>
-            `[ ${clipboardSectionLabel(cat)} ]\n` +
-            catItems.map(i => `☐ ${i.emoji || '🔸'} ${i.name}`).join('\n')
-        );
-        if (freeItems.length) {
-            sections.push(
-                `${FREE_ITEMS_SECTION}\n` +
-                freeItems.map(i => `☐ ${i.emoji} ${i.name}`).join('\n')
-            );
-        }
-        const total = items.length + freeItems.length;
-        return {
-            count: total,
-            emptyMessage: 'Votre liste de courses est vide — rien à copier',
-            successMessage: `Liste de courses copiée (${clipboardCount(total, 'article')})`,
-            header: `🛒 LISTE DE COURSES (${date})\n\n`,
-            body: sections.join('\n\n')
-        };
-    }
-
-    // Chantier 4 : le format 'full' a ete SUPPRIME (arbitrage de Joel du 2026-07-30).
-    // Un type inconnu ne copie plus une chaine vide en annoncant un succes.
-    return null;
-}
-
-/**
- * Ecrit dans le presse-papiers, avec le repli de l'oracle (l.6484-6486) DURCI.
- * L'oracle appelait document.execCommand sans garde d'existence et sans lire son retour
- * (il vaut `false` en cas d'echec silencieux) : le porter tel quel reproduirait un bug,
- * sous jsdom comme sur un vieux navigateur.
- * @returns {Promise<boolean>} vrai si le texte est reellement parti.
- */
-async function writeToClipboard(text) {
-    try {
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(text);
-            return true;
-        }
-    } catch (err) {
-        console.error('Erreur copie:', err);
-    }
-
-    if (typeof document.execCommand !== 'function' || !document.body) return false;
-
-    // Le repli vole forcement le focus (`select()` est indispensable a execCommand) :
-    // on le REND a l'element actif, sinon un clic sur « Copier » effacait la saisie en
-    // cours de l'utilisateur sans explication (l'oracle avait ce defaut, l.6485).
-    const focusPrecedent = document.activeElement;
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    let copied = false;
-    try {
-        document.body.appendChild(ta);
-        ta.select();
-        copied = document.execCommand('copy') === true;
-    } catch (err) {
-        console.error('Erreur copie (repli):', err);
-    } finally {
-        // `finally` : le textarea ne doit JAMAIS rester orphelin dans la page, meme si
-        // `appendChild`, `select()` ou `execCommand` levent.
-        ta.remove();
-        if (focusPrecedent && typeof focusPrecedent.focus === 'function') focusPrecedent.focus();
-    }
-    return copied;
-}
+// LOT 014, volet A — la composition des textes de partage a demenage dans
+// `src/services/exports.js` (deplacement PUR : aucune regle n'a change). Seul le point
+// d'entree `exportClipboard` reste ici, parce qu'il est publie sur `window` par `expose()`
+// et que ce contrat public ne bouge pas.
 
 /**
  * LOT 015, chantiers 1-4 et 9 — copie d'un format de partage.
@@ -1722,7 +888,7 @@ async function writeToClipboard(text) {
  * en-tete / corps / compte de buildClipboardText.
  */
 async function exportClipboard(type) {
-    const built = buildClipboardText(type);
+    const built = buildClipboardText(type, state);
     if (!built) {
         toast('Rien à copier', 'error');
         return;
@@ -1908,440 +1074,21 @@ function closeModal(id) {
     el?.classList.remove('open');
     if (el?.classList.contains('recipe-fullscreen')) {
         el.classList.remove('recipe-fullscreen');
-        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+        quitterPleinEcranSiBesoin();
     }
 }
 
-let _currentEditingIngId = null;
-function openEditEmoji(id) {
-    _currentEditingIngId = id;
-    const ing = state.ingredients.find(i => i.id === id);
-    if (!ing) return;
-    document.getElementById('edit-emoji-name').textContent = ing.name;
-    const searchInput = document.getElementById('emoji-search-input');
-    if (searchInput) searchInput.value = '';
-    renderEmojiEditGrid(ing.name);
-    openModal('modal-edit-emoji');
-}
 
-// Socle générique de secours pour les suggestions d'emoji — SSOT unique, partagé
-// par `updateEmojiSuggestions` (flux Ajouter) et `buildEmojiEditSuggestions` (flux
-// Édition, LOT 009). Ne JAMAIS dupliquer cette liste ailleurs.
-const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
 
-/**
- * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
- * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
- * de table d'emojis dupliquée (SSOT, `GENERIC_EMOJI_FALLBACK` partagé avec
- * `updateEmojiSuggestions`). Complète TOUJOURS avec l'emoji de catégorie puis le
- * socle générique tant qu'il manque des alternatives : un ingrédient dont le nom
- * ne correspond qu'à lui-même (ex. « Banane ») ne doit jamais se retrouver avec
- * une grille à une seule tuile qui ne fait que confirmer l'icône déjà en place
- * (audit Codex, LOT 009 — le « changer en 2 clics » exige un vrai choix).
- *
- * `category` (LOT 012, zone A) : override optionnel de la source d'emoji de
- * catégorie, pour les appelants qui n'éditent pas l'ingrédient en cours
- * (`_currentEditingIngId`) — ex. `cycleEmoji` sur une ligne du sélecteur de
- * recette. Omis, le comportement est strictement identique à avant (SSOT).
- */
-function buildEmojiEditSuggestions(seed, category) {
-    const s = (seed || '').toLowerCase();
-    const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
-    const fromMatches = matches.map(i => i.emoji);
-    let categoryEmoji;
-    if (category) {
-        categoryEmoji = getCategoryEmoji(category);
-    } else {
-        const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-        categoryEmoji = ing ? getCategoryEmoji(ing.category) : null;
-    }
-    const emojis = [...new Set([...fromMatches, categoryEmoji, ...GENERIC_EMOJI_FALLBACK].filter(Boolean))];
-    return emojis.slice(0, 15);
-}
 
-/**
- * Fait défiler l'émoji d'une ligne du sélecteur d'articles (LOT 012, zone A ;
- * oracle `cycleEmoji`, cycle circulaire). Relit le NOM ÉDITÉ à chaque appel
- * (pas `_currentPickerData[idx].name`) : une correction de nom faite avant de
- * cliquer 🎲 influence les suggestions. Réutilise `buildEmojiEditSuggestions` —
- * jamais de table d'emojis dupliquée (SSOT).
- */
-function cycleEmoji(idx) {
-    const emojiInp = document.getElementById(`pick-emoji-${idx}`);
-    const nameInp = document.getElementById(`pick-name-${idx}`);
-    if (!emojiInp || !nameInp) return;
-    const category = _currentPickerData[idx]?.category;
-    const suggestions = buildEmojiEditSuggestions(nameInp.value, category);
-    const at = suggestions.indexOf(emojiInp.value);
-    emojiInp.value = suggestions[(at + 1) % suggestions.length];
-}
 
-function renderEmojiEditGrid(seed) {
-    const grid = document.getElementById('edit-emoji-grid');
-    if (!grid) return;
-    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(e =>
-        h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-    ));
-}
+// LOT 014, volet A — le FORMULAIRE D'AJOUT a demenage dans `src/ui/addForm.js`
+// (deplacement pur ; filet pose AVANT, tests/add-form.test.js). Y ont suivi :
+// renderAdd, showCategoryIndicator, updateEmojiSuggestions (+ sa version temporisee),
+// handleAddInput, _onManualCategoryChange, addIngredient, addIngredientFromDb,
+// searchEmojiAddAI et selectEmoji, ainsi que leurs 4 variables d'etat.
 
-/** Applique l'emoji choisi, sauvegarde, ferme — contrat du `updateEmoji` du
- * monolithe : pas d'étape intermédiaire, aucun input libre à valider. */
-function applyEditedEmoji(emoji) {
-    const ing = state.ingredients.find(i => i.id === _currentEditingIngId);
-    if (ing) {
-        ing.emoji = emoji;
-        saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
-    }
-    closeModal('modal-edit-emoji');
-}
 
-function renderAdd() {
-    _isManualCategory = false;
-    _localCategoryFill = false;
-    clearTimeout(_addSuggestTimer);
-    _aiSuggestGenId++; // invalide une requete IA deja en vol
-    const list = document.getElementById('add-results-list');
-    if (list) list.replaceChildren();
-    const emojiSug = document.getElementById('emoji-suggestions');
-    if (emojiSug) emojiSug.replaceChildren();
-    showCategoryIndicator(null);
-}
-
-function guessCategoryLocally(name) {
-    const n = normalizeString(name);
-    if (!n || n.length < 3) return '';
-
-    // 1. Exact match in DEFAULT_DB (fiable à 100%)
-    const exact = DEFAULT_DB.find(i => normalizeString(i.name) === n);
-    if (exact) return exact.category;
-
-    // 2. Règles par premier mot (conservatives, pas de fuzzy)
-    const first = n.split(/\s+/)[0];
-    const proteines = ['poulet', 'boeuf', 'saumon', 'thon', 'porc', 'agneau', 'dinde', 'lapin', 'veau', 'crevette', 'cabillaud'];
-    const legumes   = ['carotte', 'courgette', 'tomate', 'oignon', 'poireau', 'brocoli', 'epinard', 'poivron', 'aubergine', 'champignon'];
-    const fruits    = ['pomme', 'poire', 'banane', 'mangue', 'fraise', 'framboise', 'citron', 'orange', 'kiwi'];
-    const laitiers  = ['lait', 'creme', 'beurre', 'yaourt', 'fromage'];
-    const feculents = ['riz', 'pate', 'lentille', 'pois', 'haricot', 'quinoa', 'boulgour'];
-
-    if (proteines.includes(first)) return 'Protéines';
-    if (legumes.includes(first))   return 'Légumes';
-    if (fruits.includes(first))    return 'Fruits';
-    if (laitiers.includes(first))  return 'Produits laitiers';
-    if (feculents.includes(first)) return 'Pâtes, riz & légumes secs';
-
-    const plats = ['frite', 'croquette', 'nugget', 'pizza', 'burger', 'lasagne', 'quiche'];
-    if (plats.some(k => n.includes(k))) return 'Plats & Préparations';
-
-    return '';
-}
-
-function sanitizeCategory(aiCat, name) {
-    if (!aiCat) return guessCategoryLocally(name) || 'Conserves & bocaux';
-    if (CATEGORIES.includes(aiCat)) return aiCat;
-    const l = aiCat.toLowerCase();
-    if (l.includes('boisson'))                               return 'Conserves & bocaux';
-    if (l.includes('condiment') || l.includes('sauce'))      return 'Sauces & condiments';
-    if (l.includes('epice') || l.includes('arômate'))        return 'Épices sèches';
-    if (l.includes('laitag') || l.includes('laitier'))       return 'Produits laitiers';
-    if (l.includes('vegetal') || l.includes('végétal'))      return 'Alternatives végétales';
-    if (l.includes('viande') || l.includes('poisson') || l.includes('protein')) return 'Protéines';
-    if (l.includes('cereale') || l.includes('riz') || l.includes('pate'))       return 'Pâtes, riz & légumes secs';
-    if (l.includes('plat') || l.includes('prepa'))           return 'Plats & Préparations';
-    return guessCategoryLocally(name) || 'Conserves & bocaux';
-}
-
-function showCategoryIndicator(type) {
-    const el = document.getElementById('category-suggestion-indicator');
-    if (!el) return;
-    if (!type) {
-        el.style.display = 'none';
-    } else if (type === 'thinking') {
-        el.style.display = 'block';
-        el.style.color = 'var(--txt-soft)';
-        el.textContent = "✨ Analyse par l'IA...";
-    } else if (type === 'local') {
-        el.style.display = 'block';
-        el.style.color = 'var(--green)';
-        el.textContent = '✨ Catégorie auto-détectée';
-    } else if (type === 'ai') {
-        el.style.display = 'block';
-        el.style.color = 'var(--green)';
-        el.textContent = '✨ Catégorie suggérée par l\'IA';
-    }
-}
-
-function updateEmojiSuggestions(val) {
-    const container = document.getElementById('emoji-suggestions');
-    if (!container) return;
-    if (!val) {
-        container.replaceChildren(...GENERIC_EMOJI_FALLBACK.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
-        return;
-    }
-    const s = val.toLowerCase();
-    const matches = DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)).slice(0, 15);
-    const emojis = [...new Set(matches.map(i => i.emoji))];
-    container.replaceChildren(...emojis.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
-}
-
-// Balaye les 273 ingredients de la base : temporise sur la frappe, immediat sur un reset.
-const _updateEmojiSuggestionsDebounced = debounce(updateEmojiSuggestions, 200);
-
-function handleAddInput(val) {
-    const list = document.getElementById('add-results-list');
-    const emojiInput = document.getElementById('add-emoji');
-    const catSelect = document.getElementById('add-category');
-
-    // 1. Champ vide → tout réinitialiser
-    if (!val || val.trim().length === 0) {
-        _isManualCategory = false;
-        _localCategoryFill = false;
-        clearTimeout(_addSuggestTimer);
-        _aiSuggestGenId++; // invalide une requete IA deja en vol
-        if (list) list.replaceChildren();
-        if (emojiInput) emojiInput.value = '';
-        if (catSelect) catSelect.value = '';
-        _updateEmojiSuggestionsDebounced.cancel();
-        updateEmojiSuggestions('');
-        showCategoryIndicator(null);
-        return;
-    }
-
-    // 2. Autocomplétion DB (instantané)
-    if (list) {
-        const s = normalizeString(val);
-        const results = DEFAULT_DB.filter(i => normalizeString(i.name).includes(s)).slice(0, 5);
-        list.replaceChildren(...results.map(i => h('div', {
-            class: 'add-res-item',
-            onclick: () => addIngredientFromDb(i)
-        }, [i.emoji + ' ', i.name])));
-    }
-
-    // 3. Grille d'emojis (temporisee, depuis DB)
-    _updateEmojiSuggestionsDebounced(val);
-
-    // Si l'utilisateur a choisi manuellement la catégorie, on s'arrête là
-    if (_isManualCategory) return;
-
-    // 4. Détection locale conservative (exact match ou règles par mot)
-    const localCat = guessCategoryLocally(val);
-    if (localCat) {
-        catSelect.value = localCat;
-        _localCategoryFill = true;
-        showCategoryIndicator('local');
-        // Exact match DB → on prend aussi l'emoji et on n'appelle pas l'IA
-        const exactEntry = DEFAULT_DB.find(i => normalizeString(i.name) === normalizeString(val));
-        if (exactEntry) {
-            if (emojiInput && !emojiInput.value) selectEmoji(exactEntry.emoji);
-            clearTimeout(_addSuggestTimer);
-            _aiSuggestGenId++; // invalide une requete IA deja en vol
-            return;
-        }
-    } else if (val.length >= 3 && state.aiConfig?.apiKey) {
-        showCategoryIndicator('thinking');
-    }
-
-    // 5. Suggestion IA (différée, écrase toujours la détection locale)
-    if (val.length < 3) return;
-    clearTimeout(_addSuggestTimer);
-    _addSuggestTimer = setTimeout(async () => {
-        const apiKey = state.aiConfig?.apiKey;
-        if (!apiKey || _isManualCategory) return;
-
-        // Jeton de generation : `clearTimeout` annule une requete PAS ENCORE partie,
-        // mais rien ne peut rappeler une requete deja en vol. Sans ce jeton, taper
-        // « salsifi » puis effacer et taper « tomate » laisse la reponse la plus lente
-        // ecraser la plus recente. On ignore donc toute reponse peremee.
-        const myGenId = ++_aiSuggestGenId;
-
-        try {
-            const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${val}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
-            const model = state.aiConfig.models?.categorySuggest || AI_ROLES.FAST;
-            const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
-            if (myGenId !== _aiSuggestGenId) return; // saisie modifiee entre-temps
-            const match = raw.match(/\{[\s\S]*?\}/);
-            if (!match) { showCategoryIndicator(null); return; }
-            const data = JSON.parse(match[0]);
-
-            // Catégorie : l'IA écrase toujours la détection locale (jamais le choix manuel)
-            if (data.category && !_isManualCategory) {
-                const finalCat = sanitizeCategory(data.category, val);
-                if (finalCat) {
-                    catSelect.value = finalCat;
-                    _localCategoryFill = false;
-                    showCategoryIndicator('ai');
-                }
-            }
-
-            // Emojis : ajout dans la grille + auto-sélection si rien de choisi
-            if (data.emojis && data.emojis.length > 0) {
-                const container = document.getElementById('emoji-suggestions');
-                if (container) {
-                    data.emojis.forEach(e => {
-                        if (!container.querySelector(`[data-emoji="${e}"]`)) {
-                            container.appendChild(h('span', {
-                                class: 'emoji-item emoji-sug-btn',
-                                'data-emoji': e,
-                                onclick: () => selectEmoji(e)
-                            }, e));
-                        }
-                    });
-                }
-                if (emojiInput && !emojiInput.value && data.emojis[0]) {
-                    selectEmoji(data.emojis[0]);
-                }
-            }
-        } catch (e) {
-            if (myGenId !== _aiSuggestGenId) return;
-            showCategoryIndicator(null);
-            console.warn('[AI Suggest]', e.message);
-        }
-    }, 800);
-}
-
-// Called from HTML when user manually changes the category dropdown
-window._onManualCategoryChange = function() {
-    _isManualCategory = true;
-    _localCategoryFill = false;
-    showCategoryIndicator(null);
-};
-
-function addIngredient() {
-    const name = document.getElementById('add-name')?.value;
-    if (!name) { toast('Nom requis', 'error'); return; }
-    
-    const emoji = document.getElementById('add-emoji')?.value || '🛒';
-    const category = document.getElementById('add-category')?.value || 'Autres';
-    const frozen = document.getElementById('add-frozen')?.checked || false;
-    
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
-
-    const id = generateId('ing');
-    state.ingredients.push({
-        id, name, emoji, category, frozen,
-        inStock: true, inCart: false, pinned: false
-    });
-
-    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
-
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-    toast(`"${name}" ajouté ✓`);
-    // LOT 012, zone C (oracle l.6458) : retour a l'inventaire apres un ajout reussi,
-    // pour ne pas laisser Joel sur un formulaire vide sans lien evident avec ce qu'il
-    // vient de faire. Le formulaire s'est deja reinitialise juste au-dessus (LOT 006) :
-    // un enchainement de plusieurs ajouts reste possible avant l'echeance des 500 ms.
-    setTimeout(() => switchView('pantry'), 500);
-}
-
-function addIngredientFromDb(dbItem) {
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, dbItem.name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(dbItem.name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${dbItem.name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
-
-    const id = generateId('ing');
-    state.ingredients.push({ ...dbItem, id, inStock: true, inCart: false, pinned: false });
-    
-    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
-
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-
-    toast(`${dbItem.name} ajouté !`);
-    // LOT 012, zone C — trouvé par l'audit du diff final (Codex Terra) : ce chemin
-    // d'ajout (clic sur une suggestion d'autocomplétion, absent de l'oracle) ajoute
-    // vraiment un ingrédient au même titre que `addIngredient` — même retour auto pour
-    // que les deux parcours se comportent pareil du point de vue de Joel.
-    setTimeout(() => switchView('pantry'), 500);
-}
-
-function confirmBulkAdd() {
-    const checked = document.querySelectorAll('#modal-shopping-bulk-list input:checked');
-    checked.forEach(cb => {
-        const id = cb.dataset.id;
-        const ing = state.ingredients.find(i => i.id === id);
-        if (ing) ing.inCart = true;
-    });
-    saveState();
-    closeModal('modal-shopping-bulk');
-    toast('Ajouté à la liste !');
-}
-
-function updatePickerRow(idx) {
-    const row = document.getElementById(`pitem-${idx}`);
-    const chk = document.getElementById(`pick-${idx}`);
-    if (row && chk) {
-        if (chk.checked) row.classList.add('checked');
-        else row.classList.remove('checked');
-    }
-}
-
-function toggleAllPickerItems(checked) {
-    const list = document.getElementById('modal-recipe-cart-list');
-    if (!list) return;
-    const checks = list.querySelectorAll('input[type="checkbox"]');
-    checks.forEach((chk, i) => {
-        chk.checked = checked;
-        updatePickerRow(i);
-    });
-}
-
-async function searchEmojiAddAI() {
-    const searchVal = document.getElementById('add-emoji-search')?.value?.trim();
-    const nameVal = document.getElementById('add-name')?.value?.trim();
-    const target = searchVal || nameVal;
-    if (!target || !state.aiConfig.apiKey) return;
-
-    const btn = document.getElementById('add-emoji-search-btn');
-    if (btn) btn.textContent = '...';
-
-    try {
-        const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${target}". Réponds uniquement par les emojis séparés par des espaces.`;
-        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
-        const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
-        if (res) {
-            // Robust emoji detection using modern regex
-            const allEmojis = res.match(/\p{Emoji_Presentation}/gu) || res.match(/\p{Emoji}/gu) || [];
-            const uniqueEmojis = [...new Set(allEmojis)];
-
-            const grid = document.getElementById('emoji-suggestions');
-            if (grid) {
-                grid.replaceChildren(...uniqueEmojis.map(e => h('span', { 
-                    class: 'emoji-item emoji-sug-btn', 
-                    onclick: () => selectEmoji(e)
-                }, e)));
-                
-                // Auto-select first emoji if currently empty
-                const currentEmoji = document.getElementById('add-emoji');
-                if (currentEmoji && (!currentEmoji.value || !currentEmoji.value.trim()) && uniqueEmojis.length > 0) {
-                    selectEmoji(uniqueEmojis[0]);
-                }
-            }
-        }
-    } catch(e) {
-        console.error('[searchEmojiAddAI]', e);
-        toast(`Erreur emoji : ${e.message}`, 'error');
-    } finally {
-        if (btn) btn.textContent = '✨';
-    }
-}
 
 function addExtraIngredient() {
     const input = document.getElementById('ez-input');
@@ -2465,9 +1212,9 @@ function removeExtraIngredient(id) {
 }
 
 function generateRandomWithStock() {
-    // Meme garde que generateSuggestions (LOT 011, audit sous-lot 11A) : evite de muter
-    // state.aiConfig pour rien si une generation tourne deja, et rend le refus immediat.
-    if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
+    // Verifiee AVANT de muter state.aiConfig (LOT 011, audit sous-lot 11A) : le refus doit
+    // etre immediat, sans effet de bord.
+    if (generationDejaEnCours()) return;
     const stock = state.ingredients.filter(i => i.inStock);
     if (stock.length === 0) { toast('Stock vide', 'error'); return; }
 
@@ -2546,7 +1293,7 @@ async function transformRecipeAI() {
     const title = document.getElementById('paste-title')?.value || '';
     const content = document.getElementById('paste-content')?.value;
     if (!content) return;
-    if (!state.aiConfig.apiKey) { toast('Clé API requise', 'error'); openModal('modal-api-config'); return; }
+    if (!state.aiConfig.apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); openModal('modal-api-config'); return; }
 
     const btn = document.getElementById('paste-ai-btn');
     btn.disabled = true;
@@ -2557,6 +1304,15 @@ async function transformRecipeAI() {
         const recipe = await transformRecipeFromText(title, content, stockItems, state.aiConfig.apiKey, model, {
             onThinkingFallback: () => toast('Recette transformée sans le mode réflexion approfondie (temporairement indisponible).')
         });
+        // LOT 014, volet C — la réponse de l'IA était lue À L'AVEUGLE : `recipe.name` était
+        // écrit dans le champ sans qu'on sache si `recipe` était bien une recette. Une
+        // réponse déraillée (objet sans nom, `steps` qui n'est pas une liste, titre d'un
+        // paragraphe entier) était acceptée, verrouillait le texte source de Joel et
+        // devenait sauvegardable en favori.
+        if (!isValidRecipe(recipe)) {
+            toast('Réponse de l\'IA inexploitable — votre texte est intact', 'error');
+            return; // le `finally` réarme le bouton : Joel peut relancer
+        }
         _lastTransformedRecipe = recipe;
         document.getElementById('paste-title').value = recipe.name;
         // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche
@@ -2618,58 +1374,6 @@ function saveApiKey() {
     updateApiStatus();
     closeModal('modal-api-config');
     toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
-}
-function selectEmoji(e) {
-    const input = document.getElementById('add-emoji');
-    if (input) {
-        input.value = e;
-        
-        // Smart category pick if not manual
-        if (!_isManualCategory) {
-            const match = DEFAULT_DB.find(i => i.emoji === e);
-            if (match) {
-                const catSelect = document.getElementById('add-category');
-                if (catSelect) catSelect.value = match.category;
-            }
-        }
-
-        document.querySelectorAll('.emoji-sug-btn').forEach(b => {
-            b.classList.toggle('selected', b.textContent === e);
-        });
-    }
-}
-
-async function searchEmojiAI() {
-    const input = document.getElementById('emoji-search-input');
-    const btn = document.getElementById('emoji-search-btn');
-    if (!input || !btn) return;
-    const query = input.value.trim();
-    if (!query) return;
-
-    btn.disabled = true;
-    const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<div class="spinner-small" style="margin:0"></div>';
-
-    try {
-        const prompt = `Suggère 15 emojis pour: ${query}. Réponds uniquement par les emojis.`;
-        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
-        const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
-        if (res) {
-            const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
-            const grid = document.getElementById('edit-emoji-grid');
-            if (grid) {
-                grid.replaceChildren(...emojis.map(e =>
-                    h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-                ));
-            }
-        }
-    } catch (e) {
-        console.error(e);
-        toast('Erreur recherche emoji', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
-    }
 }
 
 function initSwipeToClose(modalId) {
@@ -2748,7 +1452,6 @@ function initKeyboardShortcuts() {
             if (activeModal) {
                 if (activeModal.id === 'modal-api-config') saveApiKey();
                 else if (activeModal.id === 'modal-recipe-to-cart') confirmRecipeToCart();
-                else if (activeModal.id === 'modal-shopping-bulk') confirmBulkAdd();
             } else if (state.currentView === 'add') {
                 addIngredient();
             }
@@ -2803,7 +1506,7 @@ expose({
     saveApiKey, resetCart, resetAllData, exportJSON,
     openModal, closeModal, openEditEmoji,
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
-    confirmBulkAdd, searchEmojiAddAI, handleAddInput, addIngredient,
+    searchEmojiAddAI, handleAddInput, addIngredient,
     addExtraIngredient, generateRandomWithStock,
     fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
     saveRecipeOnly: savePastedRecipe,
@@ -2817,5 +1520,8 @@ expose({
     exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji,
     // Appelee en inline depuis index.html (oninput du champ de recherche d'emoji) :
     // sans cette exposition, chaque frappe levait une ReferenceError.
-    updateEmojiSuggestions: _updateEmojiSuggestionsDebounced
+    updateEmojiSuggestions: updateEmojiSuggestionsDebounced,
+    // `onchange` du menu deroulant de categorie (index.html:648). Le nom public garde son
+    // tiret bas historique — c'est le contrat de la page, pas un detail de style.
+    _onManualCategoryChange: onManualCategoryChange
 });

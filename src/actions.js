@@ -4,6 +4,10 @@ import { toast } from './utils/dom.js';
 import { syncPush } from './services/firebase.js';
 import { DEFAULT_DB } from './data.js';
 import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS } from './constants.js';
+// Gardes d'entrée : SSOT dans src/utils/validate.js (LOT 014, volet C). Les deux portes
+// d'import n'ont pas les mêmes exigences — `estUnIngredientPlausible` (nom ET id) pour le
+// remplacement total, `aUnNomExploitable`/`estFusionnable` pour la fusion douce.
+import { estUnIngredientPlausible, estFusionnable, aUnNomExploitable, estUnObjetSimple } from './utils/validate.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -77,13 +81,19 @@ export function deleteIngredient(id) {
   }
 }
 
-export function toggleShoppingCheck(id, type) {
+// LOT 014, volet G : le 2ᵉ paramètre `type` a disparu de ces deux fonctions. Il datait de
+// l'oracle, où il aiguillait entre `state.ingredients` et les articles libres
+// (`foodapp-v5-Joel.html:4821-4832`). Ici il n'était plus lu par aucun corps de fonction, et
+// son unique valeur possible était la constante `'db'` fabriquée à la volée par
+// `src/ui/shopping.js`. Vérifié : ni l'une ni l'autre n'est exposée sur `window`, donc
+// aucun `on*=` d'`index.html` ne peut les appeler avec une autre signature.
+export function toggleShoppingCheck(id) {
   if (shoppingChecked.has(id)) shoppingChecked.delete(id);
   else shoppingChecked.add(id);
   saveState();
 }
 
-export function removeFromCart(id, type) {
+export function removeFromCart(id) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
     ing.inCart = false;
@@ -96,7 +106,6 @@ export function removeFromCart(id, type) {
 export function resetCart() {
   if (confirm('Vider la liste de courses ?')) {
     state.ingredients.forEach(i => i.inCart = false);
-    state.customCartItems = [];
     shoppingChecked.clear();
     saveState();
   }
@@ -128,7 +137,6 @@ export async function resetAllData() {
   shoppingChecked.clear();
 
   state.ingredients = [];
-  state.customCartItems = [];
   state.favorites = [];
   state.extraIngredients = [];
   state.aiConfig = { ...defaultAiConfig(), apiKey: preservedApiKey };
@@ -248,14 +256,10 @@ export function importJSON(file) {
       // cette garde doit empêcher (audit adversarial du 2026-07-30). Et `[{}]` passait
       // aussi, remplaçant l'inventaire de Joel par un seul ingrédient fantôme.
       //
-      // Signature minimale d'un vrai ingrédient : un identifiant ET un nom, tous deux non
-      // vides. `n` est l'ancien nom court des sauvegardes de l'ère monolithe, que
-      // `sanitizeGlobalState` recopie vers `name` — on l'accepte donc aussi.
-      const estUnIngredientPlausible = (i) => {
-        if (!i || typeof i !== 'object') return false;
-        const texteNonVide = (v) => typeof v === 'string' && v.trim() !== '';
-        return texteNonVide(i.id) && (texteNonVide(i.name) || texteNonVide(i.n));
-      };
+      // Signature minimale d'un vrai ingrédient pour le REMPLACEMENT TOTAL : un identifiant
+      // ET un nom, tous deux non vides. Le prédicat vit dans `src/utils/validate.js`, pour
+      // que la porte de la fusion puisse s'appuyer sur la même définition — son enfermement
+      // ici est ce qui avait laissé `importStockOnly` sans protection (LOT 014, §C1).
       const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
         .filter(estUnIngredientPlausible);
       if (ingredientsDuFichier.length === 0) {
@@ -289,7 +293,10 @@ export function importJSON(file) {
       // Forme TOUJOURS complète, comme `extractSyncedState` : un fichier sans réglages (ou
       // aux réglages partiels) ne doit pas laisser `ppl`, `exclusions` ou les régimes
       // à `undefined`. La clé API locale est réinjectée juste après par applyExternalState.
-      patch.aiConfig = { ...defaultAiConfig(), ...(data.aiConfig || {}) };
+      // LOT 014, volet C — `data.aiConfig || {}` n'écartait AUCUN type : une chaîne ou un
+      // tableau se faisait étaler en clés `0/1/2` dans les réglages IA, puis persister et
+      // pousser au cloud. Même famille que le trou d'`importStockOnly`.
+      patch.aiConfig = { ...defaultAiConfig(), ...(estUnObjetSimple(data.aiConfig) ? data.aiConfig : {}) };
 
       // Restauration totale : passe par le point d'entrée unique des données
       // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).
@@ -313,7 +320,21 @@ export function importStockOnly(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.ingredients) {
+
+      // LOT 014, §C1 — LA PORTE JUMELLE, restée ouverte quand le LOT 015 fermait celle de
+      // la restauration totale. L'ancienne garde `if (!data.ingredients)` ne testait que la
+      // PRÉSENCE de la clé : `{"ingredients": ["Tomate","Oignon"]}` la franchissait, et le
+      // `{ ...jsonIng }` de la branche d'ajout (l.371) étalait alors une CHAÎNE en
+      // `{0:'T',1:'o',…}`. Ces objets survivent à `sanitizeGlobalState` (ce SONT des objets,
+      // `src/state.js:181`, et `name` n'y est jamais garanti, `:197-205`) : des ingrédients
+      // fantômes sans nom entraient dans l'inventaire, étaient persistés, puis poussés au
+      // cloud. Même incident que celui corrigé à la porte d'à côté, même remède.
+      //
+      // On filtre au lieu de tout refuser : la fusion est douce par nature, une entrée
+      // illisible n'a pas à faire échouer les entrées valides du même fichier.
+      const ingredientsDuFichier = (Array.isArray(data?.ingredients) ? data.ingredients : [])
+        .filter(estFusionnable);
+      if (ingredientsDuFichier.length === 0) {
         toast('Format non reconnu', 'error');
         return;
       }
@@ -321,7 +342,7 @@ export function importStockOnly(file) {
       let updatedCount = 0;
       let addedCount = 0;
 
-      data.ingredients.forEach(jsonIng => {
+      ingredientsDuFichier.forEach(jsonIng => {
         let target = state.ingredients.find(i => i.id === jsonIng.id);
         if (!target) {
           target = state.ingredients.find(i => areSimilar(i.name, jsonIng.name));
@@ -340,9 +361,28 @@ export function importStockOnly(file) {
           if (!target.inCart) shoppingChecked.delete(target.id);
           updatedCount++;
         } else {
-          const newId = jsonIng.id && jsonIng.id.startsWith('custom_')
+          // LOT 014, §C1 — seconde fuite, plus discrète que celle du filtre d'entrée : une
+          // entrée dont l'`id` ne correspond à AUCUN ingrédient local et qui n'a pas de nom
+          // (`{ "id": "zzz" }`) tombait ici et CRÉAIT un ingrédient sans nom — le fantôme
+          // exact que §C1 ferme. Mettre à jour un id connu sans répéter son nom reste permis
+          // (branche du dessus) ; en CRÉER un sans nom ne l'est plus.
+          if (!aUnNomExploitable(jsonIng)) return;
+          // CORRECTIF (LOT 014, trouve par audit adversarial le 2026-07-31) — GARDE DE TYPE.
+          // `estFusionnable` laisse passer une entree des qu'elle a un NOM exploitable,
+          // meme si son `id` n'est pas une chaine (`{"id":123,"name":"Test"}` : `id` seul ne
+          // suffirait pas a fusionner, mais `name` si). `.startsWith` sur un id numerique ou
+          // booleen LEVAIT ici, en PLEIN MILIEU de la boucle : les entrees deja traitees
+          // avant le crash restaient mutees sur `state.ingredients` (reference live, LOT 014
+          // volet B), et le prochain `saveState()` — n'importe quelle action ulterieure de
+          // Joel — les persistait et les poussait au cloud sans lien apparent avec l'import
+          // rate. `typeof` fait retomber un id non-textuel sur `generateId`, exactement
+          // comme un id absent.
+          const newId = typeof jsonIng.id === 'string' && jsonIng.id.startsWith('custom_')
             ? jsonIng.id
-            : 'custom_restore_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            // LOT 014, volet D — passe par `generateId`, SSOT des identifiants. Le prefixe
+            // reste `custom_` : c'est lui que teste la branche du dessus pour reconnaitre
+            // un id deja genere par ce chemin.
+            : generateId('custom_restore');
           state.ingredients.push({ ...jsonIng, id: newId });
           // LOT 015, §G — même purge que la branche ci-dessus. Cette branche CONSERVE l'id
           // quand il commence par `custom_` : un id ré-inséré hors panier pouvait donc

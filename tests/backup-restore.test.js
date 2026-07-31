@@ -80,7 +80,7 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
         });
 
         Object.assign(state, {
-            ingredients: [], customCartItems: [], favorites: [], extraIngredients: [],
+            ingredients: [], favorites: [], extraIngredients: [],
             currentView: 'pantry', filter: 'all', search: '',
             aiSuggestions: null, currentSuggestionIdx: null, lastSync: null,
             showInStockOnly: false, showInCartOnly: false,
@@ -144,8 +144,9 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             // le fichier à la constante qui le construit ne peut pas échouer — retirer
             // « favorites » de la constante aurait laissé ce test vert tout en cessant de
             // sauvegarder les recettes de Joel.
+            // LOT 014, volet G : `customCartItems` est sorti du périmètre du fichier.
             expect(Object.keys(fichier).sort()).toEqual([
-                'aiConfig', 'customCartItems', 'exportedAt', 'extraIngredients',
+                'aiConfig', 'exportedAt', 'extraIngredients',
                 'favorites', 'ingredients', 'shoppingChecked'
             ]);
         });
@@ -391,7 +392,42 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
     // ─────────────────────────────────────────────────────────────────
     // Chantier 5 — l'articulation avec la synchro (le risque principal)
     // ─────────────────────────────────────────────────────────────────
-    describe('chantier 5 — articulation avec la synchro cloud', () => {
+    // LOT 014, volet C (trouvé à l'auto-audit) — `data.aiConfig || {}` n'écartait AUCUN type :
+// une chaîne ou un tableau se faisait étaler en clés `0/1/2` dans les réglages IA, puis
+// persister et pousser au cloud. `sanitizeGlobalState` ne les retire jamais.
+describe('LOT 014 §C — des réglages IA mal formés dans un fichier ne polluent pas l\'état', () => {
+    it('des réglages en CHAÎNE : aucune clé parasite, réglages par défaut conservés', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: 'cassé'
+        });
+
+        expect(state.aiConfig).not.toHaveProperty('0');
+        expect(state.aiConfig.creativity).toBe(aiConfig().creativity);
+    });
+
+    it('des réglages en TABLEAU : aucune clé parasite', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: ['a', 'b']
+        });
+
+        expect(state.aiConfig).not.toHaveProperty('0');
+        expect(state.aiConfig.creativity).toBe(aiConfig().creativity);
+    });
+
+    it('des réglages VALIDES passent toujours — la garde ne durcit rien d\'utile', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: { creativity: 90, exclusions: 'noix' }
+        });
+
+        expect(state.aiConfig.creativity).toBe(90);
+        expect(state.aiConfig.exclusions).toBe('noix');
+    });
+});
+
+describe('chantier 5 — articulation avec la synchro cloud', () => {
         it('la restauration ATTEND VRAIMENT la fin d\'un envoi en vol : tant que la barrière '
            + 'n\'est pas levée, RIEN n\'est écrit — retirer le mot `await` du code laissait '
            + 'passer la version précédente de ce test', async () => {
@@ -481,21 +517,19 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
            + 'état hybride que ni le fichier ni l\'appareil n\'avaient eu', async () => {
             state.favorites = [{ id: 'fav_du_jour' }];
             state.extraIngredients = [{ id: 'extra_du_jour' }];
-            state.customCartItems = [{ id: 'libre_du_jour', name: 'piles' }];
 
             await restaurer({ ingredients: [ing()] });
 
             expect(state.favorites).toEqual([]);
             expect(state.extraIngredients).toEqual([]);
-            expect(state.customCartItems).toEqual([]);
         });
 
         it('une clé de type ABERRANT dans le fichier ne contamine pas l\'état : '
            + '`favorites: null` casserait l\'écran Favoris et viderait le cloud', async () => {
-            await restaurer({ ingredients: [ing()], favorites: null, customCartItems: 'nimporte quoi' });
+            await restaurer({ ingredients: [ing()], favorites: null, extraIngredients: 'nimporte quoi' });
 
             expect(state.favorites).toEqual([]);
-            expect(state.customCartItems).toEqual([]);
+            expect(state.extraIngredients).toEqual([]);
         });
 
         it('un fichier SANS réglages IA ne laisse pas les préférences à « undefined » — '
@@ -535,16 +569,14 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
             state.ingredients = [ing({ id: 'a', inStock: true })];
             state.favorites = [{ id: 'f1', name: 'Tarte' }];
             state.extraIngredients = [{ id: 'e1', name: 'Curry' }];
-            state.customCartItems = [{ id: 'c1', name: 'piles', emoji: '🔋' }];
             state.aiConfig = aiConfig({ ppl: '5' });
 
             const fichier = fichierExporte();
-            Object.assign(state, { favorites: [], extraIngredients: [], customCartItems: [] });
+            Object.assign(state, { favorites: [], extraIngredients: [] });
             await restaurer(fichier);
 
             expect(state.favorites).toEqual([{ id: 'f1', name: 'Tarte' }]);
             expect(state.extraIngredients).toEqual([{ id: 'e1', name: 'Curry' }]);
-            expect(state.customCartItems).toEqual([{ id: 'c1', name: 'piles', emoji: '🔋' }]);
             expect(state.aiConfig.ppl).toBe('5');
         });
     });

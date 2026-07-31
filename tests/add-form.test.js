@@ -1,0 +1,357 @@
+/** @vitest-environment jsdom */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { state, shoppingChecked, defaultAiConfig } from '../src/state.js';
+import { setupTestDOM, resetTestState } from './_helpers/dom-helpers.js';
+import { DEFAULT_DB } from '../src/data.js';
+// `addIngredientFromDb` n'est PAS publiée sur `window` (elle n'est appelée que depuis le
+// rendu de l'autocomplétion) : elle passe par le bloc `export {}` réservé aux tests.
+import { addIngredientFromDb } from '../js/app.js';
+import '../js/app.js';
+
+// LOT 014, volet A — TESTS DE CARACTÉRISATION, écrits AVANT le déplacement du formulaire
+// d'ajout vers `src/ui/addForm.js`.
+//
+// Trois fonctions de la zone n'avaient AUCUN test direct : `selectEmoji` (relevée en zone
+// aveugle par la découverte), plus `updateEmojiSuggestions` et `showCategoryIndicator` que
+// la découverte avait manquées. Les déplacer sans filet aurait rouvert un trou exactement là
+// où le code bouge — c'est ce que la règle du lot interdit.
+//
+// Un test de caractérisation ne juge pas : il DÉCRIT le comportement actuel, défauts compris,
+// pour que le déplacement soit prouvé fidèle. La divergence d'accents documentée plus bas est
+// donc figée telle quelle, pas corrigée.
+
+describe('LOT 014 §A — selectEmoji (caractérisation avant déplacement)', () => {
+    beforeEach(() => {
+        setupTestDOM('add');
+        resetTestState(state, shoppingChecked, defaultAiConfig);
+    });
+
+    afterEach(() => {
+        // `_isManualCategory` est une variable de MODULE sans trappe de reset : seul
+        // `switchView('add')` la remet à zéro. Sans cet appel, un test qui active le mode
+        // manuel contaminerait tous les suivants du fichier.
+        window.switchView('add');
+    });
+
+    it('écrit l\'emoji choisi dans le champ', () => {
+        window.selectEmoji('🥐');
+        expect(document.getElementById('add-emoji').value).toBe('🥐');
+    });
+
+    it('un emoji connu de la base remplit AUSSI la catégorie', () => {
+        // 🐔 n'est porté que par « Poulet » dans DEFAULT_DB : la reprise de catégorie est
+        // donc sans ambiguïté. Vérifié sur la donnée réelle plutôt que sur une constante
+        // recopiée, pour que le test suive la base si elle évolue.
+        const poulet = DEFAULT_DB.find(i => i.emoji === '🐔');
+        expect(poulet).toBeTruthy();
+        window.selectEmoji('🐔');
+        expect(document.getElementById('add-category').value).toBe(poulet.category);
+    });
+
+    it('un emoji INCONNU de la base laisse la catégorie intacte', () => {
+        const catSelect = document.getElementById('add-category');
+        catSelect.value = 'Fruits';
+        window.selectEmoji('🛸'); // absent de DEFAULT_DB
+        expect(catSelect.value).toBe('Fruits');
+    });
+
+    it('la catégorie choisie À LA MAIN n\'est jamais écrasée par l\'emoji', () => {
+        const catSelect = document.getElementById('add-category');
+        catSelect.value = 'Fruits';
+        window._onManualCategoryChange();   // Joel a choisi lui-même
+        window.selectEmoji('🐔');           // 🐔 = Protéines dans la base
+        expect(catSelect.value).toBe('Fruits');
+        expect(document.getElementById('add-emoji').value).toBe('🐔'); // l'emoji, lui, est bien posé
+    });
+
+    it('marque le bouton correspondant et DÉmarque les autres', () => {
+        const grille = document.getElementById('emoji-suggestions');
+        for (const e of ['🥐', '🍅', '🥕']) {
+            const b = document.createElement('span');
+            b.className = 'emoji-sug-btn';
+            b.textContent = e;
+            grille.appendChild(b);
+        }
+        document.querySelectorAll('.emoji-sug-btn')[2].classList.add('selected'); // 🥕 marqué avant
+
+        window.selectEmoji('🍅');
+
+        const marques = [...document.querySelectorAll('.emoji-sug-btn')]
+            .filter(b => b.classList.contains('selected'))
+            .map(b => b.textContent);
+        expect(marques).toEqual(['🍅']); // exactement un, et c'est le bon
+    });
+
+    it('sans champ emoji dans la page, ne fait RIEN et ne lève pas', () => {
+        document.getElementById('add-emoji').remove();
+        const catSelect = document.getElementById('add-category');
+        catSelect.value = 'Fruits';
+        expect(() => window.selectEmoji('🐔')).not.toThrow();
+        // La garde porte sur le champ emoji : sans lui, même la catégorie n'est pas touchée.
+        expect(catSelect.value).toBe('Fruits');
+    });
+});
+
+// TROU TROUVÉ PAR MUTATION (LOT 014 §D) : rien ne prouvait que le formulaire se REDESSINE
+// après un ajout réussi. Les quatre champs étaient bien vidés — et testés — mais la liste de
+// suggestions et la grille d'emojis pouvaient rester affichées, avec les propositions de
+// l'ingrédient précédent, sans qu'aucun test ne bronche.
+describe('LOT 014 §D — après un ajout réussi, le formulaire est REMIS À NEUF', () => {
+    beforeEach(() => {
+        setupTestDOM(['add', 'pantry']);
+        resetTestState(state, shoppingChecked, defaultAiConfig);
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        window.switchView('add');
+        vi.clearAllTimers();
+        vi.useRealTimers();
+    });
+
+    it('vide la liste de suggestions ET la grille d\'emojis, pas seulement les champs', () => {
+        document.getElementById('add-name').value = 'Salsifis';
+        window.handleAddInput('tomate');          // peuple les deux zones
+        vi.advanceTimersByTime(200);
+        expect(document.querySelectorAll('#add-results-list .add-res-item').length).toBeGreaterThan(0);
+        expect(document.querySelectorAll('#emoji-suggestions .emoji-sug-btn').length).toBeGreaterThan(0);
+
+        document.getElementById('add-name').value = 'Salsifis';
+        window.addIngredient();
+
+        expect(document.getElementById('add-results-list').children.length).toBe(0);
+        expect(document.getElementById('emoji-suggestions').children.length).toBe(0);
+        expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
+        expect(document.getElementById('add-name').value).toBe('');
+    });
+
+    // TROUVÉ PAR AUDIT ADVERSARIAL le 2026-07-31 : `addIngredient` et `addIngredientFromDb`
+    // recopiaient les MÊMES quatre lignes mot pour mot (la confirmation « existe déjà /
+    // ressemble beaucoup »), seule la source du nom changeait. Factorisées dans
+    // `confirmerSiSemblable` (SSOT). Ce test verrouille que les DEUX chemins d'ajout passent
+    // toujours par la même règle, avec le même texte.
+    it('les deux chemins d\'ajout affichent EXACTEMENT le même avertissement pour un '
+       + 'ingrédient déjà présent', () => {
+        state.ingredients = [{ id: 'ing_1', name: 'Tomate', category: 'Légumes' }];
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+        document.getElementById('add-name').value = 'Tomate';
+        window.addIngredient();
+        const messageSaisieLibre = confirmSpy.mock.calls.at(-1)[0];
+
+        addIngredientFromDb({ name: 'Tomate', emoji: '🍅', category: 'Légumes' });
+        const messageSuggestionCatalogue = confirmSpy.mock.calls.at(-1)[0];
+
+        expect(messageSaisieLibre).toContain('existe déjà');
+        expect(messageSaisieLibre).toBe(messageSuggestionCatalogue);
+        confirmSpy.mockRestore();
+    });
+
+    // TROU TROUVÉ PAR LE RE-PARCOURS DE LA CHECK-LIST DES RÉGRESSIONS (LOT 014, clôture) :
+    // le retour automatique à l'inventaire 500 ms après un ajout — un confort restauré par le
+    // LOT 012, et dont l'audit d'alors avait déjà relevé qu'il manquait sur le second chemin —
+    // n'était verrouillé NULLE PART. Il repose depuis le LOT 014 sur un crochet injecté
+    // (`registerAddFormNav`) : le débrancher ne cassait aucun test.
+    it('renvoie Joel à son inventaire 500 ms après un ajout à la main', () => {
+        window.switchView('add');                // sinon on part déjà de « pantry »
+        document.getElementById('add-name').value = 'Salsifis';
+        window.addIngredient();
+
+        expect(state.currentView).toBe('add');   // pas AVANT l'échéance
+        vi.advanceTimersByTime(500);
+        expect(state.currentView).toBe('pantry');
+    });
+
+    it('fait de même après un clic sur une suggestion du catalogue (c\'est ce second '
+       + 'chemin que l\'audit du LOT 012 avait trouvé manquant)', () => {
+        window.switchView('add');
+        // `addIngredientFromDb` prend un OBJET (celui d'une entrée DEFAULT_DB, cf.
+        // `addForm.js:178`, `onclick: () => addIngredientFromDb(i)`) — pas trois arguments
+        // positionnels. Corrigé lors de l'audit adversarial du 2026-07-31 : la version
+        // précédente de ce test appelait la fonction avec 3 chaînes, ce qui faisait spreader
+        // la CHAÎNE 'Tomate' en `{0:'T',1:'o',…}` (l'exact « ingrédient fantôme » que le
+        // volet C1 ferme côté import) — silencieux ici car aucune assertion ne regardait la
+        // forme de l'ingrédient poussé, seulement le minutage du retour à l'inventaire.
+        addIngredientFromDb({ name: 'Tomate', emoji: '🍅', category: 'Légumes' });
+
+        expect(state.currentView).toBe('add');
+        expect(state.ingredients.find(i => i.name === 'Tomate')).toBeTruthy();
+        vi.advanceTimersByTime(500);
+        expect(state.currentView).toBe('pantry');
+    });
+});
+
+describe('LOT 014 §A — updateEmojiSuggestions (caractérisation avant déplacement)', () => {
+    beforeEach(() => {
+        setupTestDOM('add');
+        resetTestState(state, shoppingChecked, defaultAiConfig);
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+    });
+
+    const emojisAffiches = () =>
+        [...document.querySelectorAll('#emoji-suggestions .emoji-sug-btn')].map(b => b.textContent);
+
+    // PIÈGE DE DÉPLACEMENT : ce qui est publié sous le nom `updateEmojiSuggestions` n'est PAS
+    // la fonction brute mais sa version TEMPORISÉE (`debounce(..., 200)`). Un découpage qui
+    // republierait la fonction brute sous le même nom supprimerait la temporisation sans
+    // qu'aucun autre test ne s'en aperçoive.
+    it('la fonction publiée est TEMPORISÉE (200 ms), pas immédiate', () => {
+        window.updateEmojiSuggestions('tomate');
+        expect(emojisAffiches().length).toBe(0);   // rien tout de suite
+        vi.advanceTimersByTime(199);
+        expect(emojisAffiches().length).toBe(0);   // toujours rien
+        vi.advanceTimersByTime(1);
+        expect(emojisAffiches().length).toBeGreaterThan(0); // à 200 ms exactement
+    });
+
+    it('une valeur vide affiche la grille de repli générique', () => {
+        window.updateEmojiSuggestions('');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual(['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛']);
+    });
+
+    it('les emojis de la base sont DÉDUPLIQUÉS et gardent leur ordre d\'apparition', () => {
+        // 6 ingrédients contiennent « tomate » mais ne portent que 2 emojis distincts.
+        const noms = DEFAULT_DB.filter(i => i.name.toLowerCase().includes('tomate'));
+        const attendus = [...new Set(noms.map(i => i.emoji))];
+        expect(noms.length).toBeGreaterThan(attendus.length); // le cas teste bien la déduplication
+
+        window.updateEmojiSuggestions('tomate');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual(attendus);
+    });
+
+    it('un clic sur un emoji proposé le sélectionne', () => {
+        window.updateEmojiSuggestions('tomate');
+        vi.advanceTimersByTime(200);
+        const premier = document.querySelector('#emoji-suggestions .emoji-sug-btn');
+        // `h()` branche par `addEventListener` (src/utils/dom.js:13), pas par `.onclick` :
+        // il faut un vrai clic — ce qui reproduit aussi mieux le geste de Joel.
+        premier.click();
+        expect(document.getElementById('add-emoji').value).toBe(premier.textContent);
+    });
+
+    it('une recherche sans correspondance vide la grille — elle n\'invente rien', () => {
+        window.updateEmojiSuggestions('xyzabc');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual([]);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // LE DÉFAUT TROUVÉ PAR CES TESTS A ÉTÉ CORRIGÉ (décision de Joel du 2026-07-31), dans un
+    // commit SÉPARÉ du déplacement. Le test qui le documentait est donc INVERSÉ : il
+    // verrouille désormais la correction au lieu de décrire le défaut, et s'accompagne de
+    // cas de non-régression pour qu'un correctif trop large ne passe pas inaperçu.
+    //
+    // Le défaut : la grille comparait par `toLowerCase().includes()` (SENSIBLE aux accents)
+    // alors que la liste de résultats du même formulaire passe par `normalizeString`
+    // (insensible). Taper « epinard » sans accent remplissait la liste et laissait la grille
+    // vide. Les deux moitiés de l'écran s'accordent maintenant sur la même comparaison.
+    // ─────────────────────────────────────────────────────────────────────────────
+    it('CORRIGÉ : la grille trouve avec OU sans accent, comme la liste de résultats', () => {
+        window.updateEmojiSuggestions('épinard');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual(['🥬']);
+
+        window.updateEmojiSuggestions('epinard');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual(['🥬']); // AVANT le correctif : [] (grille vide)
+    });
+
+    it('CORRIGÉ : les deux moitiés du formulaire s\'accordent enfin sur la MÊME saisie', () => {
+        // C'est la vraie formulation du défaut : ce n'est pas « la grille rate un accent »,
+        // c'est « les deux moitiés de l'écran ne cherchent pas de la même façon ».
+        window.handleAddInput('epinard');
+        vi.advanceTimersByTime(200);
+        const resultats = [...document.querySelectorAll('#add-results-list .add-res-item')];
+        expect(resultats.length).toBeGreaterThan(0);
+        expect(emojisAffiches().length).toBeGreaterThan(0); // la grille ne reste plus vide
+    });
+
+    it('le correctif n\'est pas trop large : une recherche sans correspondance ne trouve toujours rien', () => {
+        window.updateEmojiSuggestions('xyzabc');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual([]);
+    });
+
+    // NON-RÉGRESSION la plus importante : `normalizeString` ROGNE les espaces, donc une
+    // saisie faite uniquement d'espaces se réduit à rien — et `includes('')` serait vrai pour
+    // TOUS les ingrédients. Sans la garde, ce champ afficherait 15 emojis au hasard.
+    // Ce cas est réellement atteignable : le champ « recherche d'emoji » (index.html:612)
+    // appelle cette fonction directement, sans passer par le filtre de `handleAddInput`.
+    it('une saisie faite uniquement d\'espaces laisse la grille VIDE — elle ne propose pas tout', () => {
+        window.updateEmojiSuggestions('   ');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual([]);
+    });
+});
+
+describe('LOT 014 §A — showCategoryIndicator (caractérisation avant déplacement)', () => {
+    beforeEach(() => {
+        setupTestDOM('add');
+        resetTestState(state, shoppingChecked, defaultAiConfig);
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        window.switchView('add');
+        vi.clearAllTimers();
+        vi.useRealTimers();
+    });
+
+    const indicateur = () => document.getElementById('category-suggestion-indicator');
+
+    // La fonction est purement interne (ni exportée, ni publiée sur window) : elle ne
+    // s'observe qu'à travers ses appelants. C'est volontaire — on caractérise ce que Joel
+    // voit, pas une signature.
+    it('détection LOCALE : affiche « auto-détectée » en vert', () => {
+        state.aiConfig.apiKey = '';        // pas d'IA : on isole la branche locale
+        window.handleAddInput('carotte des sables');
+        expect(indicateur().style.display).toBe('block');
+        expect(indicateur().textContent).toBe('✨ Catégorie auto-détectée');
+        expect(indicateur().style.color).toBe('var(--green)');
+    });
+
+    it('attente de l\'IA : affiche « Analyse par l\'IA… » en texte doux', () => {
+        state.aiConfig.apiKey = 'CLE_TEST';
+        // « xyzfoo » ne correspond à aucun nom exact ni à aucune règle de premier mot :
+        // la déduction locale échoue, donc la branche « thinking » est la seule atteignable.
+        window.handleAddInput('xyzfoo');
+        expect(indicateur().style.display).toBe('block');
+        expect(indicateur().textContent).toBe("✨ Analyse par l'IA...");
+        expect(indicateur().style.color).toBe('var(--txt-soft)');
+    });
+
+    it('sans clé API, aucune attente d\'IA n\'est annoncée', () => {
+        state.aiConfig.apiKey = '';
+        window.handleAddInput('xyzfoo');
+        expect(indicateur().style.display).toBe('none');
+    });
+
+    it('champ vidé : l\'indicateur disparaît', () => {
+        state.aiConfig.apiKey = '';
+        window.handleAddInput('carotte des sables');
+        expect(indicateur().style.display).toBe('block');
+        window.handleAddInput('');
+        expect(indicateur().style.display).toBe('none');
+    });
+
+    it('catégorie choisie À LA MAIN : l\'indicateur disparaît', () => {
+        state.aiConfig.apiKey = '';
+        window.handleAddInput('carotte des sables');
+        expect(indicateur().style.display).toBe('block');
+        window._onManualCategoryChange();
+        expect(indicateur().style.display).toBe('none');
+    });
+
+    it('moins de 3 caractères : pas d\'annonce d\'IA, même avec une clé', () => {
+        state.aiConfig.apiKey = 'CLE_TEST';
+        window.handleAddInput('xy');
+        expect(indicateur().style.display).toBe('none');
+    });
+});

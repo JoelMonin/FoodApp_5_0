@@ -1,0 +1,19 @@
+    /* ═══════════ LOADING SPINNER ═══════════ */
+
+    /* Il ne reste que l'animation : la classe `.spinner` qui vivait ici n'etait posee nulle
+       part et a ete retiree au LOT 014. Les deux vrais tourniquets de l'application sont
+       `.spinner-small` (recherche d'emoji) et `.generate-spinner` (generation de recettes),
+       tous deux styles en section UTILITIES.
+
+       ATTENTION : `@keyframes spin` est declare une SECONDE fois en section UTILITIES, et les
+       @keyframes NE FUSIONNENT PAS — la derniere declaration remplace la precedente en
+       entier. C'est donc celle d'UTILITIES qui s'applique, et celle-ci ne sert plus a rien.
+       Elle est conservee telle quelle : la retirer ne changerait rien a la page (verifie :
+       la feuille produite n'en contient deja qu'une seule), mais ce doublon est un piege
+       assez vicieux pour meriter d'etre montre plutot qu'efface en silence. */
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+

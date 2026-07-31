@@ -1,0 +1,515 @@
+    /* ═══════════ MODALS ═══════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 35, 28, .55);
+      backdrop-filter: blur(4px);
+      z-index: var(--z-modal);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn .18s ease;
+    }
+
+    .modal-overlay.open {
+      display: flex
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0
+      }
+
+      to {
+        opacity: 1
+      }
+    }
+
+    .modal {
+      background: white;
+      border-radius: 18px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp .2s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .modal-lg {
+      max-width: 680px
+    }
+
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0
+    }
+
+    .modal-title {
+      font-family: 'Lora', serif;
+      font-size: 17px;
+      font-weight: 600
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--cream-dk);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--txt-mid);
+      transition: all .15s
+    }
+
+    .modal-close:hover {
+      background: var(--terra-lt);
+      color: var(--terra)
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 4px
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0
+    }
+
+    .modal-btn {
+      padding: 9px 20px;
+      border-radius: var(--r-sm);
+      font-size: 13.5px;
+      font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: white;
+      color: var(--txt-mid);
+      transition: all .15s;
+    }
+
+    .modal-btn:hover:not(:disabled) {
+      background: var(--green-lt);
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    /* Meme convention que .generate-btn:disabled : un bouton grise doit se voir
+       et ne pas reagir au survol. */
+    .modal-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .modal-btn.primary {
+      background: var(--green);
+      color: white;
+      border-color: var(--green)
+    }
+
+    .modal-btn.primary:hover:not(:disabled) {
+      background: var(--green-mid)
+    }
+
+    .modal-btn.terra {
+      background: var(--terra);
+      color: white;
+      border-color: var(--terra)
+    }
+
+    /* Enhanced Item Picker (Premium Modal) */
+    .picker-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .picker-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #fff;
+      border-radius: var(--r-sm);
+      border: 1.5px solid var(--border);
+      transition: all .2s;
+    }
+
+    .picker-item:hover {
+      border-color: var(--green-mid);
+      background: var(--cream);
+    }
+
+    .picker-item.checked {
+      border-color: var(--green);
+      background: var(--green-lt);
+    }
+
+    .picker-item.soft-match {
+      border-color: #f39c12;
+      background: #fff9f0;
+    }
+
+    .picker-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .picker-emoji-wrap {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      background: var(--cream-dk);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .picker-emoji-inp {
+      width: 100%;
+      font-size: 22px;
+      border: none;
+      background: transparent;
+      text-align: center;
+      outline: none;
+      cursor: default;
+    }
+
+    .picker-magic-btn {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 50%;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+
+    .picker-magic-btn:hover {
+      background: var(--green-lt);
+      border-color: var(--green);
+      transform: scale(1.1);
+    }
+
+    .picker-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .picker-name-inp {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--txt);
+      border: 1.5px solid transparent;
+      background: transparent;
+      padding: 2px 6px;
+      border-radius: 6px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    .picker-name-inp:focus {
+      background: #fff;
+      border-color: var(--green);
+    }
+
+    .picker-cat-label {
+      font-size: 10.5px;
+      color: var(--txt-soft);
+      padding-left: 6px;
+    }
+
+    .picker-bulk-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 0 4px;
+    }
+
+    .picker-toggle-all {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--txt-mid);
+      cursor: pointer;
+    }
+
+    .picker-toggle-all input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+    }
+
+    /* Recipe detail modal */
+
+    .recipe-detail-section {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt-soft);
+      margin-bottom: 8px;
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 7px
+    }
+
+    .recipe-detail-section::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border)
+    }
+
+    .recipe-ing-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 4px
+    }
+
+    .recipe-steps {
+      list-style: none;
+      counter-reset: steps
+    }
+
+    .recipe-steps li {
+      counter-increment: steps;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .recipe-steps li.done {
+      text-decoration: line-through;
+      color: var(--txt-soft);
+      opacity: 0.6;
+    }
+
+    .recipe-steps li::before {
+      content: counter(steps);
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--green);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px
+    }
+
+    /* Recipe detail modal — styles reels (le JS insere .modal-content directement dans
+       .modal-overlay via replaceChildren ; depuis le LOT 009, ce modal n'a plus AUCUN
+       wrapper statique .modal dans index.html, .modal-content est la seule racine.
+       CORRECTIF (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait que
+       `.recipe-detail-section`/`.recipe-steps` etaient orphelines — c'est FAUX, verifie sur
+       piece (`src/ui/recipe.js:222, :230, :269, :271, :273`, 5 usages actifs). C'est au
+       contraire LEUR definition ICI, dans ce fichier, qui gagne sur le doublon retire de
+       `05-ai.css` (meme selecteur, cascade). */
+    .modal-content {
+      background: white;
+      border-radius: 18px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mh-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mh-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mh-title {
+      font-family: 'Lora', serif;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .mh-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--cream-dk);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--txt-mid);
+      transition: all .15s;
+    }
+
+    .mh-btn:hover {
+      background: var(--terra-lt);
+      color: var(--terra);
+    }
+
+    .rd-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .rd-emoji {
+      font-size: 40px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .rd-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .rd-meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--txt-mid);
+      background: var(--cream);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .rd-ing-amount {
+      color: var(--txt-soft);
+    }
+
+    /* Visual Stability Fixes */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: var(--z-toast);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      align-items: center
+    }
+
+    .toast {
+      background: var(--green);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      white-space: nowrap;
+      animation: toastIn .25s ease, toastOut .25s ease 2.5s forwards;
+    }
+
+    .toast.error {
+      background: var(--terra)
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes toastOut {
+      from {
+        opacity: 1;
+        transform: translateY(0)
+      }
+
+      to {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+    }
+

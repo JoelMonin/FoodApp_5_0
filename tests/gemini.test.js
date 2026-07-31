@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { callAI, generateRecipes, transformRecipeFromText } from '../src/services/gemini';
+import { callAI, generateRecipes, transformRecipeFromText } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { CATEGORIES } from '../src/data.js';
 
@@ -41,7 +41,9 @@ describe('Gemini Service', () => {
       expect(response).toBe('{"data": 123}');
     });
 
-    it('should use non-greedy matching for JSON blocks', async () => {
+    it('sur plusieurs blocs, retient le PREMIER (titre corrigé au LOT 014 : il annonçait un '
+       + '« motif non gourmand », c\'est-à-dire le MOYEN — et un moyen qui coupait les objets '
+       + 'imbriqués. La règle voulue, elle, n\'a pas changé : le premier bloc)', async () => {
       fetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
@@ -51,6 +53,32 @@ describe('Gemini Service', () => {
 
       const response = await callAI('Get JSON', 'MOCK_KEY', 'gemini-test', { isJSON: true });
       expect(response).toBe('{ "a": 1 }');
+    });
+
+    it('LOT 014 — ne coupe plus un objet IMBRIQUÉ en deux (le contrat reste une CHAÎNE, '
+       + 'ce sont les appelants qui la parsent)', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: 'Voici : {"score":"A","detail":{"kcal":420}} .' }] } }]
+        })
+      });
+
+      const response = await callAI('Get JSON', 'MOCK_KEY', 'gemini-test', { isJSON: true });
+      expect(response).toBe('{"score":"A","detail":{"kcal":420}}');
+      expect(JSON.parse(response)).toEqual({ score: 'A', detail: { kcal: 420 } });
+    });
+
+    it('rend le texte brut quand il n\'y a aucun JSON à découper (repli inchangé)', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '  Désolé, je ne peux pas.  ' }] } }]
+        })
+      });
+
+      const response = await callAI('Get JSON', 'MOCK_KEY', 'gemini-test', { isJSON: true });
+      expect(response).toBe('Désolé, je ne peux pas.');
     });
 
     it('should throw error on API failure', async () => {
@@ -370,6 +398,46 @@ describe('Gemini Service', () => {
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe('high');
+    });
+
+    // LOT 014 — cette fonction portait la BONNE méthode (essayer de lire la réponse telle
+    // quelle avant d'aller la chercher dans le texte) ; c'est elle qui a été généralisée aux
+    // quatre appelants. Ces tests figent ce qu'elle sait lire, et ce qu'elle doit refuser.
+    it('lit une recette imbriquée sans la couper (le repli précédent s\'arrêtait au premier '
+       + '« } » : une recette avec un sous-objet était perdue)', async () => {
+      const brut = 'Voici : {"name":"Tarte","meta":{"src":"blog"},"ingredients":[{"n":"Pomme"}]} — bon appétit.';
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: brut }] } }] })
+      });
+
+      const recette = await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+
+      expect(recette).toEqual({ name: 'Tarte', meta: { src: 'blog' }, ingredients: [{ n: 'Pomme' }] });
+    });
+
+    it('lit aussi une recette encadrée par un bloc Markdown', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '```json\n{"name":"Tarte"}\n```' }] } }]
+        })
+      });
+
+      expect(await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY')).toEqual({ name: 'Tarte' });
+    });
+
+    it('lève franchement quand la réponse ne contient aucun JSON exploitable — l\'appelant '
+       + 'affiche « Erreur transformation IA » et le texte de Joel reste intact', async () => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: 'Désolé, je ne comprends pas cette recette.' }] } }]
+        })
+      });
+
+      await expect(transformRecipeFromText('', 'du texte', [], 'MOCK_KEY'))
+        .rejects.toThrow('Réponse IA illisible');
     });
   });
 });

@@ -19,6 +19,28 @@ changé pourrait appliquer le statut de la conserve au haricot sec.
   dépasse l'oracle, donc changement de comportement à assumer explicitement (pare-feu A/B).
 - Ajouter un test avec deux ingrédients homonymes de catégories différentes.
 
+## ✅ 9. Deux défauts de la déduction de catégorie — CORRIGÉS LE 2026-07-31
+
+Trouvés par les **tests de caractérisation** écrits avant de déplacer `guessCategoryLocally`
+et `sanitizeCategory` vers `src/utils/categorize.js`. D'abord **figés tels quels** le temps du
+déplacement (un déménagement ne change pas de comportement), puis **corrigés sur décision de
+Joel**, dans un commit séparé — pour qu'un problème sur la correction puisse se revert sans
+défaire le rangement.
+
+Les deux tests « DÉFAUT CONNU » ont été **inversés** : ils verrouillent maintenant la
+correction, avec un cas de non-régression chacun pour qu'un correctif trop large ne passe pas
+inaperçu. Fiche conservée pour la trace (règle « rien ne se supprime »).
+
+1. **Le repli « végétal » est au SINGULIER.** Une réponse d'IA au pluriel — « Produits
+   végétaux », la formulation la plus naturelle en français — n'est pas reconnue et atterrit
+   dans le repli générique « Conserves & bocaux ». Correctif évident : tester le radical
+   `vegeta`. Impact réel : faible mais visible (mauvais rayon dans la liste de courses).
+2. **`sanitizeCategory` lève sur une catégorie non-chaîne.** `aiCat.toLowerCase()` est appelé
+   sans garde de type ; une IA renvoyant `{"category": 42}` fait lever la fonction.
+   L'exception est avalée par le `try/catch` de `handleAddInput` : Joel ne voit **aucune
+   erreur**, la suggestion disparaît simplement. Même famille que les gardes du volet C ; le
+   correctif naturel est de passer par `texteNonVide` de `src/utils/validate.js`.
+
 ## ⛔ §2 et §3 — TRANCHÉS LE 2026-07-30 : les articles libres seront SUPPRIMÉS
 
 **Décision de Joel** (découverte du LOT 013) : les articles libres ne sont ni voulus ni

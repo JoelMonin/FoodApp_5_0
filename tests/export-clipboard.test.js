@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { state } from '../src/state.js';
 import { renderTopbar } from '../js/app.js';
+import { buildClipboardText } from '../src/services/exports.js';
 import '../js/app.js';
 
 // LOT 015, sous-lot A — les formats de copie vers le presse-papiers.
@@ -50,11 +51,51 @@ function ing(over = {}) {
     };
 }
 
+// LOT 014, volet A — la composition des textes vit désormais dans `src/services/exports.js`
+// et `buildClipboardText` reçoit l'état en PARAMÈTRE. Ce bloc l'exerce DIRECTEMENT, sans
+// monter l'application ni le presse-papiers : c'est le bénéfice concret de l'extraction, et
+// il couvre deux cas qui n'étaient pas atteignables par le bouton (la date, et le retour
+// `null` sur un format inconnu — que le wrapper transforme en toast « Rien à copier »).
+describe('LOT 014 §A — buildClipboardText, exercée directement (fonction pure)', () => {
+    const etat = (ingredients) => ({ ingredients });
+
+    it('un format INCONNU renvoie null — c\'est ce qui déclenche « Rien à copier »', () => {
+        expect(buildClipboardText('full', etat([ing({ inStock: true })]))).toBeNull();
+        expect(buildClipboardText('', etat([]))).toBeNull();
+        expect(buildClipboardText(undefined, etat([]))).toBeNull();
+    });
+
+    it('la date de l\'en-tête est injectable — la fonction ne lit plus l\'horloge en douce', () => {
+        const built = buildClipboardText('simple', etat([ing({ inStock: true })]), new Date('2026-07-31T12:00:00Z'));
+        expect(built.header).toContain('31/07/2026');
+    });
+
+    it('ne lit QUE l\'état qu\'on lui passe : elle ignore l\'état global du module', () => {
+        state.ingredients = [ing({ id: 'global', name: 'NeDoitPasApparaitre', inStock: true })];
+
+        const built = buildClipboardText('simple', etat([ing({ id: 'local', name: 'Chou', inStock: true })]));
+
+        expect(built.body).toContain('Chou');
+        expect(built.body).not.toContain('NeDoitPasApparaitre');
+    });
+
+    it('sépare en-tête, corps et COMPTE DE LA SOURCE — le garde-fou porte sur les données', () => {
+        const built = buildClipboardText('cart', etat([
+            ing({ id: 'a', name: 'Tomate', inCart: true }),
+            ing({ id: 'b', name: 'Miel', inCart: false })
+        ]));
+
+        expect(built.count).toBe(1);
+        expect(built.header).toContain('LISTE DE COURSES');
+        expect(built.body).toContain('Tomate');
+        expect(built.body).not.toContain('Miel');
+    });
+});
+
 describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
         state.ingredients = [];
-        state.customCartItems = [];
         stubClipboard();
     });
 
@@ -176,99 +217,40 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────
-    // Chantier 3 — la liste de courses ignorait les articles libres
+    // LOT 014, volet G — le « chantier 3 » du LOT 015 (rubrique « [ ARTICLES LIBRES ] »)
+    // a été SUPPRIMÉ avec la fonctionnalité (décision de Joel du 2026-07-30). Ses 7 tests
+    // dédiés sont retirés, pas neutralisés : ils décrivaient un comportement qui n'existe
+    // plus, et les garder verts en les vidant de leur substance aurait été pire que rien.
+    //
+    // UNE seule de leurs preuves survit ici, parce qu'elle porte sur du code TOUJOURS EN
+    // PRODUCTION : `copyableItems` protège du TYPE, et cette protection vaut aussi pour
+    // `state.ingredients` (Firebase renvoie parfois un tableau creux sous forme d'objet).
+    // La retirer avec le reste aurait laissé `copyableItems` sans aucun test de type.
+    // (Le cas « article sans nom » est, lui, déjà couvert plus haut côté ingrédients.)
     // ─────────────────────────────────────────────────────────────────
-    describe('chantier 3 — « Copier ma liste de courses » et les articles libres', () => {
-        it('inclut les articles libres, invisibles dans l\'app depuis la migration', async () => {
-            state.ingredients = [ing({ inCart: true })];
-            // Structure RÉELLE de la donnée de Joel (export du 2026-07-29) : id en
-            // `extra_cart_`, source `ai-extra`, et AUCUNE catégorie.
-            state.customCartItems = [{
-                id: 'extra_cart_1774530250912_n3apl4r8w5s',
-                name: 'porc haché', emoji: '🥩', checked: false, source: 'ai-extra'
-            }];
-
-            await window.exportClipboard('cart');
-
-            expect(copied()).toContain('porc haché');
-            expect(copied()).toContain('[ ARTICLES LIBRES ]');
-        });
-
-        it('les articles libres ne sont JAMAIS versés dans « Autres » — une vraie catégorie', async () => {
-            state.ingredients = [ing({ inCart: true, category: 'Autres', name: 'Bicarbonate' })];
-            state.customCartItems = [{ id: 'x', name: 'porc haché', emoji: '🥩' }];
-
-            await window.exportClipboard('cart');
-
-            const autresBlock = copied().split('[ ARTICLES LIBRES ]')[0];
-            expect(autresBlock).toContain('Bicarbonate');
-            expect(autresBlock).not.toContain('porc haché');
-        });
-
-        it('la rubrique des articles libres sort EN DERNIER, même face à une catégorie accentuée '
-           + '— le tri par défaut placerait « [ » au milieu (piège P3)', async () => {
-            state.ingredients = [
-                ing({ id: 'a', name: 'Tomate', category: 'Légumes', inCart: true }),
-                ing({ id: 'b', name: 'Cumin', category: 'Épices sèches', emoji: '🫙', inCart: true })
-            ];
-            state.customCartItems = [{ id: 'x', name: 'porc haché', emoji: '🥩' }];
-
-            await window.exportClipboard('cart');
-
-            const texte = copied();
-            expect(texte.indexOf('[ ARTICLES LIBRES ]')).toBeGreaterThan(texte.indexOf('[ LÉGUMES ]'));
-            expect(texte.indexOf('[ ARTICLES LIBRES ]')).toBeGreaterThan(texte.indexOf('[ ÉPICES SÈCHES ]'));
-        });
-
-        it('sans article libre, aucune rubrique dédiée n\'apparaît (non-régression du cas nominal)', async () => {
-            state.ingredients = [ing({ inCart: true })];
-            state.customCartItems = [];
-
-            await window.exportClipboard('cart');
-
-            expect(copied()).not.toContain('ARTICLES LIBRES');
-        });
-
-        it('un article libre SANS nom exploitable est ignoré — jamais « undefined » '
-           + '(audit Gemini Q12 : ces objets ne sont jamais normalisés)', async () => {
-            state.ingredients = [ing({ inCart: true })];
-            state.customCartItems = [
-                { id: 'x', emoji: '🥩' },
-                { id: 'y', name: '   ', emoji: '🥩' },
-                { id: 'z', name: 42, emoji: '🥩' },
-                { id: 'ok', name: 'porc haché', emoji: '🥩' }
-            ];
-
-            await window.exportClipboard('cart');
-
-            expect(copied()).not.toContain('undefined');
-            expect(copied()).toContain('porc haché');
-            expect(copied().match(/☐ 🥩/g)).toHaveLength(1);
-        });
-
-        it('un `customCartItems` d\'un TYPE aberrant ne fait pas planter la copie en silence '
-           + '— Firebase renvoie parfois un tableau creux sous forme d\'objet', async () => {
-            state.ingredients = [ing({ inCart: true })];
-
-            for (const valeurAberrante of [{ 0: { name: 'porc' } }, 'porc haché', 42, null]) {
+    describe('la copie survit à un inventaire d\'un TYPE aberrant (garde `copyableItems`)', () => {
+        it('objet, chaîne, nombre ou null : la copie ne plante jamais en silence', async () => {
+            for (const valeurAberrante of ['des courses', 42, null, undefined]) {
                 writeText.mockClear();
-                state.customCartItems = valeurAberrante;
+                state.ingredients = valeurAberrante;
 
                 await expect(window.exportClipboard('cart')).resolves.toBeUndefined();
 
-                expect(copied()).toContain('Tomate');
-                expect(copied()).not.toContain('undefined');
+                expect(copied() ?? '').not.toContain('undefined');
             }
         });
 
-        it('des articles libres SEULS suffisent à produire une liste — le panier peut être vide', async () => {
-            state.ingredients = [];
-            state.customCartItems = [{ id: 'x', name: 'porc haché', emoji: '🥩' }];
+        // PRÉCISION TROUVÉE EN ÉCRIVANT CE TEST : `copyableItems` ne RÉCUPÈRE rien, il
+        // empêche seulement le plantage — un tableau creux renvoyé en objet par Firebase
+        // donne une liste VIDE, donc le garde-fou « rien à copier ». C'est ce comportement
+        // réel qui est figé ici, pas celui qu'on aurait pu croire.
+        it('un tableau creux renvoyé en objet donne « rien à copier », jamais une exception', async () => {
+            state.ingredients = { 0: ing({ inCart: true }) };
 
-            await window.exportClipboard('cart');
+            await expect(window.exportClipboard('cart')).resolves.toBeUndefined();
 
-            expect(copied()).toContain('porc haché');
-            expect(toasts()).toContain('Liste de courses copiée (1 article)');
+            expect(writeText).not.toHaveBeenCalled();
+            expect(toasts()).toContain('Votre liste de courses est vide — rien à copier');
         });
     });
 
@@ -310,8 +292,7 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
 
         it('liste de courses vide DES DEUX sources → aucune écriture', async () => {
             state.ingredients = [ing({ inStock: true })];
-            state.customCartItems = [];
-
+    
             await window.exportClipboard('cart');
 
             expect(writeText).not.toHaveBeenCalled();
@@ -376,17 +357,47 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             expect(toasts()).toContain('Erreur lors de la copie');
         });
 
-        it('le repli REND le focus au champ que l\'utilisateur était en train de remplir', async () => {
+        // FAUX VERROU FV-1 (audit adversarial du 2026-07-31, mutations M18 vs M48) — ce test
+        // était TAUTOLOGIQUE dans sa forme d'origine. Il n'assertait que
+        // `document.activeElement === champ` : or sous jsdom, le `ta.select()` du repli
+        // (js/app.js:1702) ne DÉPLACE PAS le focus. Le repli ne volait donc jamais le focus
+        // dans l'environnement de test, et l'assertion était vraie par construction — supprimer
+        // purement la restauration (js/app.js:1710) laissait le test vert.
+        //
+        // On teste donc le MÉCANISME et non son effet observable : la restauration doit être
+        // réellement appelée sur le champ mémorisé. C'est la seule chose que jsdom permette de
+        // prouver ici ; l'effet visuel reste, lui, une preuve navigateur.
+        it('le repli REND le focus au champ que l\'utilisateur était en train de remplir '
+           + '(mécanisme espionné : jsdom ne vole jamais le focus, cf. FV-1)', async () => {
             removeClipboard();
             document.execCommand = vi.fn(() => true);
             document.body.innerHTML = '<input id="saisie-en-cours">';
             const champ = document.getElementById('saisie-en-cours');
             champ.focus();
+            const focusSpy = vi.spyOn(champ, 'focus');
             state.ingredients = [ing({ inStock: true })];
 
             await window.exportClipboard('simple');
 
+            expect(focusSpy).toHaveBeenCalled();
             expect(document.activeElement).toBe(champ);
+        });
+
+        // Corollaire : la restauration vit dans le `finally` (js/app.js:1706-1711), donc elle
+        // doit avoir lieu MÊME quand la copie échoue — sinon un échec de copie laisserait Joel
+        // avec le curseur nulle part.
+        it('le focus est rendu MÊME si la copie de repli échoue', async () => {
+            removeClipboard();
+            document.execCommand = vi.fn(() => { throw new Error('interdit'); });
+            document.body.innerHTML = '<input id="saisie-en-cours">';
+            const champ = document.getElementById('saisie-en-cours');
+            champ.focus();
+            const focusSpy = vi.spyOn(champ, 'focus');
+            state.ingredients = [ing({ inStock: true })];
+
+            await window.exportClipboard('simple');
+
+            expect(focusSpy).toHaveBeenCalled();
         });
 
         it('execCommand qui échoue SILENCIEUSEMENT (retour false) est traité comme un échec '
@@ -433,16 +444,18 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             expect(toasts()).toContain('Stock copié (1 ingrédient)');
         });
 
-        it('la liste de courses compte les DEUX sources ensemble', async () => {
-            state.ingredients = [ing({ inCart: true })];
-            state.customCartItems = [
-                { id: 'x', name: 'porc haché', emoji: '🥩' },
-                { id: 'y', name: 'piles', emoji: '🔋' }
+        // LOT 014, volet G : il n'y a plus qu'UNE source (le panier). Le test conserve sa
+        // raison d'être — vérifier que le toast compte juste — sur cette seule source.
+        it('la liste de courses annonce le nombre exact d\'articles à acheter', async () => {
+            state.ingredients = [
+                ing({ id: 'a', name: 'Tomate', inCart: true }),
+                ing({ id: 'b', name: 'Cumin', inCart: true }),
+                ing({ id: 'c', name: 'Miel', inCart: false }) // hors panier : ne compte pas
             ];
 
             await window.exportClipboard('cart');
 
-            expect(toasts()).toContain('Liste de courses copiée (3 articles)');
+            expect(toasts()).toContain('Liste de courses copiée (2 articles)');
         });
     });
 
@@ -469,7 +482,7 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
     // on pouvait donc casser la copie sans qu'aucun test de la barre ne bronche.
     // ─────────────────────────────────────────────────────────────────
     describe('second point d\'entrée — bouton « 📋 Copier » de la barre supérieure', () => {
-        it('copie réellement la liste de courses, articles libres compris', async () => {
+        it('copie réellement la liste de courses', async () => {
             document.body.innerHTML = `
                 <div id="topbar-title"></div>
                 <div class="tb-search" id="tb-search-wrap"><input id="search-input"></div>
@@ -485,7 +498,6 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             state.favorites = [];
             state.search = '';
             state.ingredients = [ing({ inCart: true })];
-            state.customCartItems = [{ id: 'x', name: 'porc haché', emoji: '🥩' }];
 
             renderTopbar('shopping');
             const bouton = [...document.querySelectorAll('#top-action-btn button')]
@@ -497,7 +509,6 @@ describe('LOT 015 / sous-lot A — copie vers le presse-papiers', () => {
             await Promise.resolve();
 
             expect(copied()).toContain('Tomate');
-            expect(copied()).toContain('porc haché');
         });
     });
 });

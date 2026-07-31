@@ -19,6 +19,13 @@
 
 ## Ce qu'il faut en retenir
 
+> ⚠️ **ADDENDUM 2026-07-31 (LOT 014, volet D)** — `sanitize()` a été **SUPPRIMÉE** sur
+> décision de Joel : trois recherches convergentes ont montré qu'elle n'avait aucun appelant
+> en production, son seul « utilisateur » étant son propre test. La doctrine en vigueur est
+> désormais celle de `CLAUDE.md` : rendu via `h()` UNIQUEMENT. Garder une seconde voie non
+> utilisée revenait à laisser une porte ouverte vers `innerHTML`. La ligne ci-dessous est
+> conservée telle quelle (règle « rien ne se supprime ») mais n'est plus applicable en l'état.
+
 **Protection XSS structurelle** : tout nouveau markup passe par `h()` ou `sanitize()`, jamais
 par `innerHTML`. C'est un acquis à ne pas perdre lors des refactorisations futures.
 
