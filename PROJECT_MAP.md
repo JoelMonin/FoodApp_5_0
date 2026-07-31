@@ -37,7 +37,8 @@
 - `index.html` : Point d'entrée SPA moderne Vite.
 - `foodapp-v5-Joel.html` : Version HTML historique monopage (> 1500 lignes, zone sensible).
 - `js/app.js` : Point d'entrée d'initialisation du bundle.
-- `css/style.css` : Feuille de style globale.
+- `css/style.css` : SOMMAIRE des feuilles de style (LOT 014 §E) — plus aucune règle, seulement les 13 `@import` de `css/sections/`, **dans l'ordre exact d'avant le découpage**. `index.html` n'a pas bougé (une seule balise) et les imports sont fusionnés à la construction : aucun téléchargement de plus.
+- `css/sections/` : Les 13 sections, coupées strictement aux frontières déjà balisées dans l'ancien fichier — `01-variables` · `02-layout` · `03-components` · `04-shopping` · `05-ai` · `06-favorites` · `07-export` · `08-add` · `09-modals` · `10-spinner` · `11-responsive` · `12-utilities` · `13-nutrition`. ⚠️ `12-utilities.css` n'est PAS une boîte à outils : c'est un dépôt de surcharges tardives qui corrigent des sections situées plus haut — le remonter les désactiverait.
 
 ---
 
@@ -92,6 +93,7 @@
 - `tests/pantry-filters-search.test.js` : Filtrage de l'inventaire hors tri (LOT 013 — `getFilteredIngredients` : recherche texte insensible aux accents, cumul des toggles stock/panier, filtres exclusifs épinglés/surgelés).
 - `tests/ai-json.test.js` : Tests de `src/utils/aiJson.js` (LOT 014, correctifs IA). Prouve le défaut sur pièce — l'ANCIEN motif est recopié dans le fichier pour montrer qu'il rendait bien du JSON invalide sur une réponse imbriquée — puis fige la règle unique : premier bloc équilibré, priorité au bloc Markdown, chaînes et échappements ignorés dans le comptage. Trois tests ont dû être RÉÉCRITS après la preuve par retrait : ils passaient encore une fois le correctif débranché.
 - `tests/api-key-message-ssot.test.js` : VERROU SSOT du message de clé API manquante (LOT 014, décidé par Joel). Deux moitiés : un scan des sources qui interdit de réécrire ce texte ailleurs que dans `src/constants.js` (avec garde anti-vide), et les quatre sites qui prouvent le MÊME texte mais des réactions DISTINCTES — l'analyse nutritionnelle prévient sans ouvrir les Réglages, contrairement aux deux autres écrans.
+- `tests/css-sections.test.js` : VERROU DU DÉCOUPAGE CSS (LOT 014 §E) — interdit les deux pannes silencieuses du montage : une section posée dans `css/sections/` mais jamais appelée (du style qui n'arrive jamais à l'écran), et une règle écrite dans le sommaire (elle passerait AVANT tout le reste). L'ORDRE, lui, n'est pas recopié ici : c'est le build qui le prouve, la feuille produite devant rester identique octet pour octet.
 - `tests/html-window-parity.test.js` : VERROU ANTI-RÉCIDIVE (LOT 014 §F) — toute fonction appelée par un attribut `on*=` d'`index.html` doit exister sur `window` après le démarrage. Rend impossible la panne la plus fréquente de la migration : un bouton qui n'appelle plus rien, sans erreur ni test rouge. Vérification À L'EXÉCUTION (le vrai `window`), unidirectionnel par conception, avec une garde qui empêche le verrou d'être vert à vide.
 - `tests/test_esm_imports.py` : VERROU ANTI-RÉCIDIVE (LOT 014 §F) — tout import relatif doit porter son extension. Arbitrage laissé en suspens depuis le LOT 002 ; les 22 sites de `tests/` ont été corrigés dans le commit du verrou. Même garde anti-vide.
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.

@@ -1,0 +1,289 @@
+    /* ═══════════ COMPONENTS ═══════════ */
+
+    /* Chips */
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1.5px solid var(--border);
+      background: white;
+      color: var(--txt-mid);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    .chip.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: white
+    }
+
+    .chip.stock {
+      background: var(--green-lt);
+      border-color: #9DBEB1;
+      color: var(--green);
+    }
+
+    .chip.stock.active {
+      background: #27ae60 !important;
+      border-color: #27ae60 !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px white, 0 0 0 4px #27ae60;
+      font-weight: 700;
+    }
+
+    .chip.terra {
+      background: var(--terra-lt);
+      border-color: #E6B296;
+      color: var(--terra);
+    }
+
+    .chip.terra.active {
+      background: var(--terra);
+      border-color: var(--terra);
+      color: white;
+    }
+
+    .chip.gold {
+      background: var(--gold-lt);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .chip.gold.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: white;
+    }
+
+    /* Ingredient grid */
+    #ing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      gap: 9px;
+    }
+
+    @media(max-width:767px) {
+      #ing-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px
+      }
+    }
+
+    .ing-card {
+      background: white;
+      border-radius: var(--r);
+      border: none !important;
+      padding: 13px 10px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform .2s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow .2s;
+      position: relative;
+      user-select: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .ing-card:active {
+      transform: scale(0.96);
+      filter: brightness(0.98);
+    }
+
+    .ing-card:hover {
+      border-color: var(--green-mid);
+      box-shadow: var(--shadow);
+      transform: translateY(-3px);
+    }
+
+    .ing-card.in-stock {
+      border-color: #9DBEB1;
+      background: var(--green-lt);
+    }
+
+    .ing-card.in-cart {
+      border-color: #E6B296;
+      background: var(--terra-lt);
+    }
+
+    .ing-card.in-stock.in-cart {
+      background: linear-gradient(135deg, var(--green-lt) 0%, var(--terra-lt) 100%);
+      border-color: #E6B296;
+    }
+
+    .ing-top-badges {
+      position: absolute;
+      top: 6px;
+      left: 7px;
+      right: 7px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .ing-top-left,
+    .ing-top-right {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .ing-top-badge {
+      font-size: 11px;
+      filter: grayscale(0.2) opacity(0.85);
+      min-width: 13px;
+      text-align: center;
+    }
+
+    .ing-pin-badge {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 11px;
+      line-height: 1
+    }
+
+    .ing-emoji {
+      font-size: 25px;
+      display: block;
+      margin-bottom: 5px;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform .15s;
+    }
+
+    .ing-emoji:hover {
+      transform: scale(1.2);
+    }
+
+    .ing-emoji:active {
+      transform: scale(1.3);
+      filter: brightness(1.2);
+    }
+
+    .ing-name {
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.25;
+      color: var(--txt);
+      /* Les cartes font ~105px de large : sans limite, un nom long
+         (« Alternative végétale au lait d'amande ») pousse les boutons vers le bas
+         et casse l'alignement de la grille. Deux lignes maximum, puis points de suspension. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+
+    .ing-cat {
+      font-size: 9.5px;
+      color: var(--txt-soft);
+      margin-top: 2px
+    }
+
+    .ing-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 7px;
+      justify-content: center
+    }
+
+    .ing-btn {
+      font-size: 9.5px;
+      padding: 3px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--cream-dk);
+      cursor: pointer;
+      color: var(--txt-mid);
+      font-family: 'DM Sans', sans-serif;
+      transition: all .12s;
+      line-height: 1.4;
+    }
+
+    .ing-btn:hover {
+      background: var(--green);
+      color: white;
+      border-color: var(--green)
+    }
+
+    .ing-btn.active-cart {
+      background: var(--terra-lt);
+      color: var(--terra);
+      border-color: var(--terra)
+    }
+
+    .ing-btn.active-pin {
+      background: var(--gold-lt);
+      color: var(--gold);
+      border-color: var(--gold)
+    }
+
+    .ing-btn.del:hover {
+      background: var(--terra-lt);
+      color: var(--terra);
+      border-color: var(--terra)
+    }
+
+    .ing-frozen-badge {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      font-size: 11px
+    }
+
+    .ing-card.out-of-stock {
+      /* Keep card opaque white so it doesn't pick up the cream background tint */
+      opacity: 1;
+      background: white;
+    }
+    
+    .ing-card.out-of-stock > *:not(.ing-top-badges) {
+      opacity: 0.4;
+    }
+    
+    .ing-card.out-of-stock .ing-top-badge {
+      opacity: 0.3;
+    }
+
+    /* Section label */
+    .section-label {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--txt-soft);
+      margin-bottom: 10px;
+      margin-top: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border)
+    }
+
+    .section-label:first-child {
+      margin-top: 0
+    }
+

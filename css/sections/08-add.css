@@ -1,0 +1,236 @@
+    /* ═══════════ ADD INGREDIENT VIEW ═══════════ */
+    .add-form {
+      max-width: 480px
+    }
+
+    .form-group {
+      margin-bottom: 16px
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt-soft);
+      margin-bottom: 7px
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: var(--r-sm);
+      border: 1.5px solid var(--border);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--txt);
+      background: white;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--green)
+    }
+
+    /* LOT 012, zone D : autocomplétion du formulaire d'ajout, jamais stylée jusqu'ici
+       (texte brut sans mise en forme). `:not(:empty)` évite un cadre vide affiché quand
+       aucune suggestion n'est proposée — le conteneur est toujours présent dans le HTML. */
+    .add-results-list {
+      margin-top: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      border-radius: var(--r-sm);
+    }
+
+    .add-results-list:not(:empty) {
+      border: 1.5px solid var(--border);
+    }
+
+    .add-res-item {
+      padding: 9px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+
+    .add-res-item:last-child {
+      border-bottom: none;
+    }
+
+    .add-res-item:hover {
+      background: var(--cream);
+    }
+
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238AA89E' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center
+    }
+
+    .form-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .form-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      appearance: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+      background: white;
+      flex-shrink: 0
+    }
+
+    .form-checkbox:checked {
+      background: var(--green);
+      border-color: var(--green)
+    }
+
+    .form-checkbox:checked::after {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: 700
+    }
+
+    .emoji-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px
+    }
+
+    .emoji-sug-btn {
+      font-size: 22px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      border: 1.5px solid var(--border);
+      background: white;
+      cursor: pointer;
+      transition: all .12s;
+    }
+
+    .emoji-sug-btn:hover {
+      background: var(--green-lt);
+      border-color: var(--green)
+    }
+
+    .emoji-sug-btn.selected {
+      background: var(--green-lt);
+      border-color: var(--green)
+    }
+
+    .emoji-suggestion-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 5px;
+    }
+
+    .emoji-edit-btn {
+      font-size: 26px;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--cream);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .emoji-edit-btn:hover {
+      background: var(--green-lt);
+      border-color: var(--green);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .emoji-edit-btn:active {
+      transform: scale(0.92);
+      background: var(--cream-dk);
+      box-shadow: none;
+    }
+
+    .emoji-search-box {
+      display: flex;
+      gap: 8px;
+      margin: -5px 0 20px 0;
+    }
+
+    .emoji-search-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .emoji-search-input:focus {
+      border-color: var(--green);
+      background: #fff;
+    }
+
+    .emoji-search-btn {
+      width: 42px;
+      height: 42px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .emoji-search-btn:hover {
+      background: var(--green-mid);
+      transform: scale(1.05);
+    }
+
+    .emoji-search-btn:disabled {
+      background: var(--border);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .submit-btn {
+      padding: 12px 28px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: var(--r-sm);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .submit-btn:hover {
+      background: var(--green-mid)
+    }
+

@@ -1,0 +1,95 @@
+    /* ═══════════ NUTRITION UI ═══════════ */
+    .nutri-score-logo {
+      display: inline-flex;
+      flex-direction: column;
+      background: white;
+      border: 1.5px solid #eaeaea;
+      border-radius: 8px;
+      padding: 3px 5px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+
+    .ns-brand {
+      font-family: 'Arial Black', Impact, sans-serif;
+      font-size: 10px;
+      font-weight: 900;
+      color: #555;
+      text-align: left;
+      letter-spacing: -0.2px;
+      margin-left: 2px;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .ns-bars {
+      display: flex;
+      align-items: center;
+    }
+
+    .ns-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.4);
+      font-weight: 900;
+      font-size: 13px;
+      font-family: 'Arial Black', Impact, sans-serif;
+      height: 20px;
+      width: 15px;
+      line-height: 1;
+      transition: all 0.2s ease;
+    }
+
+    .ns-bar.ns-A {
+      background: #038141;
+      border-radius: 6px 0 0 6px;
+    }
+
+    .ns-bar.ns-B {
+      background: #85BB2F;
+    }
+
+    .ns-bar.ns-C {
+      background: #FECB02;
+    }
+
+    .ns-bar.ns-D {
+      background: #EE8100;
+    }
+
+    .ns-bar.ns-E {
+      background: #E63E11;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .ns-bar.active {
+      height: 26px;
+      width: 22px;
+      font-size: 17px;
+      color: white;
+      border-radius: 6px;
+      border: 1.5px solid white;
+      z-index: 2;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .nutri-kcal {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--txt-main);
+      background: var(--cream-dk);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    @media(max-width: 767px) {
+      .modal-footer {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .ing-emoji {
+        pointer-events: none;
+      }
+    }

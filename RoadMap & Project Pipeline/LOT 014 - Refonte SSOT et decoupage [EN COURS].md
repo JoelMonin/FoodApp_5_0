@@ -786,6 +786,42 @@ en place, et la garde « est-ce bien un objet ? » ne peut plus échouer. Les de
 
 ---
 
+### Étape E — découpage du CSS (2026-07-31)
+
+**3 785 lignes en un seul fichier → un sommaire de 13 appels + 13 sections**, coupées
+**strictement aux frontières déjà balisées** dans l'ancien fichier. Aucune règle déplacée,
+aucune règle réécrite : le découpage ne fait que poser des cloisons là où le fichier en
+suggérait déjà.
+
+**La preuve remplace le contrôle visuel.** `index.html` reste inchangé (une seule balise) et
+Vite fusionne les `@import` à la construction. La feuille produite par `npm run build` est
+donc comparée octet pour octet à celle d'avant : **49 537 octets, identiques, même empreinte
+de contenu (`index-C6FDxGAw.css`)**. C'est infiniment plus solide qu'un coup d'œil à l'écran,
+qui n'aurait jamais attrapé une surcharge tardive perdue au fond d'un media-query.
+
+**Contre-épreuve obligatoire — la preuve sait échouer.** Une comparaison qui dit toujours
+« identique » ne prouve rien. Deux sections interverties → la feuille produite CHANGE
+(empreinte `index-2OHDvzGZ`). La comparaison mesure donc bien ce qu'elle prétend mesurer.
+
+**Un incident, et le garde-fou qui en sort.** Le script de découpage a été relancé par erreur
+sur la feuille DÉJÀ découpée : il a lu le sommaire de 35 lignes, l'a débité en tranches vides
+et écrasé les 13 sections. Restauré depuis git en une commande, sans perte — tout était
+committé. Le script refuse désormais de démarrer si la source ne ressemble pas à la feuille
+d'origine. **Leçon : un outil de transformation à sens unique doit vérifier qu'on lui donne
+bien une entrée, pas sa propre sortie.**
+
+**Verrou posé** (`tests/css-sections.test.js`, 6 tests, 5 mutations / 5 rouges, témoin vert) :
+une section jamais appelée et une règle écrite dans le sommaire deviennent impossibles. L'ordre
+n'y est PAS recopié — le recopier aurait créé une seconde liste à maintenir, alors que le build
+le prouve déjà.
+
+**Le commentaire menteur du CSS est corrigé.** Il affirmait que `rc-emoji`/`rc-info` étaient
+« la structure réellement utilisée » et `rc-header`/`rc-body` des orphelines : c'est
+l'inverse, vérifié sur pièce (`src/ui/recipe.js:28` et `:30`). Tel quel, il aurait envoyé un
+futur nettoyage supprimer du CSS bien vivant.
+
+---
+
 ## Traçabilité
 
 - Fiches d'origine (supprimées à la promotion, contenus repris) :
