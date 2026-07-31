@@ -57,7 +57,10 @@ const ZONES = {
             <option value=""></option>
             ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
         </select>
-        <div id="category-suggestion-indicator"></div>
+        <!-- display:none reproduit index.html:668 : dans la vraie page l'indicateur part
+             CACHE. Sans cet attribut, un test qui verifie qu'il reste masque passerait sur un
+             artefact du harnais (chaine vide) au lieu du comportement reel. -->
+        <p id="category-suggestion-indicator" style="display:none"></p>
         <input type="checkbox" id="add-frozen">
     `,
     // Inventaire.
