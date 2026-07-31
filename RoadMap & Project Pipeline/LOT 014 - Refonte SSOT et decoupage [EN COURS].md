@@ -207,6 +207,17 @@ LOT 013 a un trou exactement là où le code bouge.
 `'❓'`) · table des vues et de leurs alias (`fav`↔`favorites`, `export`↔`settings`) **sans aucune
 représentation canonique**, recopiée 4× · `toLocaleDateString('fr-FR')` ×4.
 
+> ✅ **MISE À JOUR 2026-07-31 (étape A)** — sur les 3 normalisations divergentes, **celle du
+> formulaire d'ajout est CORRIGÉE** sur décision de Joel : `updateEmojiSuggestions`
+> (`src/ui/addForm.js`) passe par `normalizeString`, comme la liste de résultats du même écran.
+> Mesuré avant d'appliquer sur 370 saisies : 68 résultats changent, **0 perte**. Verrouillé par
+> `tests/add-form.test.js` (test inversé + 3 cas de non-régression, dont la garde « saisie
+> réduite à rien après rognage » — sans elle, `includes('')` proposerait TOUS les ingrédients).
+> ⚠️ **RESTE À TRANCHER** : `buildEmojiEditSuggestions` (`js/app.js`) porte le MÊME motif
+> (`name.toLowerCase().includes()`). **Volontairement non corrigé** — c'est un autre écran
+> (édition d'icône), donc une autre décision. Risque réel plus faible : sa graine vient du nom
+> d'un ingrédient de l'inventaire, pas d'une frappe de Joel.
+
 **Logique** : 2 recherches d'emoji par IA avec 2 prompts et 2 regex (`js/app.js:2316` vs `:2654`,
 la seconde sans garde de clé API et avec une regex qui rate des émojis) · 2 constructeurs de
 suggestions d'emoji depuis `DEFAULT_DB` (`:2073` vs `:1947`) · **3 normalisations différentes

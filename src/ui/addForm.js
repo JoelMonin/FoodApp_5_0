@@ -129,8 +129,20 @@ export function updateEmojiSuggestions(val) {
         container.replaceChildren(...GENERIC_EMOJI_FALLBACK.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
         return;
     }
-    const s = val.toLowerCase();
-    const matches = DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)).slice(0, 15);
+    // CORRECTIF (LOT 014, decide par Joel le 2026-07-31) — MEME COMPARAISON QUE LA LISTE.
+    // Cette grille comparait par `name.toLowerCase().includes()`, donc SENSIBLE aux accents,
+    // alors que la liste de resultats du meme formulaire passe par `normalizeString`. Taper
+    // « epinard » sans accent proposait « Epinards » dans la liste et laissait la grille
+    // VIDE. Les deux moities de l'ecran s'accordent desormais sur la meme comparaison.
+    // Mesure faite avant d'appliquer, sur 370 saisies : 68 resultats changent, ZERO perte —
+    // le correctif fait toujours trouver PLUS, jamais moins.
+    const s = normalizeString(val);
+    // `normalizeString` rogne : une saisie faite uniquement d'espaces se reduit a rien, et
+    // `includes('')` serait alors vrai pour TOUS les ingredients. Le champ « recherche
+    // d'emoji » (index.html:612) appelle cette fonction directement, donc ce cas est bien
+    // atteignable. Comportement CONSERVE tel quel : grille vide, comme avant le correctif.
+    if (!s) { container.replaceChildren(); return; }
+    const matches = DEFAULT_DB.filter(i => normalizeString(i.name).includes(s)).slice(0, 15);
     const emojis = [...new Set(matches.map(i => i.emoji))];
     container.replaceChildren(...emojis.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
 }

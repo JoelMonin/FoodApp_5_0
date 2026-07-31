@@ -151,27 +151,51 @@ describe('LOT 014 §A — updateEmojiSuggestions (caractérisation avant déplac
     });
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // DÉFAUT RÉEL, figé tel quel (annoncé à Joel le 2026-07-31).
-    // Dans le MÊME formulaire, deux comparaisons de texte différentes cohabitent :
-    //   · la liste de résultats passe par `normalizeString` → insensible aux accents ;
-    //   · cette grille d'emojis fait `name.toLowerCase().includes(...)` → SENSIBLE aux accents.
-    // Conséquence visible : taper « epinard » sans accent propose bien « Épinards » dans la
-    // liste, mais laisse la grille d'emojis VIDE. Corriger serait un changement de
-    // comportement, donc une décision de Joel — pas un déplacement.
+    // LE DÉFAUT TROUVÉ PAR CES TESTS A ÉTÉ CORRIGÉ (décision de Joel du 2026-07-31), dans un
+    // commit SÉPARÉ du déplacement. Le test qui le documentait est donc INVERSÉ : il
+    // verrouille désormais la correction au lieu de décrire le défaut, et s'accompagne de
+    // cas de non-régression pour qu'un correctif trop large ne passe pas inaperçu.
+    //
+    // Le défaut : la grille comparait par `toLowerCase().includes()` (SENSIBLE aux accents)
+    // alors que la liste de résultats du même formulaire passe par `normalizeString`
+    // (insensible). Taper « epinard » sans accent remplissait la liste et laissait la grille
+    // vide. Les deux moitiés de l'écran s'accordent maintenant sur la même comparaison.
     // ─────────────────────────────────────────────────────────────────────────────
-    it('DÉFAUT CONNU : la grille est SENSIBLE aux accents, contrairement à la liste de résultats', () => {
+    it('CORRIGÉ : la grille trouve avec OU sans accent, comme la liste de résultats', () => {
         window.updateEmojiSuggestions('épinard');
         vi.advanceTimersByTime(200);
-        expect(emojisAffiches()).toEqual(['🥬']); // avec l'accent : trouvé
+        expect(emojisAffiches()).toEqual(['🥬']);
 
         window.updateEmojiSuggestions('epinard');
         vi.advanceTimersByTime(200);
-        expect(emojisAffiches()).toEqual([]);     // sans l'accent : rien, alors que la liste, elle, trouve
+        expect(emojisAffiches()).toEqual(['🥬']); // AVANT le correctif : [] (grille vide)
+    });
 
-        // Preuve que les deux moitiés du formulaire divergent bien sur la MÊME saisie :
+    it('CORRIGÉ : les deux moitiés du formulaire s\'accordent enfin sur la MÊME saisie', () => {
+        // C'est la vraie formulation du défaut : ce n'est pas « la grille rate un accent »,
+        // c'est « les deux moitiés de l'écran ne cherchent pas de la même façon ».
         window.handleAddInput('epinard');
+        vi.advanceTimersByTime(200);
         const resultats = [...document.querySelectorAll('#add-results-list .add-res-item')];
         expect(resultats.length).toBeGreaterThan(0);
+        expect(emojisAffiches().length).toBeGreaterThan(0); // la grille ne reste plus vide
+    });
+
+    it('le correctif n\'est pas trop large : une recherche sans correspondance ne trouve toujours rien', () => {
+        window.updateEmojiSuggestions('xyzabc');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual([]);
+    });
+
+    // NON-RÉGRESSION la plus importante : `normalizeString` ROGNE les espaces, donc une
+    // saisie faite uniquement d'espaces se réduit à rien — et `includes('')` serait vrai pour
+    // TOUS les ingrédients. Sans la garde, ce champ afficherait 15 emojis au hasard.
+    // Ce cas est réellement atteignable : le champ « recherche d'emoji » (index.html:612)
+    // appelle cette fonction directement, sans passer par le filtre de `handleAddInput`.
+    it('une saisie faite uniquement d\'espaces laisse la grille VIDE — elle ne propose pas tout', () => {
+        window.updateEmojiSuggestions('   ');
+        vi.advanceTimersByTime(200);
+        expect(emojisAffiches()).toEqual([]);
     });
 });
 
