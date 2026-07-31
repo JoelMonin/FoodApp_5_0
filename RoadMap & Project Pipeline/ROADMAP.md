@@ -60,6 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [016](LOT%20016%20-%20Etiquettes%20de%20recette%20au%20propre%20%5BA%20PUBLIER%5D.md) | Étiquettes de recette au propre — solde le point de sortie `.r-tag` laissé ouvert par le LOT 014 : les variantes rouge et verte n'ont plus qu'une définition, apparence prouvée identique, +6 tests de verrou (4 mutations, 4 rouges) | **A PUBLIER** — attend le feu vert de Joel (V5.10.1) | `feat/lot16-etiquettes-recette-css` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BCLOTURE%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **CLOTURE** — publié en V5.10 le 2026-07-31 | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
@@ -100,6 +101,13 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — LOT 016 ouvert et terminé (A PUBLIER)** : solde le point `.r-tag` reporté
+  par le LOT 014. Le diagnostic a **infirmé l'hypothèse de départ** : `.r-tag.green` de
+  `05-ai.css` était bien intégralement morte, mais `.r-tag.red` gardait deux propriétés
+  vivantes (`font-weight`, `box-shadow`) — la retirer en bloc aurait changé l'écran. Joel a
+  choisi de figer l'apparence actuelle et de laisser les variantes `gold`/`terra` inutilisées.
+  Apparence prouvée identique par comparaison de la cascade calculée sur la feuille buildée,
+  avec contre-épreuve ; verrou de 6 tests, 4 mutations et 4 rouges nommés. 790/790 Vitest.
 - **2026-07-31 — LOT 014 publié en Version 5.10, campagne « Restauration & Refonte »
   achevée** : feu vert de Joel donné le soir même, fusion `--no-ff` de
   `feat/lot14-refonte-ssot` dans `main` et mise en ligne. Fiche passée en `[CLOTURE]`.

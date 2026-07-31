@@ -312,14 +312,17 @@
       box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
     }
 
-    .r-tag.red {
-      background: #d63031;
-      color: white;
-      border: 1px solid #c02d2d;
-      font-weight: 600;
-      box-shadow: 0 1px 2px rgba(214, 48, 49, 0.2);
-    }
-
+    /* Pas de `.r-tag.red` ici : elle etait declaree dans ce fichier ET dans
+       `12-utilities.css`, un doublon herite du monolithe d'origine (present tel quel dans
+       `foodapp-v5-Joel.html` l.1463 et l.3011 — pas introduit par le decoupage LOT 014 §E).
+       Meme selecteur, meme specificite : la version de `12-utilities.css`, declaree plus
+       tard, gagnait sur `background`, `color` et `border`. Le bloc d'ici n'imposait donc
+       plus QUE `font-weight` et `box-shadow`, ses trois autres proprietes etant mortes —
+       d'ou une etiquette rose pale portant le gras et l'ombre prevus pour un fond rouge
+       vif, melange que personne n'avait choisi. Les deux proprietes reellement vivantes
+       ont ete deplacees telles quelles dans `12-utilities.css`, ou vit desormais l'unique
+       definition de cette etiquette. Apparence a l'ecran INCHANGEE, decision de Joel du
+       2026-07-31 (LOT 016). */
     /* Pas de `.recipe-detail-section` ici : elle vivait dans ce fichier ET dans
        `09-modals.css` avec des valeurs CONTRADICTOIRES, un doublon herite du monolithe
        d'origine (pas introduit par le decoupage LOT 014 §E). Meme selecteur, meme
@@ -454,11 +457,11 @@
       font-weight: 500
     }
 
-    .r-tag.green {
-      background: var(--green-lt);
-      color: var(--green)
-    }
-
+    /* Pas de `.r-tag.green` ici, pour la meme raison que `.r-tag.red` plus haut : le bloc
+       de ce fichier ne posait que `background` et `color`, tous deux reecrits par
+       `12-utilities.css`. Il etait donc INTEGRALEMENT mort — retire sans rien deplacer.
+       `gold` et `terra` ci-dessous ne sont produites par aucun ecran de l'application
+       (verifie en 2026-07-31) ; Joel a choisi de les conserver malgre tout. */
     .r-tag.gold {
       background: var(--gold-lt);
       color: var(--gold)

@@ -61,6 +61,12 @@
       max-height: none;
     }
 
+    /* ETIQUETTES DE RECETTE — definition UNIQUE des variantes rouge / verte / orange
+       (LOT 016). `05-ai.css` en portait un second jeu, plus haut dans la feuille : meme
+       selecteur, meme specificite, donc toujours perdant ici. Ne pas remonter ce bloc dans
+       `05-ai.css` sans refaire la preuve : c'est sa position TARDIVE qui lui donne raison.
+       La variante bleue (etiquettes de nutrition) n'a jamais eu de doublon et vit toujours
+       dans `05-ai.css`. */
     .r-tag.green {
       background: #e8f5e9;
       color: var(--green);
@@ -71,6 +77,12 @@
       background: #fee;
       color: #d63031;
       border: 1px solid #ffcdd2;
+      /* Les deux seules proprietes que l'ancien doublon de `05-ai.css` imposait encore.
+         Rapatriees ici A L'IDENTIQUE : `font-weight` gagne de toute facon par SPECIFICITE
+         (0,2,0) contre `.r-tag { font-weight: 500 }` (0,1,0), et `box-shadow` n'est declare
+         nulle part ailleurs pour cette classe — le deplacement ne change donc aucun pixel. */
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(214, 48, 49, 0.2);
     }
 
     .r-tag.orange {

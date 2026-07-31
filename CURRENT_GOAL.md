@@ -9,15 +9,27 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014
-a été **publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff`
-dans `main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
+**LOT 016 — Étiquettes de recette au propre** : ouvert et **terminé le 2026-07-31** sur
+`feat/lot16-etiquettes-recette-css`, statut **A PUBLIER**. Traite le point de sortie n°2 du
+LOT 014 (`.r-tag`), que Joel avait volontairement reporté. Détail et preuves :
+`RoadMap & Project Pipeline/LOT 016 - Etiquettes de recette au propre [A PUBLIER].md`.
 
-**Prochain chantier pressenti (décidé par Joel, pas encore ouvert)** : le second rangement
-de `js/app.js` — fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir
-via `/new-lot`, avec phase découverte obligatoire. Reste aussi le point CSS
-`.r-tag.red`/`.r-tag.green`, à regarder à froid, séparément, « sans tout casser ».
+**Le diagnostic a corrigé l'hypothèse du LOT 014** : `.r-tag.green` de `05-ai.css` était bien
+100 % morte, mais `.r-tag.red` ne l'était qu'à moitié — `font-weight` et `box-shadow` y
+survivaient. Un retrait en bloc, tel que l'hypothèse initiale l'aurait suggéré, aurait donc
+changé l'apparence. **Décisions de Joel** : garder l'aspect actuel (zéro pixel modifié) et
+laisser les variantes `gold`/`terra`, jamais produites par l'application.
+
+**Suite prévue (décidée par Joel, pas encore ouverte)** : le second rangement de `js/app.js`
+— fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir via `/new-lot`,
+avec phase découverte obligatoire.
+
+## Lot tout juste publié — Version 5.10 (2026-07-31)
+
+La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014 a été
+**publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff` dans
+`main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
 
 **Ordre arrêté : C1 → B → C → G → A → D → E → F.**
 
@@ -107,6 +119,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
 - **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
   campagne « Restauration & Refonte ».
+- **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31, V5.10.1)
 
 ## Vérités à ne pas perdre
 
@@ -126,6 +139,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*`, `.r-tag`, `.tb-btn-add`,
   `.add-results-list`, `.tb-btn.small` : CSS REBRANCHÉ par la campagne — interdiction de les
   traiter en « CSS mort » ou de les supprimer au LOT 014.
+  **`.r-tag` a été traitée au LOT 016**, sans jamais rien supprimer de vivant : les variantes
+  rouge et verte étaient définies deux fois, elles ne le sont plus qu'une, et l'apparence à
+  l'écran est prouvée identique. Les autres classes de cette liste restent intouchées.
 - **`areSimilar`** (`src/utils/helpers.js`) compare désormais des mots entiers, jamais des
   fragments de texte (porté depuis l'oracle, LOT 011 hors-plan) — ne pas revenir à une
   comparaison de sous-chaînes brutes en y retouchant plus tard.
@@ -189,9 +205,11 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
    `05-ai.css` et `12-utilities.css`, même mécanisme que `.recipe-detail-section` déjà
    corrigé — mais `.r-tag` figure sur la liste des classes protégées « CSS REBRANCHÉ par la
    campagne », donc remonté plutôt que tranché seul) — **Joel a choisi de clôturer le lot
-   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. Reste donc
-   ouvert, sciemment, hors du lot 014 : ne pas le re-décider seul si le sujet revient, c'est
-   déjà un choix de Joel.
+   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. ✅ **SOLDÉ
+   par le LOT 016** le 2026-07-31, après publication de la 5.10. À retenir : l'hypothèse
+   posée ici (« la version de `05-ai.css` serait du CSS mort ») n'était vraie que pour le
+   VERT ; la rouge gardait deux propriétés vivantes, et l'appliquer telle quelle aurait
+   changé l'écran.
 
 **Publication : FAITE.** Après une première clôture en `[A PUBLIER]` (Joel ne voulait pas
 publier tout de suite), le feu vert explicite est arrivé le 2026-07-31 au soir
