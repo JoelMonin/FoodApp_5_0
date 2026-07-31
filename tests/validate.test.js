@@ -5,7 +5,6 @@ import {
   aUnNomExploitable,
   estUnIngredientPlausible,
   estFusionnable,
-  isValidAiConfig,
   isValidRecipe,
   validateState,
   escapePromptValue
@@ -79,21 +78,6 @@ describe('LOT 014 §C — gardes d\'ingrédient : deux niveaux, un socle', () =>
   });
 });
 
-describe('LOT 014 §C — isValidAiConfig', () => {
-  it('accepte un objet sans clé API, ou avec une clé API de type chaîne', () => {
-    expect(isValidAiConfig({})).toBe(true);
-    expect(isValidAiConfig({ apiKey: '' })).toBe(true);
-    expect(isValidAiConfig({ apiKey: 'AIza...' })).toBe(true);
-  });
-
-  it('rejette une clé API qui n\'est pas une chaîne, et les non-objets', () => {
-    expect(isValidAiConfig({ apiKey: 42 })).toBe(false);
-    expect(isValidAiConfig({ apiKey: null })).toBe(false);
-    expect(isValidAiConfig(null)).toBe(false);
-    expect(isValidAiConfig([])).toBe(false);
-  });
-});
-
 describe('LOT 014 §C — isValidRecipe (réponses de l\'IA)', () => {
   it('accepte une recette minimale, et une recette complète', () => {
     expect(isValidRecipe({ name: 'Soupe' })).toBe(true);
@@ -145,6 +129,29 @@ describe('LOT 014 §C — validateState (document cloud / stockage local)', () =
     expect(validateState({ ingredients: [], favorites: 'pas un tableau' })).toBe(true);
     expect(validateState({ ingredients: [], extraIngredients: 42 })).toBe(true);
     expect(validateState({ ingredients: [], aiConfig: 'cassé' })).toBe(true);
+  });
+});
+
+// Trouvé par l'auto-audit du LOT 014, en vérifiant les réponses des auditeurs : les DEUX
+// portes qui reçoivent des réglages IA externes les étalaient sans garde de forme suffisante.
+// `typeof [] === 'object'` : l'ancienne garde du cloud laissait passer un tableau, et celle
+// du fichier n'existait pas du tout. Le spread colle alors des clés `0/1/2` dans les réglages,
+// persistées puis poussées au cloud — même famille que le trou d'`importStockOnly` (§C1).
+describe('LOT 014 §C — la forme des réglages IA reçus (anti-clés parasites)', () => {
+  it('estUnObjetSimple écarte précisément ce que `typeof x === "object"` laissait passer', () => {
+    expect(estUnObjetSimple({ creativity: 90 })).toBe(true);
+    expect(estUnObjetSimple(['a', 'b'])).toBe(false); // le cas que l'ancienne garde ratait
+    expect(estUnObjetSimple('abc')).toBe(false);
+    expect(estUnObjetSimple(null)).toBe(false);
+  });
+
+  it('démontre le dégât évité : étaler une chaîne fabrique des clés 0/1/2', () => {
+    const defauts = { apiKey: '', creativity: 50 };
+    const pollue = { ...defauts, ...'abc' };
+    expect(pollue['0']).toBe('a'); // ce qui entrait dans les réglages de Joel
+    const protege = { ...defauts, ...(estUnObjetSimple('abc') ? 'abc' : {}) };
+    expect(protege['0']).toBeUndefined();
+    expect(protege.creativity).toBe(50); // et les réglages valides survivent
   });
 });
 

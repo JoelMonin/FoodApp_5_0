@@ -391,7 +391,42 @@ describe('LOT 015 / sous-lot C — sauvegarde et restauration', () => {
     // ─────────────────────────────────────────────────────────────────
     // Chantier 5 — l'articulation avec la synchro (le risque principal)
     // ─────────────────────────────────────────────────────────────────
-    describe('chantier 5 — articulation avec la synchro cloud', () => {
+    // LOT 014, volet C (trouvé à l'auto-audit) — `data.aiConfig || {}` n'écartait AUCUN type :
+// une chaîne ou un tableau se faisait étaler en clés `0/1/2` dans les réglages IA, puis
+// persister et pousser au cloud. `sanitizeGlobalState` ne les retire jamais.
+describe('LOT 014 §C — des réglages IA mal formés dans un fichier ne polluent pas l\'état', () => {
+    it('des réglages en CHAÎNE : aucune clé parasite, réglages par défaut conservés', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: 'cassé'
+        });
+
+        expect(state.aiConfig).not.toHaveProperty('0');
+        expect(state.aiConfig.creativity).toBe(aiConfig().creativity);
+    });
+
+    it('des réglages en TABLEAU : aucune clé parasite', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: ['a', 'b']
+        });
+
+        expect(state.aiConfig).not.toHaveProperty('0');
+        expect(state.aiConfig.creativity).toBe(aiConfig().creativity);
+    });
+
+    it('des réglages VALIDES passent toujours — la garde ne durcit rien d\'utile', async () => {
+        await restaurer({
+            ingredients: [{ id: 'i1', name: 'Pomme' }],
+            aiConfig: { creativity: 90, exclusions: 'noix' }
+        });
+
+        expect(state.aiConfig.creativity).toBe(90);
+        expect(state.aiConfig.exclusions).toBe('noix');
+    });
+});
+
+describe('chantier 5 — articulation avec la synchro cloud', () => {
         it('la restauration ATTEND VRAIMENT la fin d\'un envoi en vol : tant que la barrière '
            + 'n\'est pas levée, RIEN n\'est écrit — retirer le mot `await` du code laissait '
            + 'passer la version précédente de ce test', async () => {

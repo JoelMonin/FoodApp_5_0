@@ -1,5 +1,6 @@
 import { FB_URL, FB_USER } from '../constants.js';
 import { defaultAiConfig } from '../state.js';
+import { estUnObjetSimple } from '../utils/validate.js';
 
 /**
  * PÉRIMÈTRE du document synchronisé (LOT 007, spec §4.1) — SSOT : rien ne part au
@@ -75,7 +76,10 @@ export function extractSyncedState(cloudDoc) {
   for (const key of SYNC_ARRAY_KEYS) {
     patch[key] = Array.isArray(cloudDoc[key]) ? cloudDoc[key] : [];
   }
-  const cloudAi = (cloudDoc.aiConfig && typeof cloudDoc.aiConfig === 'object') ? cloudDoc.aiConfig : {};
+  // LOT 014, volet C — `typeof [] === 'object'` : l'ancienne garde laissait passer un
+  // TABLEAU, dont le spread colle des clés `0/1/2` dans les réglages IA (même famille que
+  // le trou d'`importStockOnly`). `estUnObjetSimple` exclut aussi les tableaux.
+  const cloudAi = estUnObjetSimple(cloudDoc.aiConfig) ? cloudDoc.aiConfig : {};
   const { apiKey, models, ...aiRest } = cloudAi;
   // Forme toujours complète : sous-champ absent → défaut. La clé API de ce patch est
   // vide et sera de toute façon remplacée par la clé LOCALE (applyExternalState) ;

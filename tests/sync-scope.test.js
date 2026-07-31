@@ -117,6 +117,26 @@ describe('extractSyncedState — ce qui revient du cloud (§4.3)', () => {
     expect(patch.aiConfig.diet).toEqual(['vegan']);
     expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
   });
+
+  // LOT 014, volet C (trouvé à l'auto-audit) — l'ancienne garde était
+  // `cloudDoc.aiConfig && typeof cloudDoc.aiConfig === 'object'`, or `typeof [] === 'object'`.
+  // Un TABLEAU passait, et son spread collait des clés `0/1/2` dans les réglages IA, ensuite
+  // persistées puis renvoyées au cloud. Même famille que le trou d'`importStockOnly` (§C1).
+  it('des réglages IA en TABLEAU ne polluent pas le patch avec des clés 0/1/2', () => {
+    const { patch } = extractSyncedState({ ingredients: [], aiConfig: ['a', 'b'] });
+
+    expect(patch.aiConfig).not.toHaveProperty('0');
+    expect(patch.aiConfig).not.toHaveProperty('1');
+    // Et on retombe proprement sur la forme complète par défaut.
+    expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
+  });
+
+  it('des réglages IA en CHAÎNE ne polluent pas non plus le patch', () => {
+    const { patch } = extractSyncedState({ ingredients: [], aiConfig: 'cassé' });
+
+    expect(patch.aiConfig).not.toHaveProperty('0');
+    expect(patch.aiConfig.creativity).toBe(defaultAiConfig().creativity);
+  });
 });
 
 describe('replaceShoppingChecked + applyExternalState — application locale', () => {

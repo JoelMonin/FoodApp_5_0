@@ -7,7 +7,7 @@ import { LOCAL_STORAGE_SYNC_REF_KEY, MAX_PINNED_INGREDIENTS, BACKUP_STATE_KEYS }
 // Gardes d'entrée : SSOT dans src/utils/validate.js (LOT 014, volet C). Les deux portes
 // d'import n'ont pas les mêmes exigences — `estUnIngredientPlausible` (nom ET id) pour le
 // remplacement total, `aUnNomExploitable`/`estFusionnable` pour la fusion douce.
-import { estUnIngredientPlausible, estFusionnable, aUnNomExploitable } from './utils/validate.js';
+import { estUnIngredientPlausible, estFusionnable, aUnNomExploitable, estUnObjetSimple } from './utils/validate.js';
 
 export function switchView(view) {
   state.currentView = view;
@@ -289,7 +289,10 @@ export function importJSON(file) {
       // Forme TOUJOURS complète, comme `extractSyncedState` : un fichier sans réglages (ou
       // aux réglages partiels) ne doit pas laisser `ppl`, `exclusions` ou les régimes
       // à `undefined`. La clé API locale est réinjectée juste après par applyExternalState.
-      patch.aiConfig = { ...defaultAiConfig(), ...(data.aiConfig || {}) };
+      // LOT 014, volet C — `data.aiConfig || {}` n'écartait AUCUN type : une chaîne ou un
+      // tableau se faisait étaler en clés `0/1/2` dans les réglages IA, puis persister et
+      // pousser au cloud. Même famille que le trou d'`importStockOnly`.
+      patch.aiConfig = { ...defaultAiConfig(), ...(estUnObjetSimple(data.aiConfig) ? data.aiConfig : {}) };
 
       // Restauration totale : passe par le point d'entrée unique des données
       // externes, qui préserve la clé API locale (LOT 008, chantier 3 — casse C3b).

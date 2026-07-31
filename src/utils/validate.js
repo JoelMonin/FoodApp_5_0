@@ -58,15 +58,24 @@ export function estFusionnable(i) {
   return texteNonVide(i.id) || aUnNomExploitable(i);
 }
 
-/**
- * Réglages IA acceptables : un objet, dont la clé API — si elle est présente — est bien une
- * chaîne. Le reste des champs est reposé en forme complète par les appelants
- * (`{ ...defaultAiConfig(), ...reçu }`), il n'y a donc rien d'autre à exiger ici.
+/*
+ * PAS de `isValidAiConfig` ici, et c'est délibéré (auto-audit du LOT 014, §C).
+ *
+ * La fiche du lot en demandait un (« objet ; `apiKey` absente ou string »). Il a été écrit,
+ * testé… puis retiré : AUCUN site de production n'a d'usage pour lui. Les deux endroits qui
+ * reçoivent des réglages IA externes (`src/actions.js` pour un fichier, `extractSyncedState`
+ * pour le cloud) **jettent la clé API reçue** — elle est systématiquement remplacée par la
+ * clé LOCALE (`applyExternalState`). Valider son type y aurait fait rejeter des réglages
+ * parfaitement bons (créativité, exclusions…) à cause d'un champ ignoré : le sur-durcissement
+ * que ce lot s'interdit.
+ *
+ * Ce dont ces deux sites avaient réellement besoin, c'est de la garde de FORME —
+ * `estUnObjetSimple` — parce que `typeof [] === 'object'` laissait passer un tableau, dont
+ * le spread colle des clés `0/1/2` dans les réglages. C'est elle qui y est branchée.
+ *
+ * Écrire un prédicat pour satisfaire la lettre d'une fiche, sans appelant, aurait créé
+ * exactement le code mort que ce lot existe pour éliminer.
  */
-export function isValidAiConfig(c) {
-  if (!estUnObjetSimple(c)) return false;
-  return c.apiKey === undefined || typeof c.apiKey === 'string';
-}
 
 /**
  * Recette acceptable venue de l'IA : un nom renseigné et raisonnable, et — s'ils sont
