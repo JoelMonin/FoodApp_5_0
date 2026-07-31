@@ -117,18 +117,35 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
         expect(c.sous).toMatch(/clé API/i);
     });
 
-    it('« Importer uniquement le stock » annonce une FUSION, le même fichier, '
-       + 'les quatre états repris et l\'ajout d\'inconnus — l\'ancien texte n\'en disait aucun', () => {
+    // LOT 014 (demande de Joel du 2026-07-31) — le titre « Importer uniquement le stock »
+    // portait à confusion : le mot « stock » laissait croire à une reprise de la seule
+    // disponibilité, alors que la fonction fusionne AUSSI le catalogue d'ingrédients
+    // (`src/actions.js`, branche d'ajout des inconnus). Renommé « Fusionner le catalogue ».
+    //
+    // ⚠️ ÉCART DE PRÉCISION ASSUMÉ PAR JOEL, tracé ici pour qu'il ne se perde pas : la
+    // nouvelle description ne nomme plus les ÉPINGLÉS ni les SURGELÉS, que la fusion reprend
+    // pourtant (`target.pinned` / `target.frozen`). Le LOT 015 les avait fait figurer exprès,
+    // parce que l'ancien texte en disait moins que ce que le bouton faisait. Les assertions
+    // correspondantes sont donc retirées — volontairement, pas par omission.
+    it('« Fusionner le catalogue » annonce une FUSION, le même fichier, ce qui est repris '
+       + 'et ce qui est épargné', () => {
         const c = carte('settings-import-stock-only');
-        expect(c.sous).toMatch(/douceur|fusion/i);
+        expect(c.titre).toBe('Fusionner le catalogue');
+        expect(c.sous).toMatch(/douceur|fusionne/i);
         expect(c.sous).toMatch(/MÊME fichier/i);
-        expect(c.sous).toMatch(/stock/i);
-        expect(c.sous).toMatch(/acheter/i);
-        expect(c.sous).toMatch(/épinglé/i);
-        expect(c.sous).toMatch(/surgelé/i);
+        expect(c.sous).toMatch(/base d'ingrédients/i); // le catalogue, ce que le titre promet
+        expect(c.sous).toMatch(/inventaire/i);
+        expect(c.sous).toMatch(/courses/i);
         expect(c.sous).toMatch(/ajoute/i);
+        expect(c.sous).toMatch(/favoris/i);
+        expect(c.sous).toMatch(/réglages/i);
         // L'inexactitude d'origine : il ne met pas à jour que « la disponibilité ».
         expect(c.sous).not.toMatch(/sans modifier votre configuration/i);
+    });
+
+    // Le titre ne doit plus employer « uniquement le stock » : c'est le mot qui trompait.
+    it('le titre ne promet plus « uniquement le stock » — la fusion touche aussi le catalogue', () => {
+        expect(carte('settings-import-stock-only').titre).not.toMatch(/uniquement le stock/i);
     });
 
     it('les deux cartes de fichier se distinguent nettement l\'une de l\'autre', () => {
