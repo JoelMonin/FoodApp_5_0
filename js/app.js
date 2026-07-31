@@ -59,6 +59,17 @@ import {
   initSwipeToClose,
   registerModalHooks
 } from '../src/ui/modals.js';
+// Ecran « Reglages » et sa fiche technique — extraits d'ici au LOT 017. `updateApiStatus` et
+// `onApiConfigOpen` sont partis avec, bien qu'absents du plan : la premiere n'etait appelee
+// que par cet ecran, la seconde etait un `if` loge dans `openModal`.
+import {
+  updateSystemInfo,
+  updateApiStatus,
+  onApiConfigOpen,
+  renderAiModelsInfo,
+  saveApiKey,
+  saveAiConfigFromUI
+} from '../src/ui/settings.js';
 import {
   openEnhancedCartPicker,
   confirmRecipeToCart,
@@ -719,12 +730,6 @@ function toggleAiChip(field, el) {
     saveState(false);
 }
 
-function saveAiConfigFromUI() {
-    state.aiConfig.exceptions = document.getElementById('ai-exceptions')?.value || '';
-    state.aiConfig.exclusions = document.getElementById('ai-exclusions')?.value || '';
-    state.aiConfig.creativity = parseInt(document.getElementById('creativity-slider')?.value || '50');
-    saveState(false);
-}
 
 
 function buildRecipeHandlers(r, source, favId) {
@@ -912,63 +917,7 @@ async function exportClipboard(type) {
     else toast('Erreur lors de la copie', 'error');
 }
 
-function updateSystemInfo() {
-    // LOT 007 a rebranché #info-last-sync/#info-network (oracle l.4466-4482).
-    // LOT 009 complète avec les 3 derniers champs (oracle l.4443-4464) et retire
-    // la branche morte #system-storage, un id qui n'existe nulle part (0 occurrence).
-    const syncEl = document.getElementById('info-last-sync');
-    if (syncEl) {
-        let raw = null;
-        try { raw = localStorage.getItem(SYNC_LAST_KEY); } catch { /* affichage seulement */ }
-        if (!raw) {
-            syncEl.textContent = 'Jamais synchronisé';
-        } else {
-            syncEl.textContent = new Date(raw).toLocaleString('fr-FR', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        }
-    }
-
-    const keyEl = document.getElementById('info-api-key');
-    if (keyEl) {
-        const key = state.aiConfig?.apiKey || '';
-        const isConfigured = key.length > 10;
-        const last4 = key.length > 4 ? key.slice(-4) : '****';
-        keyEl.replaceChildren(
-            isConfigured
-                ? h('span', {}, [`****${last4}`, h('span', { class: 'system-info-value tag green' }, 'Configurée (Locale)')])
-                : h('span', {}, ['Non configurée', h('span', { class: 'system-info-value tag red' }, 'Manquante')])
-        );
-    }
-
-    const fbUserEl = document.getElementById('info-fb-user');
-    if (fbUserEl) fbUserEl.textContent = FB_USER;
-
-    const storageEl = document.getElementById('info-storage');
-    if (storageEl) {
-        let raw = '';
-        try { raw = localStorage.getItem(LOCAL_STORAGE_KEY) || ''; } catch { /* affichage seulement */ }
-        const sizeKB = (raw.length / 1024).toFixed(2);
-        storageEl.replaceChildren(
-            h('code', {}, LOCAL_STORAGE_KEY),
-            h('span', { style: { opacity: '0.6', fontSize: '11px', marginLeft: '4px' } }, `(${sizeKB} KB)`)
-        );
-    }
-
-    updateNetworkInfo();
-    updateApiStatus();
-}
-
-function updateApiStatus() {
-    const dot = document.getElementById('api-status-dot');
-    const label = document.getElementById('api-status-label');
-    if (!dot || !label) return;
-    const hasKey = !!state.aiConfig?.apiKey;
-    dot.classList.toggle('off', !hasKey);
-    dot.classList.toggle('on', hasKey);
-    label.textContent = hasKey ? 'Gemini AI : On' : 'Gemini AI : Off';
-}
+// LOT 017 — l'ecran des REGLAGES et sa fiche technique vivent dans `src/ui/settings.js`.
 
 function updateBadges() {
     const { stock: stockCount, cart: cartCount } = countStockAndCart();
@@ -1063,25 +1012,8 @@ function resetPasteModal() {
     }
 }
 
-// Meme remarque : logique des REGLAGES, pas des modales. Partira dans `src/ui/settings.js`.
-function onApiConfigOpen() {
-    const keyInput = document.getElementById('api-key-input');
-    if (keyInput && state.aiConfig?.apiKey) keyInput.value = state.aiConfig.apiKey;
-    renderAiModelsInfo();
-}
-
-/**
- * Bloc d'information en lecture seule sur les modèles IA (LOT 010, arbitrage §6).
- * Dérivé de la SSOT (`state.aiConfig.models`, toujours réalignée sur `AI_ROLES` par
- * `sanitizeGlobalState`) — aucun nom de modèle n'est jamais écrit en dur ici.
- */
-function renderAiModelsInfo() {
-    const el = document.getElementById('api-models-info');
-    if (!el) return;
-    const models = state.aiConfig?.models || {};
-    el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
-        `Catégories et emojis : ${models.categorySuggest}`;
-}
+// LOT 017 — `onApiConfigOpen` et `renderAiModelsInfo` sont partis avec l'ecran des reglages.
+// Le crochet branche plus bas pointe desormais directement sur `src/ui/settings.js`.
 
 
 
@@ -1368,18 +1300,6 @@ const toggleCart = Actions.toggleCart;
 const deleteIngredient = Actions.deleteIngredient;
 const toggleShoppingCheck = Actions.toggleShoppingCheck;
 const removeFromCart = Actions.removeFromCart;
-function saveApiKey() {
-    // LOT 012, zone C (oracle l.6589-6594) : aucune garde sur la cle vide — vider le
-    // champ puis Sauver doit pouvoir effacer une cle existante (l'ancien blocage
-    // rendait ce cas impossible, contrairement a l'oracle).
-    const key = document.getElementById('api-key-input')?.value?.trim() || '';
-    state.aiConfig.apiKey = key;
-
-    saveState();
-    updateApiStatus();
-    closeModal('modal-api-config');
-    toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
-}
 
 
 function initKeyboardShortcuts() {
