@@ -469,13 +469,12 @@ localement le bénéfice du LOT 013.
       passe par `replaceShoppingChecked`. Invariant verrouillé par `const` sur les 3 bindings.
       6 tests neufs, dont la démonstration d'équivalence exigée par la fiche. **582/582.**
 - [ ] `validate.js` en place sur les 3 portes (cloud, localStorage, IA)
-- [ ] **Volet G soldé** : plus aucune occurrence de `customCartItems` dans `js/` ni `src/`
-      (`grep` de contrôle documenté dans le commit) ; paramètre `type` mort retiré de
-      `toggleShoppingCheck`/`removeFromCart` **et de `src/ui/shopping.js:64`** ; tests du LOT 015
-      dédiés aux articles libres supprimés, pas neutralisés ; **les 2 libellés d'`index.html`
-      (`:535`, `:571`) réécrits** avec leurs tests (`settings-labels.test.js:100`, `:154`) ;
-      **`delete state.customCartItems` posé dans `sanitizeGlobalState`** sur le modèle de
-      `src/state.js:171`, sinon la clé survit indéfiniment dans le localStorage de Joel
+- [x] **Volet G soldé (2026-07-31)** : plus aucune occurrence de `customCartItems` dans `js/`
+      ni `src/` hors commentaires et filet d'élagage (`grep` de contrôle dans le commit) ;
+      paramètre `type` mort retiré des deux fonctions **et de `src/ui/shopping.js`** ; les 7
+      tests dédiés du LOT 015 supprimés, pas neutralisés ; les 2 libellés d'`index.html`
+      réécrits avec leurs tests **inversés** (interdiction que la mention réapparaisse sans la
+      fonction) ; `delete state.customCartItems` posé dans `sanitizeGlobalState`. **617/617.**
 - [ ] Zéro duplication SSOT connue restante (liste D soldée ou en fiches backlog)
 - [ ] Les 2 verrous anti-récidive en place et rouges quand on les provoque
 - [ ] Validation unifiée verte, build OK, **check-list de la fiche régressions re-parcourue
@@ -648,6 +647,53 @@ garde de recette IA, échappement dans les deux prompts → **8 tests virent au 
 restaient verts (`confirm` est simulé). Détecté par relecture du `grep` de contrôle, pas par la
 suite de tests. **Un remplacement textuel global se vérifie site par site, jamais au compteur
 de tests verts.**
+
+### Étape G — suppression des « articles libres » (2026-07-31)
+
+**Décidée par Joel le 2026-07-30** (« et si on effaçait ces articles libres, et qu'on n'en
+parlait plus »), après avoir constaté que la fonction ne lui servait pas. Vestige à demi
+branché : conservé, synchronisé, sauvegardé et copié — mais **jamais affiché ni créable**.
+
+**Discipline appliquée** : 3 recherches convergentes avant tout retrait (appel direct, accès
+dynamique par clé en chaîne, config/scripts annexes). Les recherches 2 et 3 n'ont **rien**
+révélé de plus que la recherche directe — l'inventaire de la découverte était complet.
+
+**10 sites de production traités** : valeur par défaut et garde d'existence (`src/state.js`) ·
+périmètre du fichier de sauvegarde (`src/constants.js`) · périmètre du document cloud
+(`src/services/firebase.js`) · `resetCart` et la remise à zéro globale (`src/actions.js`) ·
+rubrique `[ ARTICLES LIBRES ]` et comptage du toast (`js/app.js`) · les 2 libellés lus par
+Joel (`index.html`) · le paramètre `type` mort de `toggleShoppingCheck`/`removeFromCart` **et
+sa fabrication `type: 'db'`** dans `src/ui/shopping.js` (que la fiche n'avait pas listée).
+
+**Ajout hors inventaire de la fiche — le filet d'élagage.** `saveState` sérialise `state` en
+entier et `loadState` le refusionne : sans `delete state.customCartItems` dans
+`sanitizeGlobalState`, la clé aurait survécu **indéfiniment** dans le stockage de Joel, aurait
+été re-sauvegardée puis renvoyée au cloud. Le patron existait déjà juste au-dessus (le filet
+`shoppingChecked` du LOT 015). Un appareil déjà pollué se répare donc seul au démarrage.
+
+**Tests — 7 supprimés, 6 réécrits, 2 ajoutés (615 → 617)** :
+- les 7 tests du « chantier 3 » du LOT 015 décrivaient un comportement qui n'existe plus :
+  **supprimés, pas neutralisés**. Une seule de leurs preuves a été conservée en la reportant
+  sur `state.ingredients`, parce qu'elle porte sur du code toujours en production
+  (`copyableItems`, garde de type) — la retirer avec le reste l'aurait laissée sans test.
+- **les 2 tests de libellés ont été INVERSÉS plutôt que supprimés** : ils interdisent désormais
+  que la mention « articles libres » réapparaisse sans la fonction. Un test supprimé n'aurait
+  rien empêché.
+- 2 tests neufs pour le filet d'élagage.
+
+**Précision trouvée en écrivant un test** : `copyableItems` ne RÉCUPÈRE pas un tableau creux
+renvoyé en objet par Firebase — il empêche seulement le plantage, et produit une liste vide,
+donc le garde-fou « rien à copier ». Ma première version du test supposait l'inverse ; c'est le
+comportement réel qui est figé.
+
+**Vérifié par retrait** : filet d'élagage neutralisé → 2 tests rouges ; libellé remis à
+l'ancien → 1 test rouge.
+
+**Effets pour Joel, annoncés avant livraison** : sa liste de courses copiée n'inclut plus le
+« porc haché » (seul endroit où ce vestige était encore visible) ; les sauvegardes créées
+désormais ne portent plus le champ ; et — correction de la fiche — **le cloud ne conserve pas
+une copie périmée : le champ y est EFFACÉ dès le premier envoi suivant**, `syncPush` faisant
+un remplacement entier d'un document reconstruit de zéro.
 
 ---
 

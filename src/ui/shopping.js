@@ -18,7 +18,7 @@ export function renderShoppingItem(item, isChecked, handlers) {
     class: `shop-item${isChecked ? ' checked' : ''}`,
     'data-testid': 'shop-item',
     'data-item-id': item.id,
-    onclick: () => toggleShoppingCheck(item.id, item.type)
+    onclick: () => toggleShoppingCheck(item.id)
   }, [
     h('div', { class: `si-check${isChecked ? ' done' : ''}` }),
     h('div', { style: { display: 'flex', flexDirection: 'column', flex: 1, padding: '4px 0' } }, [
@@ -31,7 +31,7 @@ export function renderShoppingItem(item, isChecked, handlers) {
     ]),
     h('span', {
       class: 'si-del',
-      onclick: (e) => { e.stopPropagation(); removeFromCart(item.id, item.type); },
+      onclick: (e) => { e.stopPropagation(); removeFromCart(item.id); },
       title: 'Retirer'
     }, '✕')
   ]);
@@ -61,7 +61,10 @@ export function renderShoppingList(containerEl, cartItems, shoppingChecked, hand
   cartItems.forEach(ing => {
     const cat = ing.category || 'Autres';
     if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push({ ...ing, type: 'db' });
+    // LOT 014, volet G : plus de `type: 'db'`. Ce marqueur ne servait qu'à distinguer un
+    // ingrédient d'un « article libre » ; les articles libres ayant été supprimés, la liste
+    // de courses n'a plus qu'une seule source.
+    grouped[cat].push({ ...ing });
   });
 
   const fragment = document.createDocumentFragment();

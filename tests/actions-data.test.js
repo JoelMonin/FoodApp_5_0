@@ -62,7 +62,6 @@ describe('Actions — LOT 008 Données en sécurité', () => {
     // (même précaution que tests/state.test.js).
     Object.assign(state, {
       ingredients: [],
-      customCartItems: [],
       favorites: [],
       extraIngredients: [],
       currentView: 'pantry',
@@ -416,17 +415,20 @@ describe('Actions — LOT 008 Données en sécurité', () => {
   });
 
   describe('Chantier 7 — hygiène de shoppingChecked (F7)', () => {
-    it('resetCart vide le Set shoppingChecked ET customCartItems', () => {
-      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true })];
-      state.customCartItems = [{ id: 'custom_1', name: 'Pain' }];
+    it('resetCart vide le Set shoppingChecked et sort tous les ingrédients du panier', () => {
+      state.ingredients = [
+        makeIngredient({ id: 'ing_1', inCart: true }),
+        makeIngredient({ id: 'ing_2', inCart: true, inStock: true })
+      ];
       shoppingChecked.add('ing_1');
-      shoppingChecked.add('custom_1');
+      shoppingChecked.add('ing_2');
 
       resetCart();
 
       expect(shoppingChecked.size).toBe(0);
-      expect(state.customCartItems).toEqual([]);
-      expect(state.ingredients[0].inCart).toBe(false);
+      expect(state.ingredients.every(i => i.inCart === false)).toBe(true);
+      // volet G : le stock n'est PAS touché — c'est la promesse du libellé.
+      expect(state.ingredients[1].inStock).toBe(true);
     });
 
     it('toggleCart (sortie du panier) retire l\'id du Set', () => {

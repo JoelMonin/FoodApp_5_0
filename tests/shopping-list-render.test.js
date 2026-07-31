@@ -17,7 +17,7 @@ function handlers(over = {}) {
 }
 
 function cartItem(over = {}) {
-    return { ...makeIngredient(), type: 'db', ...over };
+    return { ...makeIngredient(), ...over };
 }
 
 describe('LOT 013 — renderShoppingList', () => {
@@ -72,20 +72,20 @@ describe('LOT 013 — renderShoppingList', () => {
 });
 
 describe('LOT 013 — renderShoppingItem', () => {
-    it('cliquer la ligne appelle toggleShoppingCheck(id, type)', () => {
+    it('cliquer la ligne appelle toggleShoppingCheck(id)', () => {
         const h = handlers();
-        const item = renderShoppingItem(cartItem({ id: 'x1', type: 'db' }), false, h);
+        const item = renderShoppingItem(cartItem({ id: 'x1' }), false, h);
         document.body.appendChild(item);
         item.click();
-        expect(h.toggleShoppingCheck).toHaveBeenCalledWith('x1', 'db');
+        expect(h.toggleShoppingCheck).toHaveBeenCalledWith('x1'); // volet G : le 2e param mort a disparu
     });
 
     it('cliquer la croix retire l\'article SANS cocher (stopPropagation)', () => {
         const h = handlers();
-        const item = renderShoppingItem(cartItem({ id: 'x2', type: 'db' }), false, h);
+        const item = renderShoppingItem(cartItem({ id: 'x2' }), false, h);
         document.body.appendChild(item);
         item.querySelector('.si-del').click();
-        expect(h.removeFromCart).toHaveBeenCalledWith('x2', 'db');
+        expect(h.removeFromCart).toHaveBeenCalledWith('x2'); // volet G : idem
         expect(h.toggleShoppingCheck).not.toHaveBeenCalled();
     });
 

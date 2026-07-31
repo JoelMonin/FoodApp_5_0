@@ -293,7 +293,7 @@ export function mockLocalStorage() {
  */
 export function resetTestState(state, shoppingChecked, defaultAiConfig, overrides = {}) {
     Object.assign(state, {
-        ingredients: [], customCartItems: [], favorites: [], extraIngredients: [],
+        ingredients: [], favorites: [], extraIngredients: [],
         currentView: 'pantry', filter: 'all', search: '',
         aiSuggestions: null, currentSuggestionIdx: null, lastSync: null,
         showInStockOnly: false, showInCartOnly: false,

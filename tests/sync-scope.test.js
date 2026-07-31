@@ -16,7 +16,6 @@ import {
 function fullTestState(overrides = {}) {
   return {
     ingredients: [{ id: 'ing_1', name: 'Pomme', emoji: '🍎', category: 'Fruits', inStock: true }],
-    customCartItems: [{ id: 'cci_1', name: 'Pain' }],
     favorites: [{ id: 'fav_1', name: 'Tarte' }],
     extraIngredients: [{ name: 'Safran' }],
     aiConfig: {
@@ -63,10 +62,13 @@ describe('buildSyncDocument — ce qui part au cloud (§4.1)', () => {
     expect(doc.shoppingChecked).toEqual(['ing_1', 'cci_1']);
   });
 
-  it('contient les quatre tableaux de données et les réglages IA', () => {
+  // LOT 014, volet G : `customCartItems` est sorti du périmètre synchronisé — ils ne sont
+  // plus TROIS tableaux et non quatre. Le test vérifie aussi, désormais, que la clé retirée
+  // ne repart PAS au cloud : c'est ce qui l'efface du document de Joel au premier envoi.
+  it('contient les trois tableaux de données et les réglages IA, et plus les articles libres', () => {
     const doc = buildSyncDocument(fullTestState(), []);
     expect(doc.ingredients).toHaveLength(1);
-    expect(doc.customCartItems).toHaveLength(1);
+    expect(doc).not.toHaveProperty('customCartItems');
     expect(doc.favorites).toHaveLength(1);
     expect(doc.extraIngredients).toHaveLength(1);
     expect(doc.aiConfig.diet).toEqual(['vegetarien']);
@@ -88,7 +90,8 @@ describe('extractSyncedState — ce qui revient du cloud (§4.3)', () => {
     const { patch } = extractSyncedState({ ingredients: [] });
     expect(patch.favorites).toEqual([]);
     expect(patch.extraIngredients).toEqual([]);
-    expect(patch.customCartItems).toEqual([]);
+    // volet G : la clé n'est plus du périmètre, donc jamais reconstruite dans le patch.
+    expect(patch).not.toHaveProperty('customCartItems');
   });
 
   it('document sans shoppingChecked (ancien client) → « aucune coche », jamais une erreur', () => {

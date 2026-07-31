@@ -96,10 +96,14 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
         expect(c.sous).not.toMatch(/course/i);
     });
 
-    // ─── Chantier 3 : les articles libres sont désormais inclus, il faut le dire ───
-    it('« Copier ma liste de courses » annonce les articles libres, maintenant qu\'ils y sont', () => {
+    // ─── LOT 014, volet G : les articles libres ont été SUPPRIMÉS (décision de Joel du
+    // 2026-07-30). Le texte du LOT 015 qui les annonçait deviendrait un mensonge — c'est
+    // exactement le défaut que le LOT 015 avait corrigé, à l'envers. Le test ne disparaît
+    // pas : il s'inverse, pour interdire que la mention réapparaisse sans la fonction. ───
+    it('« Copier ma liste de courses » ne promet plus d\'articles libres (supprimés, volet G)', () => {
         const c = carte('settings-copy-cart');
-        expect(c.sous).toMatch(/articles libres/i);
+        expect(c.sous).not.toMatch(/articles libres/i);
+        expect(c.sous).toMatch(/acheter/i); // mais dit toujours ce qu'il copie
     });
 
     // ─── Chantier 5 : la clé API ne sort jamais dans le fichier ───
@@ -167,11 +171,12 @@ describe('LOT 015 / sous-lot B — les cartes de Réglages disent la vérité', 
         expect(carte('settings-reset-all').sous).toMatch(/cloud/i);
     });
 
-    // ─── Chantier 7 : comportement inchangé, texte complété ───
-    it('« Réinitialiser mon panier » dit qu\'il emporte AUSSI les articles libres '
-       + 'et qu\'il épargne le stock', () => {
+    // ─── LOT 014, volet G : même inversion que ci-dessus. Ce qui compte et qui reste
+    // vrai, c'est la promesse que le stock est épargné. ───
+    it('« Réinitialiser mon panier » ne parle plus d\'articles libres, et promet toujours '
+       + 'que le stock est épargné', () => {
         const c = carte('settings-reset-cart');
-        expect(c.sous).toMatch(/articles libres/i);
+        expect(c.sous).not.toMatch(/articles libres/i);
         expect(c.sous).toMatch(/stock n'est pas touché/i);
     });
 

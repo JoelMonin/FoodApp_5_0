@@ -17,7 +17,11 @@ import { estUnObjetSimple } from '../utils/validate.js';
  * - `lastSync`          : métadonnée LOCALE (localStorage), hors document — dans le
  *                         document, chaque succès réamorçait la boucle (audit Codex v2).
  */
-const SYNC_ARRAY_KEYS = ['ingredients', 'favorites', 'extraIngredients', 'customCartItems'];
+// LOT 014, volet G : `customCartItems` retiré du périmètre. Conséquence à connaître —
+// `buildSyncDocument` reconstruit le document DE ZÉRO et `syncPush` fait un PUT (remplacement
+// entier) : le champ est donc EFFACÉ du cloud dès le premier envoi suivant, pas seulement
+// ignoré. Annoncé à Joel le 2026-07-31, décision maintenue.
+const SYNC_ARRAY_KEYS = ['ingredients', 'favorites', 'extraIngredients'];
 
 // Une requête pendante bloquait indéfiniment (F9) : délai d'expiration unique (§4.7).
 const SYNC_TIMEOUT_MS = 15000;

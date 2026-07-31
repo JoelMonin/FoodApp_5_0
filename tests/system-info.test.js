@@ -29,7 +29,7 @@ describe('Panneau Informations Système (LOT 009, casse C8)', () => {
     `;
     Object.assign(state, {
       ingredients: [makeIngredient()],
-      customCartItems: [], favorites: [], extraIngredients: [],
+      favorites: [], extraIngredients: [],
       currentView: 'export', filter: 'all', search: '',
       aiSuggestions: null, currentSuggestionIdx: null, lastSync: null,
       showInStockOnly: false, showInCartOnly: false,

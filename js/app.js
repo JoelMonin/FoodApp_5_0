@@ -1562,22 +1562,15 @@ function groupByCategory(ingredients) {
     return [...grouped.keys()].sort().map(cat => [cat, grouped.get(cat)]);
 }
 
-// LOT 015, chantier 3 : rubrique des articles libres de la liste de courses.
-// Nom volontairement NON collidable avec une vraie categorie -- `Autres` en est une
-// (src/data.js:32) ET le repli impose a tout ingredient sans categorie (src/state.js:173),
-// donc y verser les articles libres les melangerait a de vrais ingredients.
-const FREE_ITEMS_SECTION = '[ ARTICLES LIBRES ]';
-
 /**
  * Nom affichable d'un article, ou null s'il n'en a pas (LOT 015, audit Gemini Q12 puis
- * audit adversarial). Vaut pour les DEUX sources :
- *  - `customCartItems` n'est JAMAIS normalise par sanitizeGlobalState (src/state.js ne
- *    garantit que l'existence du tableau) ;
- *  - `state.ingredients` l'est, mais `sanitizeGlobalState` garantit `category` et `emoji`,
- *    PAS `name` (il ne recopie que l'ancien champ court `n`). Un ingredient venu du cloud
- *    sans nom produisait « 🥩 undefined » dans le texte copie, avec un toast annoncant
- *    « 1 ingredient » : le compte mentait.
- * Un article sans nom exploitable est ignore, jamais rendu.
+ * audit adversarial).
+ *
+ * TOUJOURS NECESSAIRE APRES LA SUPPRESSION DES ARTICLES LIBRES (LOT 014, volet G) :
+ * `sanitizeGlobalState` garantit `category` et `emoji` sur un ingredient, PAS `name` (il ne
+ * recopie que l'ancien champ court `n`). Un ingredient venu du cloud sans nom produisait
+ * « 🥩 undefined » dans le texte copie, avec un toast annoncant « 1 ingredient » : le compte
+ * mentait. Un article sans nom exploitable est ignore, jamais rendu.
  */
 function itemDisplayName(item) {
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
@@ -1637,33 +1630,21 @@ function buildClipboardText(type) {
         };
     }
 
-    // Chantier 3 : la liste de courses ignorait les articles libres (oracle l.6476-6479 :
-    // les deux sources). La rubrique dediee est concatenee APRES la boucle, jamais via
-    // groupByCategory : son tri par defaut (l.1533) placerait `[` avant les categories
-    // accentuees, donc un simple choix de nom ne suffirait pas a la mettre en fin.
+    // LOT 014, volet G : la rubrique « [ ARTICLES LIBRES ] » posee au LOT 015 a ete retiree
+    // avec la fonctionnalite (decision de Joel du 2026-07-30). La liste de courses n'a plus
+    // qu'une seule source : les ingredients marques « a acheter ».
+    // `copyableItems` reste NECESSAIRE : il protege du TYPE (un tableau creux renvoye par
+    // Firebase arrive en objet), ce qui vaut aussi pour `state.ingredients`.
     if (type === 'cart') {
         const items = copyableItems(state.ingredients).filter(i => i.inCart);
-        // `copyableItems` protege aussi du TYPE : `customCartItems` arrivait parfois en
-        // objet (forme d'un tableau creux renvoyee par Firebase) ou en chaine, et le `.map`
-        // levait alors une exception HORS du try/catch -- le bouton ne faisait plus rien,
-        // sans le moindre message (audit adversarial du 2026-07-30).
-        const freeItems = copyableItems(state.customCartItems)
-            .map(item => ({ name: itemDisplayName(item), emoji: item.emoji || '🔸' }));
         const sections = groupByCategory(items).map(([cat, catItems]) =>
             `[ ${clipboardSectionLabel(cat)} ]\n` +
             catItems.map(i => `☐ ${i.emoji || '🔸'} ${i.name}`).join('\n')
         );
-        if (freeItems.length) {
-            sections.push(
-                `${FREE_ITEMS_SECTION}\n` +
-                freeItems.map(i => `☐ ${i.emoji} ${i.name}`).join('\n')
-            );
-        }
-        const total = items.length + freeItems.length;
         return {
-            count: total,
+            count: items.length,
             emptyMessage: 'Votre liste de courses est vide — rien à copier',
-            successMessage: `Liste de courses copiée (${clipboardCount(total, 'article')})`,
+            successMessage: `Liste de courses copiée (${clipboardCount(items.length, 'article')})`,
             header: `🛒 LISTE DE COURSES (${date})\n\n`,
             body: sections.join('\n\n')
         };

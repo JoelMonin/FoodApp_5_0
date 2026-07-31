@@ -30,7 +30,7 @@ describe('Édition d\'icône d\'ingrédient (LOT 009, casse C1)', () => {
     `;
     Object.assign(state, {
       ingredients: [makeIngredient()],
-      customCartItems: [], favorites: [], extraIngredients: [],
+      favorites: [], extraIngredients: [],
       currentView: 'pantry', filter: 'all', search: '',
       aiSuggestions: null, currentSuggestionIdx: null, lastSync: null,
       showInStockOnly: false, showInCartOnly: false,

@@ -60,7 +60,6 @@ describe('Moteur de synchro — LOT 007', () => {
     // Reset du singleton d'état partagé entre les tests.
     Object.assign(state, {
       ingredients: [makeIngredient()],
-      customCartItems: [],
       favorites: [],
       extraIngredients: [],
       currentView: 'pantry',
@@ -139,7 +138,7 @@ describe('Moteur de synchro — LOT 007', () => {
     it('une application issue de la synchro ne planifie AUCUN envoi', async () => {
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'cloud_1', name: 'Poire' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: ['cloud_1']
       });
 
@@ -154,7 +153,7 @@ describe('Moteur de synchro — LOT 007', () => {
     it('après un pull appliqué, sauvegarder un champ NON synchronisé ne déclenche aucun envoi (constat Codex)', async () => {
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'cloud_1', name: 'Poire' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: []
       });
       await performSyncPull();
@@ -197,7 +196,7 @@ describe('Moteur de synchro — LOT 007', () => {
     it('C2 : un réglage IA modifié pendant un pull en vol n\'est pas écrasé par la photo cloud', async () => {
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient()],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: { creativity: 50 }, shoppingChecked: []
       });
       // Le GET aboutit APRÈS que Joel a réglé la créativité de 50 à 80.
@@ -295,7 +294,7 @@ describe('Moteur de synchro — LOT 007', () => {
       // Le cloud porte des exclusions déjà enregistrées, différentes de la saisie en cours.
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ inStock: true })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         shoppingChecked: [],
         aiConfig: { ...defaultAiConfig(), exclusions: 'valeur venue du cloud' }
       });
@@ -518,7 +517,7 @@ describe('Moteur de synchro — LOT 007', () => {
         // Le cloud, lui, a été mis à jour par un autre appareil entre-temps.
         cloudStore = JSON.stringify({
           ingredients: [makeIngredient({ id: 'cloud_recent', name: 'Plus récent' })],
-          favorites: [], extraIngredients: [], customCartItems: [],
+          favorites: [], extraIngredients: [],
           aiConfig: {}, shoppingChecked: []
         });
 
@@ -540,7 +539,7 @@ describe('Moteur de synchro — LOT 007', () => {
       localStorage.setItem('pantry_v5_sync_pending', '1');
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'vieux_cloud' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: []
       });
 
@@ -624,7 +623,7 @@ describe('Moteur de synchro — LOT 007', () => {
       localStorage.setItem('pantry_v5_sync_pending', '1'); // fermeture précipitée simulée
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'vieux_cloud', name: 'Périmé' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: []
       });
 
@@ -642,7 +641,7 @@ describe('Moteur de synchro — LOT 007', () => {
       });
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'cloud_1' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: []
       });
 
@@ -747,7 +746,7 @@ describe('Moteur de synchro — LOT 007', () => {
     it('des gestes pendant la requête de pull écartent la photo cloud (garde-fou d\'empreinte, LOT 005 généralisé)', async () => {
       cloudStore = JSON.stringify({
         ingredients: [makeIngredient({ id: 'cloud_1', name: 'Photo périmée' })],
-        favorites: [], extraIngredients: [], customCartItems: [],
+        favorites: [], extraIngredients: [],
         aiConfig: {}, shoppingChecked: []
       });
       // Le GET aboutit APRÈS un geste local : la réponse est une photo d'avant.

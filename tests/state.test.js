@@ -25,7 +25,6 @@ describe('State Management', () => {
     // tests, un reset partiel laissait fuir filtres, favoris et config d'un test a l'autre.
     Object.assign(state, {
       ingredients: [],
-      customCartItems: [],
       favorites: [],
       extraIngredients: [],
       currentView: 'pantry',
@@ -85,19 +84,33 @@ describe('State Management', () => {
     );
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // LOT 014, VOLET B — l'état est MUTÉ, jamais remplacé.
-  //
-  // Ce que ce bloc protège : `js/app.js` garde un alias local de l'état
-  // (`const state = moduleState`, js/app.js:29) capturé UNE FOIS à l'import. Tant que
-  // `src/state.js` mute son objet, cet alias reste valide pour toujours. S'il le
-  // remplaçait, l'alias pointerait sur l'ancien objet et l'app travaillerait sur des
-  // données périmées sans aucun signal — le défaut le plus silencieux du projet. Trois
-  // rattrapages manuels compensaient cela ; ils ont été supprimés, ce bloc les remplace.
-  //
-  // La fiche du lot exigeait explicitement de DÉMONTRER PAR UN TEST l'équivalence stricte
-  // sur `aiConfig` et sur les tableaux — c'est l'objet des trois derniers tests.
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // LOT 014, volet G — les « articles libres » ont été supprimés (décision de Joel du
+  // 2026-07-30). `saveState` sérialise `state` en ENTIER et `loadState` le refusionne : sans
+  // élagage, une clé écrite par une version antérieure survivrait indéfiniment dans le
+  // stockage de Joel, serait re-sauvegardée, et repartirait au cloud. Ce filet répare donc
+  // un appareil déjà pollué, tout seul, au premier démarrage.
+  describe('LOT 014 §G — un stockage contenant encore des articles libres se répare seul', () => {
+    it('sanitizeGlobalState élague la clé supprimée', () => {
+      state.customCartItems = [{ id: 'vieux', name: 'piles' }];
+
+      sanitizeGlobalState();
+
+      expect('customCartItems' in state).toBe(false);
+    });
+
+    it('un stockage local qui en contient encore ne la réintroduit pas dans l\'état', () => {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+        ingredients: [{ id: '1', name: 'Miel' }],
+        customCartItems: [{ id: 'vieux', name: 'piles' }]
+      }));
+
+      loadState();
+
+      expect('customCartItems' in state).toBe(false);
+      expect(state.ingredients[0].name).toBe('Miel'); // le reste passe normalement
+    });
+  });
+
   // LOT 014, volet C — le `try/catch` de `loadState` ne protégeait que du JSON ILLISIBLE.
   // Un JSON parfaitement lisible mais du mauvais TYPE passait tout droit : `Object.assign`
   // d'une chaîne colle des clés `0/1/2` dans l'état, qui sont ensuite persistées puis
@@ -144,6 +157,19 @@ describe('State Management', () => {
     });
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LOT 014, VOLET B — l'état est MUTÉ, jamais remplacé.
+  //
+  // Ce que ce bloc protège : `js/app.js` garde un alias local de l'état
+  // (`const state = moduleState`) capturé UNE FOIS à l'import. Tant que `src/state.js`
+  // mute son objet, cet alias reste valide pour toujours. S'il le remplaçait, l'alias
+  // pointerait sur l'ancien objet et l'app travaillerait sur des données périmées sans
+  // aucun signal — le défaut le plus silencieux du projet. Trois rattrapages manuels
+  // compensaient cela ; ils ont été supprimés, ce bloc les remplace.
+  //
+  // La fiche du lot exigeait explicitement de DÉMONTRER PAR UN TEST l'équivalence stricte
+  // sur `aiConfig` et sur les tableaux — c'est l'objet des trois derniers tests.
+  // ═══════════════════════════════════════════════════════════════════════════════
   describe('LOT 014 §B — identité de l\'état préservée', () => {
     it('setState ne REMPLACE jamais l\'objet d\'état : un alias capturé avant reste valide', () => {
       const aliasCaptureAvant = state; // ce que fait js/app.js:29, une fois pour toutes

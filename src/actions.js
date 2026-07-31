@@ -81,13 +81,19 @@ export function deleteIngredient(id) {
   }
 }
 
-export function toggleShoppingCheck(id, type) {
+// LOT 014, volet G : le 2ᵉ paramètre `type` a disparu de ces deux fonctions. Il datait de
+// l'oracle, où il aiguillait entre `state.ingredients` et les articles libres
+// (`foodapp-v5-Joel.html:4821-4832`). Ici il n'était plus lu par aucun corps de fonction, et
+// son unique valeur possible était la constante `'db'` fabriquée à la volée par
+// `src/ui/shopping.js`. Vérifié : ni l'une ni l'autre n'est exposée sur `window`, donc
+// aucun `on*=` d'`index.html` ne peut les appeler avec une autre signature.
+export function toggleShoppingCheck(id) {
   if (shoppingChecked.has(id)) shoppingChecked.delete(id);
   else shoppingChecked.add(id);
   saveState();
 }
 
-export function removeFromCart(id, type) {
+export function removeFromCart(id) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
     ing.inCart = false;
@@ -100,7 +106,6 @@ export function removeFromCart(id, type) {
 export function resetCart() {
   if (confirm('Vider la liste de courses ?')) {
     state.ingredients.forEach(i => i.inCart = false);
-    state.customCartItems = [];
     shoppingChecked.clear();
     saveState();
   }
@@ -132,7 +137,6 @@ export async function resetAllData() {
   shoppingChecked.clear();
 
   state.ingredients = [];
-  state.customCartItems = [];
   state.favorites = [];
   state.extraIngredients = [];
   state.aiConfig = { ...defaultAiConfig(), apiKey: preservedApiKey };

@@ -27,11 +27,13 @@ export const MAX_EXTRA_INGREDIENTS = 6;
 // Les coches de courses ne figurent PAS ici : elles vivent hors de `state` (Set séparé,
 // `shoppingChecked`) et entrent par `replaceShoppingChecked`, jamais par le `spread` de
 // `setState` — sans quoi elles créeraient un doublon dans l'état (violation SSOT §6).
+// LOT 014, volet G : `customCartItems` retiré du périmètre. Un ancien fichier qui en
+// contient reste lisible — `importJSON` ne boucle que sur cette liste, une clé hors
+// périmètre est simplement ignorée.
 export const BACKUP_STATE_KEYS = [
   'ingredients',
   'favorites',
   'extraIngredients',
-  'customCartItems',
   'aiConfig'
 ];
 

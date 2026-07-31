@@ -43,7 +43,6 @@ export function defaultAiConfig() {
  */
 export const state = {
   ingredients: [],
-  customCartItems: [],
   favorites: [],
   aiConfig: defaultAiConfig(),
   extraIngredients: [],
@@ -194,13 +193,17 @@ export function sanitizeGlobalState() {
   // chemin d'entrée — un aller-retour par une ancienne version se répare de lui-même.
   if ('shoppingChecked' in state) delete state.shoppingChecked;
 
+  // LOT 014, volet G — MÊME FILET, pour les « articles libres » supprimés (décision de Joel
+  // du 2026-07-30). Sans cet élagage, la clé survivrait indéfiniment dans le localStorage de
+  // Joel : `saveState` sérialise `state` en entier et `loadState` le refusionne, si bien
+  // qu'une clé écrite par une version antérieure ne disparaîtrait jamais d'elle-même.
+  if ('customCartItems' in state) delete state.customCartItems;
+
   ['ingredients', 'extraIngredients', 'favorites'].forEach(key => {
     if (state[key] && !Array.isArray(state[key])) {
       state[key] = Object.values(state[key]);
     }
   });
-
-  if (!state.customCartItems) state.customCartItems = [];
 
   state.ingredients = (state.ingredients || []).filter(i => i && typeof i === 'object');
 
