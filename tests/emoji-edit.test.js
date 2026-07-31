@@ -97,6 +97,45 @@ describe('Édition d\'icône d\'ingrédient (LOT 009, casse C1)', () => {
     expect(suggestions.length).toBeGreaterThan(1); // ...mais jamais SEULE : un vrai choix existe
   });
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LOT 014 — CORRECTIF décidé par Joel le 2026-07-31, dans la foulée de celui du formulaire
+  // d'ajout : cette grille comparait en minuscules brutes (SENSIBLE aux accents) alors que
+  // tout le reste de l'application passe par `normalizeString`. Un ingrédient nommé sans
+  // accent ne retrouvait pas l'emoji de la base et tombait sur le socle générique.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  it('CORRIGÉ : un nom saisi SANS accent retrouve l\'emoji du catalogue', () => {
+    const accentue = DEFAULT_DB.find(i => /[éèêàûôç]/i.test(i.name));
+    expect(accentue).toBeTruthy();
+    const sansAccent = accentue.name.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    expect(sansAccent).not.toBe(accentue.name); // le cas teste bien quelque chose
+
+    expect(buildEmojiEditSuggestions(sansAccent)).toContain(accentue.emoji);
+  });
+
+  it('CORRIGÉ : la grille d\'édition et le formulaire d\'ajout cherchent enfin PAREIL', () => {
+    // « pdt » est le raccourci que `normalizeString` traduit en « pommes de terre » — il
+    // fonctionnait partout ailleurs, jamais ici.
+    const pdt = DEFAULT_DB.find(i => i.name === 'Pommes de terre');
+    expect(pdt).toBeTruthy();
+    expect(buildEmojiEditSuggestions('pdt')).toContain(pdt.emoji);
+  });
+
+  it('le correctif n\'est pas trop large : un nom introuvable ne ramène toujours aucun match', () => {
+    openEditEmoji('ing_1');
+    const suggestions = buildEmojiEditSuggestions('xyzIntrouvableDansLeCatalogue123');
+    // Rien du catalogue : uniquement l'emoji de catégorie + le socle générique (9 au plus).
+    expect(suggestions.length).toBeLessThanOrEqual(9);
+  });
+
+  it('une graine faite uniquement d\'espaces ne propose PAS tout le catalogue', () => {
+    // `normalizeString` rogne : sans la garde `s ?`, `includes('')` serait vrai pour les 297
+    // ingrédients et la grille se remplirait d'emojis sans rapport.
+    openEditEmoji('ing_1');
+    const suggestions = buildEmojiEditSuggestions('   ');
+    expect(suggestions.length).toBeLessThanOrEqual(9);
+  });
+
   it('le socle générique de repli est un SEUL et même tableau, jamais dupliqué (SSOT, audit Codex)', () => {
     // buildEmojiEditSuggestions sans aucune correspondance DOIT au moins contenir TOUT le
     // socle générique partagé — pas une seconde copie divergente qui aurait dérivé.

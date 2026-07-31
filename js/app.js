@@ -1308,8 +1308,18 @@ function openEditEmoji(id) {
  * recette. Omis, le comportement est strictement identique à avant (SSOT).
  */
 function buildEmojiEditSuggestions(seed, category) {
-    const s = (seed || '').toLowerCase();
-    const matches = s ? DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)) : [];
+    // CORRECTIF (LOT 014, decide par Joel le 2026-07-31) — MEME COMPARAISON QUE LE RESTE DE
+    // L'APP. Cette grille comparait en minuscules brutes, donc SENSIBLE aux accents : un
+    // ingredient nomme « Boeuf (hache) » sans accent ne retrouvait pas l'emoji de la base et
+    // tombait sur le socle generique. C'est le meme defaut que celui corrige dans le
+    // formulaire d'ajout, sur l'ecran d'edition d'icone.
+    // Mesure faite avant d'appliquer, sur 365 graines : 67 grilles changent, et la seule
+    // correspondance perdue est le FRAGMENT « de terre » seul (`normalizeString` recolle
+    // « pommes de terre » en un mot). Ce n'est pas une regression introduite ici : toutes les
+    // autres recherches de l'app echouent DEJA sur ce fragment. Le nom complet, lui,
+    // fonctionne toujours — et « pdt » trouve desormais la pomme de terre.
+    const s = normalizeString(seed);
+    const matches = s ? DEFAULT_DB.filter(i => normalizeString(i.name).includes(s)) : [];
     const fromMatches = matches.map(i => i.emoji);
     let categoryEmoji;
     if (category) {
