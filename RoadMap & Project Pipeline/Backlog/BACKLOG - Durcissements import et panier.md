@@ -19,13 +19,17 @@ changé pourrait appliquer le statut de la conserve au haricot sec.
   dépasse l'oracle, donc changement de comportement à assumer explicitement (pare-feu A/B).
 - Ajouter un test avec deux ingrédients homonymes de catégories différentes.
 
-## 9. Deux défauts de la déduction de catégorie (trouvés au LOT 014, volet A)
+## ✅ 9. Deux défauts de la déduction de catégorie — CORRIGÉS LE 2026-07-31
 
 Trouvés par les **tests de caractérisation** écrits avant de déplacer `guessCategoryLocally`
-et `sanitizeCategory` vers `src/utils/categorize.js`. **Figés tels quels** par
-`tests/categorize.test.js` (deux tests explicitement nommés « DÉFAUT CONNU ») : les corriger
-serait un changement de comportement, donc une décision à part — pas une correction en
-passant. Toute correction fera échouer ces tests, ce qui obligera à la traiter explicitement.
+et `sanitizeCategory` vers `src/utils/categorize.js`. D'abord **figés tels quels** le temps du
+déplacement (un déménagement ne change pas de comportement), puis **corrigés sur décision de
+Joel**, dans un commit séparé — pour qu'un problème sur la correction puisse se revert sans
+défaire le rangement.
+
+Les deux tests « DÉFAUT CONNU » ont été **inversés** : ils verrouillent maintenant la
+correction, avec un cas de non-régression chacun pour qu'un correctif trop large ne passe pas
+inaperçu. Fiche conservée pour la trace (règle « rien ne se supprime »).
 
 1. **Le repli « végétal » est au SINGULIER.** Une réponse d'IA au pluriel — « Produits
    végétaux », la formulation la plus naturelle en français — n'est pas reconnue et atterrit

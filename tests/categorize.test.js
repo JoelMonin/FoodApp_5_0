@@ -120,27 +120,47 @@ describe('LOT 014 §A — sanitizeCategory (caractérisation avant déplacement)
     });
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // DEUX DÉFAUTS LATENTS TROUVÉS PAR CES TESTS DE CARACTÉRISATION (2026-07-31).
-    // Ils sont FIGÉS TELS QUELS, pas corrigés : le volet A est un déplacement pur, et
-    // corriger serait un changement de comportement — donc une autre décision. Ces deux
-    // tests documentent la réalité et feront échouer toute correction silencieuse, ce qui
-    // obligera à la traiter explicitement.
+    // LES DEUX DÉFAUTS TROUVÉS PAR CES TESTS ONT ÉTÉ CORRIGÉS (décision de Joel du
+    // 2026-07-31), dans un commit SÉPARÉ du déplacement. Les tests qui les documentaient
+    // sont donc INVERSÉS : ils verrouillent désormais la correction au lieu de décrire le
+    // défaut. Ils incluent chacun un cas de non-régression, pour qu'un correctif trop large
+    // ne passe pas inaperçu.
     // ─────────────────────────────────────────────────────────────────────────────
 
-    // Le mot-clé de repli est « vegetal » au SINGULIER. Une réponse d'IA au pluriel
-    // (« Produits végétaux », le plus naturel en français) n'est donc PAS reconnue et
-    // atterrit dans le repli générique.
-    it('DÉFAUT CONNU : « végétaux » au pluriel n\'est pas reconnu, seul le singulier l\'est', () => {
+    // Défaut n°1 : le motif était « vegetal » au SINGULIER — « Produits végétaux », la
+    // formulation la plus naturelle en français, atterrissait dans le repli générique.
+    it('CORRIGÉ : « végétaux » au pluriel est reconnu, avec ou sans accent', () => {
         expect(sanitizeCategory('vegetal', 'x')).toBe('Alternatives végétales');
-        expect(sanitizeCategory('Produits vegetaux', 'x')).toBe('Conserves & bocaux');
-        expect(sanitizeCategory('Végétaux', 'x')).toBe('Conserves & bocaux');
+        expect(sanitizeCategory('Produits vegetaux', 'x')).toBe('Alternatives végétales');
+        expect(sanitizeCategory('Végétaux', 'x')).toBe('Alternatives végétales');
+        expect(sanitizeCategory('Alternatives végétales', 'x')).toBe('Alternatives végétales');
     });
 
-    // `aiCat.toLowerCase()` est appelé sans garde de type. Une réponse d'IA renvoyant un
-    // NOMBRE fait lever la fonction. L'exception est avalée par le `try/catch` de
-    // `handleAddInput` : Joel ne voit pas d'erreur, la suggestion disparaît simplement.
-    it('DÉFAUT CONNU : une catégorie IA NON-CHAÎNE fait lever la fonction', () => {
-        expect(() => sanitizeCategory(42, 'xyzabc')).toThrow(TypeError);
-        expect(() => sanitizeCategory({}, 'xyzabc')).toThrow(TypeError);
+    it('le correctif n\'est pas trop large : il ne capture pas ce qui n\'est pas végétal', () => {
+        expect(sanitizeCategory('Légumes', 'x')).toBe('Légumes'); // catégorie officielle, intacte
+        expect(sanitizeCategory('Viandes', 'x')).toBe('Protéines');
+        expect(sanitizeCategory('Laitages', 'x')).toBe('Produits laitiers');
+        expect(sanitizeCategory('nimportequoi', 'xyzabc')).toBe('Conserves & bocaux');
+    });
+
+    // Défaut n°2 : `aiCat.toLowerCase()` sans garde de type. Une IA renvoyant un NOMBRE
+    // faisait lever la fonction ; l'exception, avalée par le `try/catch` de `handleAddInput`,
+    // faisait disparaître la suggestion sans le moindre message.
+    it('CORRIGÉ : une catégorie IA NON-CHAÎNE ne fait plus lever — elle est traitée comme absente', () => {
+        for (const aberrant of [42, {}, [], true, () => {}]) {
+            expect(() => sanitizeCategory(aberrant, 'xyzabc')).not.toThrow();
+            expect(sanitizeCategory(aberrant, 'xyzabc')).toBe('Conserves & bocaux');
+        }
+    });
+
+    it('CORRIGÉ : une catégorie non-chaîne retombe sur la déduction locale du NOM', () => {
+        // La garde ne se contente pas de ne pas planter : elle laisse le nom faire son
+        // travail, exactement comme une catégorie absente.
+        expect(sanitizeCategory(42, 'carotte des sables')).toBe('Légumes');
+        expect(sanitizeCategory({}, 'poulet fermier')).toBe('Protéines');
+    });
+
+    it('une chaîne d\'espaces est aussi traitée comme absente (même garde)', () => {
+        expect(sanitizeCategory('   ', 'carotte des sables')).toBe('Légumes');
     });
 });

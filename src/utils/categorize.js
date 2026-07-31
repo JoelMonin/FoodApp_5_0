@@ -1,4 +1,5 @@
 import { normalizeString } from './helpers.js';
+import { texteNonVide } from './validate.js';
 import { CATEGORIES, DEFAULT_DB } from '../data.js';
 
 /**
@@ -15,10 +16,11 @@ import { CATEGORIES, DEFAULT_DB } from '../data.js';
  * du lot. Les 8 regles de `sanitizeCategory` traduisent, elles, le vocabulaire de l'IA —
  * aucune donnee du projet ne peut les produire.
  *
- * DEUX DEFAUTS LATENTS, figes tels quels par les tests et traces au backlog :
- *  - le repli « vegetal » est au SINGULIER : « Produits vegetaux » n'est pas reconnu ;
- *  - `aiCat.toLowerCase()` n'a pas de garde de type : une categorie IA non-chaine leve.
- * Les corriger est un CHANGEMENT DE COMPORTEMENT, donc une decision a part.
+ * DEUX DEFAUTS LATENTS avaient ete trouves par ces tests de caracterisation, puis figes tels
+ * quels le temps du deplacement. **Joel a decide de les corriger le 2026-07-31**, dans un
+ * commit SEPARE du deplacement — voir les deux blocs « CORRECTIF » dans `sanitizeCategory`.
+ * Separer les deux gestes est ce qui permet, en cas de probleme, de revenir sur la
+ * correction sans defaire le rangement.
  */
 
 export function guessCategoryLocally(name) {
@@ -50,14 +52,26 @@ export function guessCategoryLocally(name) {
 }
 
 export function sanitizeCategory(aiCat, name) {
-    if (!aiCat) return guessCategoryLocally(name) || 'Conserves & bocaux';
+    // CORRECTIF 2 (LOT 014, decide par Joel le 2026-07-31) — GARDE DE TYPE.
+    // `aiCat.toLowerCase()` etait appele sans verifier le type : une IA renvoyant
+    // `{"category": 42}` faisait LEVER la fonction. L'exception etait avalee par le
+    // `try/catch` de `handleAddInput`, donc Joel ne voyait aucune erreur — la suggestion
+    // disparaissait simplement. Une categorie qui n'est pas un texte est desormais traitee
+    // comme ABSENTE : on retombe sur la deduction locale, jamais sur une exception.
+    if (!texteNonVide(aiCat)) return guessCategoryLocally(name) || 'Conserves & bocaux';
     if (CATEGORIES.includes(aiCat)) return aiCat;
     const l = aiCat.toLowerCase();
     if (l.includes('boisson'))                               return 'Conserves & bocaux';
     if (l.includes('condiment') || l.includes('sauce'))      return 'Sauces & condiments';
     if (l.includes('epice') || l.includes('arômate'))        return 'Épices sèches';
     if (l.includes('laitag') || l.includes('laitier'))       return 'Produits laitiers';
-    if (l.includes('vegetal') || l.includes('végétal'))      return 'Alternatives végétales';
+    // CORRECTIF 1 (LOT 014, decide par Joel le 2026-07-31) — RADICAL au lieu du mot entier.
+    // Les motifs etaient `vegetal`/`végétal` au SINGULIER : « Produits vegetaux », la
+    // formulation la plus naturelle en francais, n'etait pas reconnue et atterrissait dans
+    // le repli generique. Le radical couvre singulier ET pluriel. Les deux graphies (avec et
+    // sans accent) restent necessaires : `l` est seulement passe en minuscules, les accents
+    // n'y sont PAS retires.
+    if (l.includes('vegeta') || l.includes('végéta'))        return 'Alternatives végétales';
     if (l.includes('viande') || l.includes('poisson') || l.includes('protein')) return 'Protéines';
     if (l.includes('cereale') || l.includes('riz') || l.includes('pate'))       return 'Pâtes, riz & légumes secs';
     if (l.includes('plat') || l.includes('prepa'))           return 'Plats & Préparations';
