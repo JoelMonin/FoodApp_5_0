@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { state, shoppingChecked, defaultAiConfig } from '../src/state.js';
 import { setupTestDOM, resetTestState } from './_helpers/dom-helpers.js';
 import { DEFAULT_DB } from '../src/data.js';
+// `addIngredientFromDb` n'est PAS publiée sur `window` (elle n'est appelée que depuis le
+// rendu de l'autocomplétion) : elle passe par le bloc `export {}` réservé aux tests.
+import { addIngredientFromDb } from '../js/app.js';
 import '../js/app.js';
 
 // LOT 014, volet A — TESTS DE CARACTÉRISATION, écrits AVANT le déplacement du formulaire
@@ -120,6 +123,31 @@ describe('LOT 014 §D — après un ajout réussi, le formulaire est REMIS À NE
         expect(document.getElementById('emoji-suggestions').children.length).toBe(0);
         expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
         expect(document.getElementById('add-name').value).toBe('');
+    });
+
+    // TROU TROUVÉ PAR LE RE-PARCOURS DE LA CHECK-LIST DES RÉGRESSIONS (LOT 014, clôture) :
+    // le retour automatique à l'inventaire 500 ms après un ajout — un confort restauré par le
+    // LOT 012, et dont l'audit d'alors avait déjà relevé qu'il manquait sur le second chemin —
+    // n'était verrouillé NULLE PART. Il repose depuis le LOT 014 sur un crochet injecté
+    // (`registerAddFormNav`) : le débrancher ne cassait aucun test.
+    it('renvoie Joel à son inventaire 500 ms après un ajout à la main', () => {
+        window.switchView('add');                // sinon on part déjà de « pantry »
+        document.getElementById('add-name').value = 'Salsifis';
+        window.addIngredient();
+
+        expect(state.currentView).toBe('add');   // pas AVANT l'échéance
+        vi.advanceTimersByTime(500);
+        expect(state.currentView).toBe('pantry');
+    });
+
+    it('fait de même après un clic sur une suggestion du catalogue (c\'est ce second '
+       + 'chemin que l\'audit du LOT 012 avait trouvé manquant)', () => {
+        window.switchView('add');
+        addIngredientFromDb('Tomate', '🍅', 'Légumes');
+
+        expect(state.currentView).toBe('add');
+        vi.advanceTimersByTime(500);
+        expect(state.currentView).toBe('pantry');
     });
 });
 

@@ -152,7 +152,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## POINT DE REPRISE — LOT 014 (état au 2026-07-31, arbre propre)
 
-**Métriques : 771/771 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
+**Métriques : 773/773 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
 · feuille de style 49,5 → 44,2 Ko (−10,9 %).**
 
 ### Ce qui est FAIT
@@ -183,10 +183,8 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
    barre supérieure, modales génériques, réglages), de la taille du volet A mais bien moins
    risquée — ces zones sont désormais couvertes par les LOTS 013/014. **Soit on la fait, soit
    on entérine le −46 %.**
-2. **Check-list de la fiche régressions à re-parcourir une à une.** Elle est couverte
-   indirectement par les 771 tests, ce qui n'est pas un parcours explicite.
-3. **Audit DUR final de campagne** (Gemini en questions fermées + agents adversariaux locaux).
-4. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
+2. **Audit DUR final de campagne** (Gemini en questions fermées + agents adversariaux locaux).
+3. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
    niveau du fichier produit, mais le retrait des 62 règles mortes change forcément ce
    fichier. Le raisonnement est solide, un regard humain reste la ceinture et les bretelles.
 

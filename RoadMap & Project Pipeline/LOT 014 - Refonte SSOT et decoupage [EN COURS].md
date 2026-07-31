@@ -523,10 +523,18 @@ localement le bénéfice du LOT 013.
 - [x] **Verrous anti-récidive en place et rouges quand on les provoque** — **4** et non 2 :
       parité `on*=`↔`window`, imports ESM, message de clé API, découpage CSS. Tous prouvés
       par mutation, tous porteurs d'une garde anti-vide.
-- [x] **Validation unifiée verte, build OK** — 771 Vitest, 16 Pytest.
-      ⚠️ **La check-list de la fiche régressions n'a PAS été re-parcourue une à une** : elle
-      l'est indirectement par les 771 tests (dont les 102 du LOT 013 écrits exprès pour ça),
-      ce qui n'est pas la même chose qu'un parcours explicite. **Reste à faire.**
+- [x] **Validation unifiée verte, build OK** — 773 Vitest, 16 Pytest.
+- [x] **Check-list de la fiche régressions re-parcourue INTÉGRALEMENT (2026-07-31)** — les 12
+      casses franches, les 17 conforts, les 5 dégradations de fond, les 3 « ne pas restaurer »
+      et les 4 arbitrages de Joel, chacun rattaché à un test nommé qui passe.
+      **Ce parcours a servi : un trou trouvé.** Le *retour automatique à l'inventaire 500 ms
+      après un ajout* (confort restauré par le LOT 012) n'était verrouillé NULLE PART. Il
+      repose depuis le volet A sur un crochet injecté : le débrancher ne faisait rougir
+      personne. **2 tests posés** (les deux chemins d'ajout), prouvés par retrait.
+      **Une fausse alerte levée** : la « duplication SSOT » de `.generate-btn` signalée en fin
+      de fiche n'en est pas une — les deux blocs ne définissent aucune propriété en commun,
+      ils se superposent (base + relief/animation). Ils se citent désormais mutuellement, ce
+      qui protège mieux qu'une fusion : c'est leur ORDRE qui les fait marcher.
 - [x] **Découpage CSS prouvé — MIEUX que par l'oracle visuel, sauf sur un point.** La feuille
       produite par le build est identique **octet pour octet** après le découpage : la cascade
       est prouvée inchangée, ce qu'un contrôle à l'écran n'aurait jamais garanti (l'incident

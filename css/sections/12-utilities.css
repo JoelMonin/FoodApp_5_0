@@ -290,6 +290,9 @@
     }
 
     /* Generate Button Polish */
+    /* Surcouche du bouton « Générer » : relief, animation, voile de chargement. L'aspect de
+       base vit en section AI VIEW. Ce bloc DOIT rester après lui — c'est l'ordre, pas les
+       `!important`, qui décide en premier lieu. Voir le commentaire jumeau là-bas. */
     .generate-btn {
       position: relative;
       overflow: hidden;

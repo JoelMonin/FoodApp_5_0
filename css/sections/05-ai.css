@@ -339,6 +339,11 @@
       margin-top: 4px
     }
 
+    /* Aspect de BASE du bouton « Générer ». Le relief, l'animation de survol et le voile
+       « chargement » sont ajoutés PLUS LOIN, en section UTILITIES — signalé comme une
+       duplication SSOT par la fiche des régressions, vérifié au LOT 014 : les deux blocs
+       ne définissent AUCUNE propriété en commun, ils se superposent. Ne pas les fusionner
+       ici : l'ordre est ce qui fait marcher les `!important` de l'autre. */
     .generate-btn {
       width: 100%;
       padding: 13px;
