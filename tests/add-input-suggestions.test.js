@@ -36,7 +36,7 @@ describe('LOT 013 — handleAddInput (js/app.js, accessible via window)', () => 
     });
 
     afterEach(() => {
-        // `_isManualCategory`/`_localCategoryFill` sont des variables de MODULE (js/app.js),
+        // `_isManualCategory` est une variable de MODULE (`src/ui/addForm.js` depuis le LOT 014),
         // sans trappe de reset dédiée (P10 relevé en découverte du LOT 013) — seule
         // `switchView('add')` les remet à zéro (js/app.js:628 + renderAdd() via
         // renderCurrentView). Sans cet appel, un test qui active le mode manuel

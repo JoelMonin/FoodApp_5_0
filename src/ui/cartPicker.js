@@ -1,7 +1,7 @@
 import { state, saveState } from '../state.js';
 import { h, toast } from '../utils/dom.js';
 import { generateId, areSimilar, autoEmoji } from '../utils/helpers.js';
-import { DEFAULT_DB, getCategoryEmoji } from '../data.js';
+import { CATEGORIE_PAR_DEFAUT, DEFAULT_DB, getCategoryEmoji } from '../data.js';
 import { AI_EMOJI_ONLY } from '../constants.js';
 import { matchIngredientToStock } from '../utils/stockMatch.js';
 // LOT 014, volet A : importe DIRECTEMENT depuis la modale d'edition d'icone, une fois
@@ -60,7 +60,7 @@ export function openEnhancedCartPicker(recipe) {
     _currentPickerRecipeName = recipe.name || 'Recette';
     _currentPickerData = (recipe.ingredients || []).map(i => {
         const name = i.n || i.name;
-        const category = i.c || i.category || 'Autres';
+        const category = i.c || i.category || CATEGORIE_PAR_DEFAUT;
         const status = matchIngredientToStock(i);
         // Filet de sécurité emoji : cf. la constante module-level `AI_EMOJI_ONLY`
         // (LOT 010, casse C12 ; remontée au niveau module par le LOT 011, chantier 2,

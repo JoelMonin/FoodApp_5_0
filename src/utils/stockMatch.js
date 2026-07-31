@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { areSimilar, normalizeString, autoEmoji } from './helpers.js';
-import { DEFAULT_DB, getCategoryEmoji } from '../data.js';
+import { CATEGORIE_PAR_DEFAUT, DEFAULT_DB, getCategoryEmoji } from '../data.js';
 import { AI_EMOJI_ONLY } from '../constants.js';
 
 /**
@@ -67,7 +67,7 @@ export function matchIngredientToStock(ingredient) {
 export function buildIngredientTags(ingredients, tooltipStyle) {
     return (ingredients || []).map(ing => {
         const name = ing.n || ing.name || '';
-        const category = ing.c || ing.category || 'Autres';
+        const category = ing.c || ing.category || CATEGORIE_PAR_DEFAUT;
         const status = matchIngredientToStock(ing);
         // Ordre significatif, trouvé en testant : `isExact` (LOT 006) se calcule
         // INDÉPENDAMMENT du stock (le nom le plus proche, même sur un ingrédient épuisé) —

@@ -1,5 +1,5 @@
 import { AI_ROLES, LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from './constants.js';
-import { DEFAULT_DB } from './data.js';
+import { CATEGORIE_PAR_DEFAUT, DEFAULT_DB } from './data.js';
 import { estUnObjetSimple } from './utils/validate.js';
 
 /**
@@ -223,7 +223,7 @@ export function sanitizeGlobalState() {
 
   state.ingredients.forEach(i => {
     if (i.n && !i.name) i.name = i.n;
-    if (!i.category) i.category = 'Autres';
+    if (!i.category) i.category = CATEGORIE_PAR_DEFAUT;
     if (!i.emoji) i.emoji = '❓';
     i.inStock = !!i.inStock;
     i.inCart = !!i.inCart;

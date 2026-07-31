@@ -4,7 +4,7 @@ import {
 } from '../state.js';
 import { toast } from '../utils/dom.js';
 import { validateState } from '../utils/validate.js';
-import { LOCAL_STORAGE_SYNC_REF_KEY } from '../constants.js';
+import { LOCAL_STORAGE_SYNC_REF_KEY, LOCAL_STORAGE_SYNC_PENDING_KEY, LOCAL_STORAGE_SYNC_LAST_KEY } from '../constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from './firebase.js';
 
 /**
@@ -42,8 +42,11 @@ export function registerSyncUi(hooks = {}) {
 // Le perimetre du document vit dans src/services/firebase.js (SSOT, §4.1).
 // ═══════════════════════════════════════════════════════════════════════════
 
-const SYNC_PENDING_KEY = 'pantry_v5_sync_pending'; // drapeau persiste (§4.3) : couvre aussi le rechargement de page
-export const SYNC_LAST_KEY = 'pantry_v5_last_sync';       // metadonnee locale, HORS document (§4.1, audit Codex v2)
+// LOT 014, volet D — les deux valeurs vivent desormais dans `src/constants.js`, avec les
+// trois autres cles de stockage du projet. Les noms locaux sont conserves pour ne toucher
+// ni au corps du moteur ni a ses 38 tests ; `SYNC_LAST_KEY` reste republie a l'identique.
+const SYNC_PENDING_KEY = LOCAL_STORAGE_SYNC_PENDING_KEY;
+export const SYNC_LAST_KEY = LOCAL_STORAGE_SYNC_LAST_KEY;
 const SYNC_PUSH_DELAY_MS = 2000;
 const SYNC_RETRY_DELAY_MS = 10000;
 const SYNC_PULL_INTERVAL_MS = 60000;

@@ -12,6 +12,7 @@ import {
 import { h, toast } from '../src/utils/dom.js';
 import {
   generateId,
+  formatDateFr,
   normalizeString,
   autoEmoji,
   areSimilar,
@@ -77,7 +78,7 @@ import {
 import { validateState, isValidRecipe, escapePromptValue } from '../src/utils/validate.js';
 // Composition des textes de partage — extraite d'ici au LOT 014, volet A.
 import { buildClipboardText, writeToClipboard } from '../src/services/exports.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY, PANNEAU_DE_VUE, estVueFavoris, estVueReglages } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -240,8 +241,8 @@ export {
 function renderCurrentView() {
     const view = state.currentView || 'pantry';
     // Show the correct view panel, hide all others
-    const viewMap = { pantry: 'pantry', shopping: 'shopping', ai: 'ai', fav: 'favorites', favorites: 'favorites', add: 'add', export: 'export', settings: 'export' };
-    const activePanel = viewMap[view] || view;
+    // LOT 014, volet D — la table vit desormais dans `src/constants.js` (PANNEAU_DE_VUE).
+    const activePanel = PANNEAU_DE_VUE[view] || view;
     document.querySelectorAll('.view-panel').forEach(panel => {
         panel.classList.toggle('active', panel.id === `view-${activePanel}`);
     });
@@ -253,9 +254,9 @@ function renderCurrentView() {
     if (view === 'pantry') renderPantry();
     else if (view === 'shopping') renderShopping();
     else if (view === 'ai') { renderAI(); refreshImposedZone(); renderImposedCapHint(); }
-    else if (view === 'fav' || view === 'favorites') renderFavorites();
+    else if (estVueFavoris(view)) renderFavorites();
     else if (view === 'add') renderAdd();
-    else if (view === 'export' || view === 'settings') updateSystemInfo();
+    else if (estVueReglages(view)) updateSystemInfo();
 
     document.getElementById('fab-add')?.classList.toggle('hidden', view !== 'pantry');
     document.querySelectorAll('.sb-item, .bn-item').forEach(el => {
@@ -370,7 +371,7 @@ function renderTopbar(view) {
             actionEl.replaceChildren(h('button', {
                 class: 'tb-icon-btn', title: 'Config API', onclick: () => openModal('modal-api-config')
             }, '⚙️'));
-        } else if (view === 'favorites' || view === 'fav') {
+        } else if (estVueFavoris(view)) {
             actionEl.replaceChildren(h('button', {
                 class: 'tb-btn primary', onclick: () => openModal('modal-paste-recipe')
             }, '📋 Coller une recette'));
@@ -392,7 +393,7 @@ function renderTopbar(view) {
             mhIcon.textContent = '⚙️';
             mhIcon.style.cssText = '';
             mhIcon.onclick = () => openModal('modal-api-config');
-        } else if (view === 'favorites' || view === 'fav') {
+        } else if (estVueFavoris(view)) {
             mhIcon.textContent = '📋';
             mhIcon.style.cssText = '';
             mhIcon.onclick = () => openModal('modal-paste-recipe');
@@ -777,14 +778,14 @@ function deleteFav(id) {
 
 function saveSuggestionToFavDirect(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: formatDateFr() });
     saveState();
     toast('Ajouté aux favoris !');
 }
 
 function saveRecipeOnly(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: new Date().toLocaleDateString('fr-FR') });
+    state.favorites.push({ ...r, id: generateId('fav'), date: formatDateFr() });
     saveState();
     toast('Recette sauvegardée !');
     closeModal('modal-paste-recipe');
@@ -812,7 +813,7 @@ function buildPastedFavorite() {
         toast('Titre et contenu requis', 'error');
         return null;
     }
-    const date = new Date().toLocaleDateString('fr-FR');
+    const date = formatDateFr();
     return _lastTransformedRecipe
         ? { ..._lastTransformedRecipe, id: generateId('fav'), date }
         : { id: generateId('fav'), title, content, date };

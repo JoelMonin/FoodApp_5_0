@@ -1,4 +1,5 @@
-import { getCategoryEmoji } from '../data.js';
+import { CATEGORIE_PAR_DEFAUT, getCategoryEmoji } from '../data.js';
+import { formatDateFr } from '../utils/helpers.js';
 
 /**
  * COMPOSITION DES TEXTES DE PARTAGE — extrait de `js/app.js` au LOT 014, volet A.
@@ -58,7 +59,7 @@ export const clipboardCount = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 // Les sources de rubrique viennent toujours de `state.ingredients` (catégorie garantie par
 // sanitizeGlobalState) ; le repli reste par prudence, car `cat.toUpperCase()` planterait
 // SILENCIEUSEMENT — l'appel est hors du try/catch de la copie.
-export const clipboardSectionLabel = (cat) => String(cat || 'Autres').toUpperCase();
+export const clipboardSectionLabel = (cat) => String(cat || CATEGORIE_PAR_DEFAUT).toUpperCase();
 
 /**
  * Compose le texte d'un format de partage, ou null si le format est inconnu.
@@ -72,7 +73,7 @@ export const clipboardSectionLabel = (cat) => String(cat || 'Autres').toUpperCas
  * @param {Date} [maintenant] - injectable pour figer la date dans un test
  */
 export function buildClipboardText(type, state, maintenant = new Date()) {
-    const date = maintenant.toLocaleDateString('fr-FR');
+    const date = formatDateFr(maintenant);
 
     // Chantier 1 : le bouton promet le STOCK. Il copiait la liste de courses
     // (oracle foodapp-v5-Joel.html l.6466-6468 : `inStock`, confirmé).

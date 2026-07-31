@@ -1,4 +1,5 @@
 import { h } from '../utils/dom.js';
+import { CATEGORIE_PAR_DEFAUT } from '../data.js';
 import { SectionLabel } from './components.js';
 
 export function renderShoppingItem(item, isChecked, handlers) {
@@ -59,7 +60,7 @@ export function renderShoppingList(containerEl, cartItems, shoppingChecked, hand
   // Group by category
   const grouped = {};
   cartItems.forEach(ing => {
-    const cat = ing.category || 'Autres';
+    const cat = ing.category || CATEGORIE_PAR_DEFAUT;
     if (!grouped[cat]) grouped[cat] = [];
     // LOT 014, volet G : plus de `type: 'db'`. Ce marqueur ne servait qu'à distinguer un
     // ingrédient d'un « article libre » ; les articles libres ayant été supprimés, la liste

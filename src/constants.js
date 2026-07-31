@@ -55,11 +55,40 @@ export const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '
 // `src/utils/stockMatch.js` — laissé dans `js/app.js`, il aurait fallu le dupliquer.
 export const AI_EMOJI_ONLY = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
+// LOT 014, volet D — SSOT des VUES et de leurs alias. La table etait ecrite en dur dans
+// `renderCurrentView`, et la double appellation `fav`/`favorites` (comme `export`/
+// `settings`) etait retestee a la main a 4 endroits. Rien ne garantissait que les 5 restent
+// d'accord : ajouter une vue obligeait a penser aux 5 sites, sans qu'aucun ne le rappelle.
+export const PANNEAU_DE_VUE = {
+  pantry: 'pantry',
+  shopping: 'shopping',
+  ai: 'ai',
+  fav: 'favorites',
+  favorites: 'favorites',
+  add: 'add',
+  export: 'export',
+  settings: 'export'
+};
+
+// Les favoris et les reglages repondent chacun a DEUX noms, heritage de la migration.
+export const estVueFavoris = (vue) => vue === 'fav' || vue === 'favorites';
+export const estVueReglages = (vue) => vue === 'export' || vue === 'settings';
+
 export const FB_USER = 'FoodApp_V5_Joel';
 export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebasedatabase.app';
 
 export const LOCAL_STORAGE_KEY = 'pantry_v5';
 export const LOCAL_STORAGE_CHECKED_KEY = 'pantry_v5_checked';
+
+// Drapeau « des modifications attendent d'etre envoyees », PERSISTE (LOT 007 §4.3) :
+// couvre aussi le rechargement de page. LOT 014, volet D : remonte ici, les 3 autres cles
+// du projet y etaient deja — une cle de stockage oubliee dans un module est invisible le
+// jour ou l'on cherche « tout ce que l'app ecrit sur cet appareil ».
+export const LOCAL_STORAGE_SYNC_PENDING_KEY = 'pantry_v5_sync_pending';
+
+// Horodatage de la derniere synchro reussie — metadonnee LOCALE, hors du document cloud
+// (LOT 007 §4.1, audit Codex v2). Sert uniquement a l'affichage.
+export const LOCAL_STORAGE_SYNC_LAST_KEY = 'pantry_v5_last_sync';
 
 // Référence anti-boucle de la synchro : dernier document cloud connu, PERSISTÉ
 // (audit Sol du LOT 007, C1) — partagé entre le moteur (js/app.js) et le chemin

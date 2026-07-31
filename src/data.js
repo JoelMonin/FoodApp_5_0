@@ -12,6 +12,12 @@
  * Elle fait donc partie de la liste : sans elle, les ingrédients qui y atterrissent
  * n'avaient aucune puce de filtre dans l'inventaire.
  */
+// LOT 014, volet D — SSOT de la categorie de repli. Elle etait ecrite EN DUR a 6 endroits
+// (etat, formulaire d'ajout, selecteur de courses, liste de courses, calcul de stock,
+// export texte). Une seule d'entre elles avait besoin de changer pour que les autres
+// mentent en silence.
+export const CATEGORIE_PAR_DEFAUT = 'Autres';
+
 export const CATEGORIES_WITH_EMOJI = [
   { name: 'Protéines', emoji: '🥩' },
   { name: 'Légumes', emoji: '🥦' },

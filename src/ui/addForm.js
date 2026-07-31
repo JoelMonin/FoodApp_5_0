@@ -1,7 +1,7 @@
 import { state, saveState } from '../state.js';
 import { h, toast } from '../utils/dom.js';
 import { generateId, normalizeString, areSimilar, debounce } from '../utils/helpers.js';
-import { CATEGORIES, DEFAULT_DB } from '../data.js';
+import { CATEGORIES, CATEGORIE_PAR_DEFAUT, DEFAULT_DB } from '../data.js';
 import { guessCategoryLocally, sanitizeCategory } from '../utils/categorize.js';
 import { escapePromptValue } from '../utils/validate.js';
 import { callAI } from '../services/gemini.js';
@@ -43,7 +43,6 @@ import { AI_ROLES, GENERIC_EMOJI_FALLBACK } from '../constants.js';
 
 // ─── Etat PRIVE du formulaire ────────────────────────────────────────────────────────────
 let _isManualCategory = false;
-let _localCategoryFill = false; // true = catégorie posée par détection locale faible (IA peut écraser)
 let _addSuggestTimer = null;
 // Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
 // d'appliquer sa reponse (cf. handleAddInput).
@@ -72,7 +71,6 @@ export function resetManualCategory() {
 
 export function renderAdd() {
     _isManualCategory = false;
-    _localCategoryFill = false;
     clearTimeout(_addSuggestTimer);
     _aiSuggestGenId++; // invalide une requete IA deja en vol
     const list = document.getElementById('add-results-list');
@@ -162,7 +160,6 @@ export function handleAddInput(val) {
     // 1. Champ vide → tout réinitialiser
     if (!val || val.trim().length === 0) {
         _isManualCategory = false;
-        _localCategoryFill = false;
         clearTimeout(_addSuggestTimer);
         _aiSuggestGenId++; // invalide une requete IA deja en vol
         if (list) list.replaceChildren();
@@ -194,7 +191,6 @@ export function handleAddInput(val) {
     const localCat = guessCategoryLocally(val);
     if (localCat) {
         catSelect.value = localCat;
-        _localCategoryFill = true;
         showCategoryIndicator('local');
         // Exact match DB → on prend aussi l'emoji et on n'appelle pas l'IA
         const exactEntry = DEFAULT_DB.find(i => normalizeString(i.name) === normalizeString(val));
@@ -239,7 +235,6 @@ export function handleAddInput(val) {
                 const finalCat = sanitizeCategory(data.category, val);
                 if (finalCat) {
                     catSelect.value = finalCat;
-                    _localCategoryFill = false;
                     showCategoryIndicator('ai');
                 }
             }
@@ -273,7 +268,6 @@ export function handleAddInput(val) {
 // Called from HTML when user manually changes the category dropdown
 export function onManualCategoryChange() {
     _isManualCategory = true;
-    _localCategoryFill = false;
     showCategoryIndicator(null);
 }
 
@@ -282,7 +276,7 @@ export function addIngredient() {
     if (!name) { toast('Nom requis', 'error'); return; }
 
     const emoji = document.getElementById('add-emoji')?.value || '🛒';
-    const category = document.getElementById('add-category')?.value || 'Autres';
+    const category = document.getElementById('add-category')?.value || CATEGORIE_PAR_DEFAUT;
     const frozen = document.getElementById('add-frozen')?.checked || false;
 
     // Check duplicate/similarity
