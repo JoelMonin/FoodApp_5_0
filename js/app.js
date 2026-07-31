@@ -22,12 +22,9 @@ import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
 import { guessCategoryLocally, sanitizeCategory } from '../src/utils/categorize.js';
 // SSOT du calcul « en stock / manquant » — extrait d'ici au LOT 014, volet A.
 import { matchIngredientToStock, buildIngredientTags } from '../src/utils/stockMatch.js';
-// Selecteur de courses — extrait d'ici au LOT 014, volet A. Trois couplages lui sont
-// INJECTES (openModal/closeModal, qui ne sont pas de simples helpers, et
-// buildEmojiEditSuggestions, qui appartient a la modale d'edition d'icone) : voir
-// l'en-tete du module pour le detail du noeud annonce par la phase decouverte.
-// Modale « detail de recette » — extraite d'ici au LOT 014, volet A. `buildRecipeHandlers`
-// reste ici : c'est du cablage vers la zone favoris, pas du rendu.
+// Modale « detail de recette » — extraite d'ici au LOT 014, volet A. Elle recoit toujours
+// `openModal` et `buildRecipeHandlers` par injection : `modals.js` importe son plein ecran et
+// `favorites.js` l'importe elle, donc les imports inverses seraient de vrais cycles.
 import {
   renderRecipeModal,
   openRecipeDetail,
@@ -47,8 +44,7 @@ import {
   buildEmojiEditSuggestions,
   renderEmojiEditGrid,
   applyEditedEmoji,
-  searchEmojiAI,
-  registerEmojiModalHooks
+  searchEmojiAI
 } from '../src/ui/emojiModal.js';
 // Socle des modales — extrait d'ici au LOT 017. `openModal` etait le dernier « hub » reste
 // dans ce fichier : c'est parce qu'il vivait ici que trois modules devaient se le faire
@@ -70,6 +66,23 @@ import {
   saveApiKey,
   saveAiConfigFromUI
 } from '../src/ui/settings.js';
+// Panneau « Recettes IA » — extrait d'ici au LOT 017. Le plan n'en citait que 9 fonctions ;
+// il en fallait 17 : les huit autres n'avaient aucun appelant hors de cet ecran.
+import {
+  generateSuggestions,
+  renderAI,
+  renderAIResults,
+  restoreAIConfig,
+  toggleAiSingle,
+  toggleAiChip,
+  addExtraIngredient,
+  renderExtraChips,
+  renderImposedCapHint,
+  updateAIContextSub,
+  refreshImposedZone,
+  removeExtraIngredient,
+  generateRandomWithStock
+} from '../src/ui/aiPanel.js';
 // Fenetre « coller une recette » — extraite d'ici au LOT 017. Elle recupere les 29 lignes de
 // remise a zero que le volet A avait sorties de `openModal` : elles ecrivent son etat prive,
 // c'est donc ici, et nulle part ailleurs, qu'elles pouvaient aller.
@@ -110,8 +123,7 @@ import {
   confirmRecipeToCart,
   cycleEmoji,
   updatePickerRow,
-  toggleAllPickerItems,
-  registerCartPickerHooks
+  toggleAllPickerItems
 } from '../src/ui/cartPicker.js';
 // Formulaire d'ajout — extrait d'ici au LOT 014, volet A. Son état (catégorie choisie à la
 // main, temporisations, jeton anti-course) est désormais PRIVÉ au module : la seule écriture
@@ -147,12 +159,9 @@ import * as Actions from '../src/actions.js';
 // toujours. Les trois rattrapages `state = moduleState` qui suivaient chaque réassignation
 // (ex-l.62, :96, :422) ont disparu ; `const` interdit qu'un quatrième réapparaisse.
 const state = moduleState;
-// LOT 011 (trouve par l'audit du sous-lot 11A) : deux generations de recettes concurrentes
-// (bouton normal + 🎲, ou deux clics rapides sur 🎲) pouvaient se marcher dessus — chacune
-// restaure "sa" creativite sauvegardee dans un finally, et la derniere a finir l'emporte
-// meme si elle a lu une valeur deja corrompue par l'autre. Un seul point d'entree
-// (generateSuggestions) refuse desormais tout lancement pendant qu'un autre est en cours.
-let _generationInFlight = false;
+// LOT 017 — le drapeau `_generationInFlight` (LOT 011, anti-generations concurrentes) est
+// parti dans `src/ui/aiPanel.js`, aupres de la garde qui le lit. Il vivait ici, a 300 lignes
+// d'elle.
 
 function saveState(updateUI = true) { saveStateToModule(updateUI); }
 
@@ -427,146 +436,8 @@ function clearSearch() {
 
 
 
-// Textes d'attente animés pendant la génération (LOT 011, chantier 5 ; oracle
-// l.5052-5058, littéraux exacts).
-const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
-
-/**
- * Garde partagee (LOT 014, volet D) : deux points d'entree refusent une generation quand
- * une autre tourne deja — `generateSuggestions` et `generateRandomWithStock`. Ce dernier
- * verifie AVANT de toucher a `state.aiConfig` (LOT 011, audit du sous-lot 11A) : c'est
- * volontaire, et c'est pourquoi la garde existe a deux endroits plutot qu'un. Seul le
- * message etait duplique.
- */
-function generationDejaEnCours() {
-    if (!_generationInFlight) return false;
-    toast('Une génération est déjà en cours…', 'error');
-    return true;
-}
-
-async function generateSuggestions() {
-  if (generationDejaEnCours()) return;
-  const apiKey = state.aiConfig.apiKey;
-  if (!apiKey) { toast(MESSAGE_CLE_API_MANQUANTE, 'error'); openModal('modal-api-config'); return; }
-  const stockItems = state.ingredients.filter(i => i.inStock);
-  if (stockItems.length === 0) { toast('Inventaire vide', 'error'); return; }
-
-  _generationInFlight = true;
-  const btn = document.getElementById('generate-btn');
-  btn.disabled = true;
-  btn.classList.add('loading');
-
-  // Rotation toutes les 2,5 s dans l'attribut lu par le CSS (`content: attr(data-loading-text)`,
-  // déjà câblé). `clearInterval` garanti dans le `finally`, quel que soit le chemin de sortie.
-  let loadingTextIdx = 0;
-  btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[0]);
-  const loadingInterval = setInterval(() => {
-    loadingTextIdx = (loadingTextIdx + 1) % AI_LOADING_TEXTS.length;
-    btn.setAttribute('data-loading-text', AI_LOADING_TEXTS[loadingTextIdx]);
-  }, 2500);
-
-  try {
-    const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients, {
-      // LOT 011 : si l'API rejette le niveau d'effort demande et que le repli reussit quand
-      // meme, Joel doit le savoir au moment meme (demande explicite) — jamais silencieux.
-      onThinkingFallback: () => toast('Recettes générées sans le mode réflexion approfondie (temporairement indisponible).')
-    });
-    state.aiSuggestions = recipes;
-    // renderAIResults(recipes); // No need, saveState() will trigger auto-render
-    saveState();
-
-    // Scroll auto vers les résultats sur mobile (LOT 011, chantier 5 ; oracle l.5068-5072).
-    setTimeout(() => {
-      if (window.innerWidth < 768) {
-        document.getElementById('ai-results-col')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-  } catch (e) {
-    toast('Erreur IA : ' + e.message, 'error');
-  } finally {
-    clearInterval(loadingInterval);
-    _generationInFlight = false;
-    btn.disabled = false;
-    btn.classList.remove('loading');
-  }
-}
-
-function renderAI() {
-    restoreAIConfig();
-    if (state.aiSuggestions && state.aiSuggestions.length > 0) {
-        renderAIResults(state.aiSuggestions);
-    }
-}
-
-function renderAIResults(recipes) {
-    const grid = document.getElementById('ai-results-list');
-    if (!grid) return;
-    grid.replaceChildren(...recipes.map((r, i) => {
-        const tags = buildIngredientTags(r.ingredients, 'card');
-        const handlers = {
-            openRecipeDetail,
-            saveToFavorites: () => saveSuggestionToFavDirect(r),
-            addMissingToCart: () => openEnhancedCartPicker(r)
-        };
-        return renderRecipeCard(r, i, handlers, tags);
-    }));
-    document.getElementById('ai-placeholder')?.classList.add('hidden');
-    document.getElementById('ai-results-list')?.classList.remove('hidden');
-}
-
-function restoreAIConfig() {
-    const cfg = state.aiConfig;
-    const apiKeyInput = document.getElementById('api-key-input');
-    if (apiKeyInput) apiKeyInput.value = cfg.apiKey || '';
-    
-    document.getElementById('ai-exceptions') && (document.getElementById('ai-exceptions').value = cfg.exceptions || '');
-    document.getElementById('ai-exclusions') && (document.getElementById('ai-exclusions').value = cfg.exclusions || '');
-
-    // Slider de créativité (LOT 008, chantier 6) : ?? plutôt que || pour ne pas
-    // écraser une créativité volontairement réglée à 0 (minimum légitime du slider).
-    const creativitySlider = document.getElementById('creativity-slider');
-    if (creativitySlider) creativitySlider.value = cfg.creativity ?? 50;
-
-    // Restore chips active state
-    document.querySelectorAll('.ai-settings .chip').forEach(chip => {
-        const field = chip.closest('.chips-row').id?.replace('ai-', '').replace('-chips', '');
-        if (field && cfg[field]) {
-            if (Array.isArray(cfg[field])) {
-                chip.classList.toggle('active', cfg[field].includes(chip.dataset.val));
-            } else {
-                chip.classList.toggle('active', cfg[field] === chip.dataset.val);
-            }
-        }
-    });
-
-    updateAiCtaSummary();
-}
-
-function updateAiCtaSummary() {
-    const summaryEl = document.getElementById('ai-cta-summary');
-    if (summaryEl) {
-        summaryEl.textContent = `${state.aiConfig.meal || 'Plat'} · ${state.aiConfig.ppl || '2'} pers.`;
-    }
-}
-
-function toggleAiSingle(field, el) {
-    el.closest('.chips-row').querySelectorAll('.chip')
-      .forEach(c => c.classList.remove('active'));
-    el.classList.add('active');
-    state.aiConfig[field] = el.dataset.val;
-    saveState(false);
-    updateAiCtaSummary();
-}
-
-function toggleAiChip(field, el) {
-    el.classList.toggle('active');
-    const active = Array.from(el.closest('.chips-row').querySelectorAll('.chip.active'))
-        .map(c => c.dataset.val);
-    state.aiConfig[field] = active;
-    saveState(false);
-}
-
-
+// LOT 017 — le panneau « Recettes IA » vit dans `src/ui/aiPanel.js` (generation, resultats,
+// reglages, zone des ingredients imposes).
 
 // LOT 017 — `buildRecipeHandlers` est partie avec les favoris, comme le LOT 014 l'avait
 // annonce : « elle partira naturellement avec `favorites.js` ». Elle y trouve ses six
@@ -640,170 +511,6 @@ async function exportClipboard(type) {
 // renderAdd, showCategoryIndicator, updateEmojiSuggestions (+ sa version temporisee),
 // handleAddInput, _onManualCategoryChange, addIngredient, addIngredientFromDb,
 // searchEmojiAddAI et selectEmoji, ainsi que leurs 4 variables d'etat.
-
-
-
-function addExtraIngredient() {
-    const input = document.getElementById('ez-input');
-    const val = input?.value?.trim();
-    if (!val) return;
-    
-    // Plafond des « hors stock », séparé de celui des épinglés (LOT 010 : le 6 en dur
-    // est remonté dans la SSOT des plafonds, le message reste celui de l'oracle l.4917).
-    if (state.extraIngredients.length >= MAX_EXTRA_INGREDIENTS) {
-        toast(`Maximum ${MAX_EXTRA_INGREDIENTS} ingrédients hors stock`, 'error'); return;
-    }
-
-    // Check similarity in Inventory
-    const similarInStock = state.ingredients.find(ing => ing.inStock && areSimilar(ing.name, val));
-    if (similarInStock) {
-        if (!confirm(`⚠️ "${similarInStock.name}" est déjà en stock ! Voulez-vous vraiment ajouter "${val}" en hors-stock ?`)) return;
-    }
-
-    // Check similarity in existing hors-stock
-    const similarInExtra = state.extraIngredients.find(ei => areSimilar(ei.name, val));
-    if (similarInExtra) {
-        if (!confirm(`ℹ️ "${val}" ressemble beaucoup à "${similarInExtra.name}" déjà présent dans la liste. Ajouter quand même ?`)) return;
-    }
-
-    // LOT 012, zone C (oracle l.4933) : emoji devine depuis la base plutot qu'une
-    // etoile fixe qui ne renseignait jamais Joel sur ce qu'il venait de taper.
-    const emoji = autoEmoji(val, DEFAULT_DB);
-    state.extraIngredients.push({ name: val, emoji, id: generateId('extra') });
-    input.value = '';
-    saveState();
-    refreshImposedZone();
-}
-
-/**
- * Remplit le libellé des plafonds depuis la SSOT (LOT 010, casse C9).
- * L'interface annonçait « Max 6 ingrédients imposés au total » alors que les deux
- * familles sont plafonnées SÉPARÉMENT — un mensonge visible par l'utilisateur.
- */
-function renderImposedCapHint() {
-    const el = document.getElementById('imposed-cap-hint');
-    if (el) el.textContent = `Max ${MAX_PINNED_INGREDIENTS} épinglés + ${MAX_EXTRA_INGREDIENTS} hors stock`;
-}
-
-/**
- * Zone « Ingrédients imposés » de l'écran IA (LOT 010, casse C10).
- *
- * Remplace l'ancien `renderExtraChips` qui n'affichait QUE les extras, sans emoji,
- * et ne se rafraîchissait qu'au rendu de la vue IA — un épinglé était envoyé à l'IA
- * (`gemini.js`) mais invisible et non retirable ici.
- *
- * Porté depuis l'oracle (`renderImposedZone`, `foodapp-v5-Joel.html` l.4875-4910),
- * en DOM-safe via `h()` plutôt que le `innerHTML` littéral de l'original — même
- * choix de sécurité que pour le panneau système du LOT 009.
- */
-function renderExtraChips() {
-    const container = document.getElementById('imposed-chips');
-    if (!container) return;
-
-    const pinned = state.ingredients.filter(i => i.pinned);
-    const extras = state.extraIngredients || [];
-
-    if (pinned.length === 0 && extras.length === 0) {
-        container.replaceChildren(h('span', { class: 'pz-empty' }, 'Aucun ingrédient imposé'));
-        return;
-    }
-
-    const blocs = [];
-
-    if (pinned.length > 0) {
-        blocs.push(h('div', { class: 'pz-label' }, "📍 Dans l'inventaire"));
-        blocs.push(h('div', { class: 'pz-chips' }, pinned.map(ing => h('div', { class: 'pz-chip' }, [
-            h('span', {}, ing.emoji),
-            ` ${ing.name} `,
-            h('span', { class: 'pz-chip-del', onclick: () => togglePin(ing.id) }, '✕')
-        ]))));
-    }
-
-    if (extras.length > 0) {
-        blocs.push(h('div', { class: 'ez-label', style: { marginTop: '12px' } }, '🛒 Hors inventaire'));
-        blocs.push(h('div', { class: 'pz-chips' }, extras.map(ei => h('div', { class: 'ez-chip' }, [
-            h('span', {}, ei.emoji),
-            ` ${ei.name} `,
-            h('span', { class: 'ez-chip-del', onclick: () => removeExtraIngredient(ei.id) }, '✕')
-        ]))));
-    }
-
-    container.replaceChildren(...blocs);
-}
-
-/**
- * Sous-titre vivant de l'écran IA (LOT 010, casse C10).
- * Porté depuis l'oracle (`updateAIContextSub`, `foodapp-v5-Joel.html` l.4943-4953) :
- * segments « épinglé(s) » et « hors stock » masqués quand leur compteur vaut 0.
- */
-function updateAIContextSub() {
-    const el = document.getElementById('ai-context-sub');
-    if (!el) return;
-    const stock = state.ingredients.filter(i => i.inStock).length;
-    const pinned = state.ingredients.filter(i => i.pinned).length;
-    const extra = (state.extraIngredients || []).length;
-    let s = stock + ' ingrédient' + (stock > 1 ? 's' : '') + ' en stock';
-    if (pinned > 0) s += ` · ${pinned} épinglé${pinned > 1 ? 's' : ''}`;
-    if (extra > 0) s += ` · ${extra} hors stock`;
-    el.textContent = s;
-}
-
-/**
- * Rafraîchit la zone imposée ET le sous-titre en un seul appel (LOT 010, casse C10) :
- * dépassement volontaire de l'oracle, assumé et tracé dans la fiche du lot — l'oracle
- * ne rafraîchissait le sous-titre qu'à certains endroits, oubliant l'épinglage.
- */
-function refreshImposedZone() {
-    renderExtraChips();
-    updateAIContextSub();
-}
-
-function removeExtraIngredient(id) {
-    state.extraIngredients = state.extraIngredients.filter(it => it.id !== id);
-    saveState();
-    refreshImposedZone();
-}
-
-function generateRandomWithStock() {
-    // Verifiee AVANT de muter state.aiConfig (LOT 011, audit sous-lot 11A) : le refus doit
-    // etre immediat, sans effet de bord.
-    if (generationDejaEnCours()) return;
-    const stock = state.ingredients.filter(i => i.inStock);
-    if (stock.length === 0) { toast('Stock vide', 'error'); return; }
-
-    // Desactivation visuelle du bouton 🎲 le temps de la generation, symetrique a ce que
-    // generateSuggestions fait deja pour #generate-btn (trouve par l'audit : seul le
-    // bouton normal etait desactive, pas celui-ci — un double-clic sur 🎲 restait possible).
-    const magicBtn = document.getElementById('magic-btn');
-    if (magicBtn) magicBtn.disabled = true;
-
-    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097) pour CETTE
-    // generation, MAIS apiKey et models sont preserves : l'oracle les stockait ailleurs,
-    // les reinitialiser ici viderait la cle API de Joel a chaque tirage. `cuisines`
-    // (pluriel, SSOT du LOT 010) est bien cible — l'oracle videait un champ fantome
-    // `cuisine` qui ne servait a rien.
-    // Arbitrage Joel (2026-07-30, post-audit sous-lot 11A) : contrairement a l'oracle
-    // (qui laissait les filtres reinitialises en permanence), TOUT est emprunte pour
-    // une seule generation puis restaure integralement ensuite — pas seulement la
-    // creativite. D'ou la sauvegarde de l'objet entier, pas juste d'un champ.
-    const savedAiConfig = state.aiConfig;
-    state.aiConfig = {
-        ...defaultAiConfig(),
-        apiKey: savedAiConfig.apiKey,
-        models: savedAiConfig.models,
-        ppl: savedAiConfig.ppl || '2',
-        creativity: Math.floor(Math.random() * 21) + 80 // 80-100
-    };
-    restoreAIConfig();
-
-    return generateSuggestions().finally(() => {
-        state.aiConfig = savedAiConfig;
-        restoreAIConfig();
-        saveState(false);
-        if (magicBtn) magicBtn.disabled = false;
-    });
-}
-
 
 
 
