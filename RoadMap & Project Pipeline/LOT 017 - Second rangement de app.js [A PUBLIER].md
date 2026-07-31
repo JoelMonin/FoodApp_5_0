@@ -1,6 +1,6 @@
 # LOT 017 — Second rangement de `js/app.js` — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-07-31
+> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-07-31
 > **Branche :** `feat/lot17-second-rangement-app-js`, chaînée depuis `feat/lot16` (le LOT 016
 > est `[A PUBLIER]`, pas encore en ligne — précédent des LOTS 007+008, 009+010, 011+012)
 > **Niveau d'audit : Standard** — déménagement de code sous filet de tests déjà dense
@@ -137,11 +137,11 @@ des crochets au lieu d'en créer.**
 |---|---|---|
 | **0** | Filet sur `saveAiConfigFromUI` + retrait de la zone morte | ✅ **FAIT** |
 | **A** | `src/ui/modals.js` (`openModal`, `closeModal`, `initSwipeToClose`) — remonté du dernier au premier rang | ✅ **FAIT** |
-| **B** | `src/ui/settings.js` (+ `updateApiStatus`, `renderAiModelsInfo`) — reprend le crochet `onApiConfigOpen` | à faire |
-| **C** | `src/ui/favorites.js` (+ `saveRecipeOnly`, `saveRecipeAndList`, `printRecipe`) | à faire |
-| **D** | `src/ui/pasteRecipe.js` (+ `buildPastedFavorite`) — reprend `resetPasteModal` et ses 29 lignes | à faire |
-| **E** | `src/ui/aiPanel.js` (+ 8 compagnons) | à faire |
-| **F** | `src/ui/topbar.js` (+ `countStockAndCart`, `_favCountSub`) + `registerTopbarHooks` | à faire |
+| **B** | `src/ui/settings.js` (+ `updateApiStatus`, `renderAiModelsInfo`) — reprend le crochet `onApiConfigOpen` | ✅ **FAIT** |
+| **C** | `src/ui/favorites.js` (+ `saveRecipeOnly`, `saveRecipeAndList`, `printRecipe`, `buildRecipeHandlers`) | ✅ **FAIT** |
+| **D** | `src/ui/topbar.js` (+ `countStockAndCart`, `_favCountSub`, les 3 filtres) — **remonté avant `pasteRecipe`**, qui a besoin de `updateBadges` | ✅ **FAIT** |
+| **E** | `src/ui/pasteRecipe.js` (+ `buildPastedFavorite`) — reprend `resetPasteModal` et ses 29 lignes | ✅ **FAIT** |
+| **F** | `src/ui/aiPanel.js` (+ 8 compagnons) | ✅ **FAIT** |
 
 Chaque volet : déplacement pur → validation unifiée verte → commit séparé. Un défaut trouvé
 en chemin se fige, ne se corrige pas dans le même geste.
@@ -203,3 +203,39 @@ cas particuliers **restent** pour l'instant dans `js/app.js` : elles partiront a
 `settings.js` (volet B) et `pasteRecipe.js` (volet D), sans que le branchement change de forme.
 
 **Validation à chaque étape : 798/798 Vitest · 16/16 Pytest.**
+
+### Volets B à F — les cinq écrans sortent ✅
+
+| Module | Ce qu'il emporte | `js/app.js` |
+|---|---|---|
+| `src/ui/settings.js` | fiche technique, clé API, réglages libres (+ `updateApiStatus`, `onApiConfigOpen`) | 1467 → 1387 |
+| `src/ui/favorites.js` | rendu, suppression, 3 chemins de sauvegarde, `buildRecipeHandlers`, `printRecipe` | 1387 → 1317 |
+| `src/ui/topbar.js` | barre contextuelle, puces de filtre, pastilles (+ les 3 fonctions de filtre) | 1317 → 1098 |
+| `src/ui/pasteRecipe.js` | lecture d'URL, transformation IA, 2 sauvegardes, `resetPasteModal` | 1098 → 918 |
+| `src/ui/aiPanel.js` | génération, résultats, réglages IA, zone imposée (**17 fonctions, pas 9**) | 918 → **625** |
+
+**Objectif dépassé : 1527 → 625 lignes (−59 %), pour une cible de ~700.**
+
+Deux réordonnancements décidés en cours de route, chacun pour éviter un crochet temporaire :
+`modals.js` d'abord (volet A), et `topbar.js` avant `pasteRecipe.js` — ce dernier a besoin de
+`updateBadges`, qui serait sinon resté dans `js/app.js`.
+
+**Bilan des couplages : 5 crochets avant le lot, 4 après**, alors que six modules sont sortis.
+`registerTopbarHooks` en ajoute un (3 entrées, toutes vers l'écran inventaire qui n'a pas
+encore de module) ; `registerCartPickerHooks` et `registerEmojiModalHooks` ont disparu.
+
+### Le défaut que 798 tests verts n'ont pas vu 🔴
+
+**La construction de production était CASSÉE depuis le volet A**, donc la branche était
+**impubliable**, et rien ne le disait. En supprimant deux crochets de leurs modules, j'avais
+laissé `js/app.js` les importer encore. Vitest résout les modules à la demande et n'a jamais
+bronché ; `vite build` échoue net sur `MISSING_EXPORT`.
+
+**Contre-épreuve faite** : en important une `fonctionQuiNExistePas` totalement imaginaire,
+les **798 tests passent toujours** — seule la construction la refuse.
+
+**Correctif de fond, au-delà du bug** : la validation unifiée passe de 2 à **3 étapes**
+(`validate.bat`, `npm run check` et `CLAUDE.md` §4 mis à jour ensemble). Une suite de tests
+verte ne prouve pas que l'application se construit — donc pas qu'elle est publiable.
+
+**Validation finale : 798/798 Vitest · 16/16 Pytest · build OK.**

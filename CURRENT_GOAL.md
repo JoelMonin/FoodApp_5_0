@@ -9,11 +9,24 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 017 — Second rangement de `js/app.js`** : ouvert le 2026-07-31 sur
-`feat/lot17-second-rangement-app-js`, **chaînée depuis `feat/lot16`** (le LOT 016 est
-`[A PUBLIER]`, pas encore en ligne — précédent établi par les LOTS 007+008, 009+010,
-011+012, fusionnés ensemble). Niveau d'audit **Standard**. Base de travail :
-`Backlog/BACKLOG - Second rangement de app.js.md`.
+**LOT 017 — Second rangement de `js/app.js`** : ouvert ET **TERMINÉ le 2026-07-31** sur
+`feat/lot17-second-rangement-app-js`, statut **A PUBLIER**. Chaînée depuis `feat/lot16`
+(également `[A PUBLIER]`) : les deux lots partiront ensemble, comme les LOTS 007+008,
+009+010 et 011+012. Détail et preuves :
+`RoadMap & Project Pipeline/LOT 017 - Second rangement de app.js [A PUBLIER].md`.
+
+**Objectif dépassé : `js/app.js` passe de 1527 à 625 lignes (−59 %)**, pour une cible
+annoncée à ~700. Six modules extraits (`modals`, `settings`, `favorites`, `topbar`,
+`pasteRecipe`, `aiPanel`) — et le nombre de couplages artificiels **baisse** malgré tout,
+de 5 crochets à 4.
+
+**🔴 LE DÉFAUT À RETENIR DE CE LOT : la construction de production était cassée depuis le
+premier volet, avec 798 tests verts.** `js/app.js` importait deux fonctions supprimées de
+leurs modules ; Vitest résout les modules à la demande et n'a rien vu, `vite build` échoue
+net. La branche a été **impubliable pendant cinq volets** sans que rien ne le signale.
+Contre-épreuve faite : un import d'une fonction totalement imaginaire laisse les 798 tests
+verts. **La validation unifiée passe donc de 2 à 3 étapes** (`validate.bat`, `npm run check`,
+`CLAUDE.md` §4). Une suite de tests verte ne prouve pas que l'application se construit.
 
 **⚠️ La mesure de départ était fausse DEUX FOIS** : la fiche backlog annonçait `js/app.js` à
 **1523 lignes** (chiffre écrit à la main à la clôture du LOT 014, jamais remesuré), et ma
@@ -134,7 +147,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
 - **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
   campagne « Restauration & Refonte ».
-- **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31, V5.10.1)
+- **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31)
+- **017** Second rangement de `js/app.js` — 🟡 **A PUBLIER** (terminé le 2026-07-31) — part
+  avec le 016, en V5.11
 
 ## Vérités à ne pas perdre
 

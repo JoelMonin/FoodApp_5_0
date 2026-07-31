@@ -60,6 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [017](LOT%20017%20-%20Second%20rangement%20de%20app.js%20%5BA%20PUBLIER%5D.md) | Second rangement de `js/app.js` — **1527 → 625 lignes (−59 %)**, six modules extraits, couplages en baisse (5 crochets → 4). A trouvé un défaut que 798 tests verts ne voyaient pas : la construction de production était cassée depuis le premier volet. Validation unifiée portée de 2 à 3 étapes | **A PUBLIER** — attend le feu vert de Joel (V5.11, avec le 016) | `feat/lot17-second-rangement-app-js` |
 | [016](LOT%20016%20-%20Etiquettes%20de%20recette%20au%20propre%20%5BA%20PUBLIER%5D.md) | Étiquettes de recette au propre — solde le point de sortie `.r-tag` laissé ouvert par le LOT 014 : les variantes rouge et verte n'ont plus qu'une définition, apparence prouvée identique, +6 tests de verrou (4 mutations, 4 rouges) | **A PUBLIER** — attend le feu vert de Joel (V5.10.1) | `feat/lot16-etiquettes-recette-css` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BCLOTURE%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **CLOTURE** — publié en V5.10 le 2026-07-31 | `feat/lot14-refonte-ssot` |
 
@@ -101,6 +102,15 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-07-31 — LOT 017 ouvert et terminé (A PUBLIER)** : le second rangement de `js/app.js`
+  aboutit **au-delà de sa cible** — 1527 → 625 lignes (−59 %) pour un objectif de ~700. Six
+  modules extraits, et le nombre de couplages artificiels BAISSE (5 crochets → 4) alors même
+  que six frontières nouvelles apparaissent. La phase découverte a corrigé trois erreurs du
+  plan (mesure fausse deux fois, 16 fonctions oubliées, cible inatteignable en l'état) et
+  l'ordre des volets a été revu deux fois en cours de route pour éviter des crochets
+  temporaires. **Défaut majeur trouvé en fin de lot** : la construction de production était
+  cassée depuis le premier volet, avec 798 tests verts — la branche était impubliable sans
+  que rien ne le dise. La validation unifiée passe de 2 à 3 étapes.
 - **2026-07-31 — LOT 016 ouvert et terminé (A PUBLIER)** : solde le point `.r-tag` reporté
   par le LOT 014. Le diagnostic a **infirmé l'hypothèse de départ** : `.r-tag.green` de
   `05-ai.css` était bien intégralement morte, mais `.r-tag.red` gardait deux propriétés
