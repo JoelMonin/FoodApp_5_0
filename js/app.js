@@ -34,6 +34,7 @@ import {
   analyzeNutrition,
   isDocumentFullscreen,
   exitDocumentFullscreen,
+  quitterPleinEcranSiBesoin,
   toggleRecipeFullscreen,
   syncRecipeFullscreenClass,
   initRecipeFullscreenListeners,
@@ -288,7 +289,7 @@ function countStockAndCart() {
 }
 
 // Sous-titre "N recette(s)" — partagé par les deux clés 'fav'/'favorites' (alias de la
-// meme vue, cf. `viewMap` de `renderCurrentView`), pour ne pas dupliquer le calcul.
+// meme vue, cf. `PANNEAU_DE_VUE`, `src/constants.js`), pour ne pas dupliquer le calcul.
 const _favCountSub = () => {
     const n = state.favorites.length;
     return n + ' recette' + (n > 1 ? 's' : '');
@@ -561,8 +562,21 @@ function resetFilters() {
 // l.5052-5058, littéraux exacts).
 const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
 
+/**
+ * Garde partagee (LOT 014, volet D) : deux points d'entree refusent une generation quand
+ * une autre tourne deja — `generateSuggestions` et `generateRandomWithStock`. Ce dernier
+ * verifie AVANT de toucher a `state.aiConfig` (LOT 011, audit du sous-lot 11A) : c'est
+ * volontaire, et c'est pourquoi la garde existe a deux endroits plutot qu'un. Seul le
+ * message etait duplique.
+ */
+function generationDejaEnCours() {
+    if (!_generationInFlight) return false;
+    toast('Une génération est déjà en cours…', 'error');
+    return true;
+}
+
 async function generateSuggestions() {
-  if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
+  if (generationDejaEnCours()) return;
   const apiKey = state.aiConfig.apiKey;
   if (!apiKey) { toast('Clé API Gemini requise', 'error'); openModal('modal-api-config'); return; }
   const stockItems = state.ingredients.filter(i => i.inStock);
@@ -776,16 +790,25 @@ function deleteFav(id) {
     toast('Recette supprimée');
 }
 
+/**
+ * SSOT de l'ajout aux favoris (LOT 014, volet D) : la meme ligne etait ecrite a
+ * l'identique dans deux fonctions. Le jour ou un champ s'ajoute a un favori, il ne doit
+ * y avoir qu'un seul endroit a modifier.
+ */
+function pousserFavori(recette) {
+    state.favorites.push({ ...recette, id: generateId('fav'), date: formatDateFr() });
+}
+
 function saveSuggestionToFavDirect(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: formatDateFr() });
+    pousserFavori(r);
     saveState();
     toast('Ajouté aux favoris !');
 }
 
 function saveRecipeOnly(r) {
     if (!r) return;
-    state.favorites.push({ ...r, id: generateId('fav'), date: formatDateFr() });
+    pousserFavori(r);
     saveState();
     toast('Recette sauvegardée !');
     closeModal('modal-paste-recipe');
@@ -1047,7 +1070,7 @@ function closeModal(id) {
     el?.classList.remove('open');
     if (el?.classList.contains('recipe-fullscreen')) {
         el.classList.remove('recipe-fullscreen');
-        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
+        quitterPleinEcranSiBesoin();
     }
 }
 
@@ -1185,9 +1208,9 @@ function removeExtraIngredient(id) {
 }
 
 function generateRandomWithStock() {
-    // Meme garde que generateSuggestions (LOT 011, audit sous-lot 11A) : evite de muter
-    // state.aiConfig pour rien si une generation tourne deja, et rend le refus immediat.
-    if (_generationInFlight) { toast('Une génération est déjà en cours…', 'error'); return; }
+    // Verifiee AVANT de muter state.aiConfig (LOT 011, audit sous-lot 11A) : le refus doit
+    // etre immediat, sans effet de bord.
+    if (generationDejaEnCours()) return;
     const stock = state.ingredients.filter(i => i.inStock);
     if (stock.length === 0) { toast('Stock vide', 'error'); return; }
 

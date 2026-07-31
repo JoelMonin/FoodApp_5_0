@@ -93,12 +93,20 @@ export function buildEmojiEditSuggestions(seed, category) {
     return emojis.slice(0, 15);
 }
 
+/**
+ * SSOT de la tuile d'emoji (LOT 014, volet D) : la meme construction etait ecrite dans les
+ * deux remplisseurs de la grille — les suggestions locales et la recherche par IA. La
+ * classe `emoji-edit-btn` porte du CSS reel : la dupliquer, c'est risquer qu'une des deux
+ * grilles cesse d'etre stylee sans que rien ne le signale.
+ */
+function tuileEmoji(e) {
+    return h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e);
+}
+
 export function renderEmojiEditGrid(seed) {
     const grid = document.getElementById('edit-emoji-grid');
     if (!grid) return;
-    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(e =>
-        h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-    ));
+    grid.replaceChildren(...buildEmojiEditSuggestions(seed).map(tuileEmoji));
 }
 
 /** Applique l'emoji choisi, sauvegarde, ferme — contrat du `updateEmoji` du
@@ -131,9 +139,7 @@ export async function searchEmojiAI() {
             const emojis = res.match(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g) || [];
             const grid = document.getElementById('edit-emoji-grid');
             if (grid) {
-                grid.replaceChildren(...emojis.map(e =>
-                    h('button', { class: 'emoji-edit-btn', onclick: () => applyEditedEmoji(e) }, e)
-                ));
+                grid.replaceChildren(...emojis.map(tuileEmoji));
             }
         }
     } catch (e) {

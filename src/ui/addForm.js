@@ -14,26 +14,23 @@ import { AI_ROLES, GENERIC_EMOJI_FALLBACK } from '../constants.js';
  * (`tests/add-form.test.js`, 18 tests de caracterisation prouves par retrait), conformement
  * a la regle du lot sur les zones aveugles.
  *
- * POURQUOI CE MODULE EXISTE : ses quatre variables d'etat vivaient en tete de `js/app.js`,
- * a 1400 lignes des fonctions qui les lisent, et `selectEmoji` vivait encore 600 lignes plus
- * loin. Rien n'empechait un futur lot d'ecrire dessus depuis n'importe ou. Elles sont
- * desormais PRIVEES : la seule ecriture possible depuis l'exterieur passe par
- * `resetManualCategory()`.
+ * POURQUOI CE MODULE EXISTE : ses variables d'etat vivaient en tete de `js/app.js`, a 1400
+ * lignes des fonctions qui les lisent, et `selectEmoji` vivait encore 600 lignes plus loin.
+ * Rien n'empechait un futur lot d'ecrire dessus depuis n'importe ou. Elles sont desormais
+ * PRIVEES : la seule ecriture possible depuis l'exterieur passe par `resetManualCategory()`.
  *
- * DEUX DEFAUTS CONNUS, FIGES TELS QUELS (pare-feu A/B du lot — les corriger serait un
- * changement de comportement, donc une decision de Joel, pas un deplacement) :
+ * UN DEFAUT CONNU, FIGE TEL QUEL (pare-feu A/B du lot — le corriger serait un changement de
+ * comportement, donc une decision de Joel, pas un deplacement) :
  *
- *  1. DOUBLE RESET INCOHERENT. `switchView('add')` ne remet a zero QUE `_isManualCategory`,
- *     alors que `renderAdd` remet les quatre. Dans le parcours normal les deux s'enchainent
- *     (switchView -> saveState -> 'stateUpdated' -> renderCurrentView -> renderAdd), donc le
- *     premier reset est redondant. Il est conserve a l'identique : c'est le seul filet si
- *     `saveState` echoue avant de diffuser l'evenement.
+ *  DOUBLE RESET INCOHERENT. `switchView('add')` ne remet a zero QUE `_isManualCategory`,
+ *  alors que `renderAdd` remet les trois. Dans le parcours normal les deux s'enchainent
+ *  (switchView -> saveState -> 'stateUpdated' -> renderCurrentView -> renderAdd), donc le
+ *  premier reset est redondant. Il est conserve a l'identique : c'est le seul filet si
+ *  `saveState` echoue avant de diffuser l'evenement.
  *
- *  2. DEUX COMPARAISONS DE TEXTE DIFFERENTES DANS LE MEME FORMULAIRE. La liste de resultats
- *     (`handleAddInput`, etape 2) passe par `normalizeString` : insensible aux accents. La
- *     grille d'emojis (`updateEmojiSuggestions`) fait `name.toLowerCase().includes()` :
- *     SENSIBLE aux accents. Taper « epinard » sans accent propose bien « Epinards » dans la
- *     liste mais laisse la grille VIDE. Verrouille par `tests/add-form.test.js`.
+ * DEUX POINTS DE CE MODULE ONT ETE CORRIGES depuis (decisions de Joel du 2026-07-31), et ne
+ * sont donc PLUS des defauts : la grille d'emojis compare desormais comme la liste de
+ * resultats (accents), et `_localCategoryFill` — ecrite 6 fois, lue zero fois — a disparu.
  *
  * DEPENDANCE INVERSE : `addIngredient`/`addIngredientFromDb` renvoient Joel a l'inventaire
  * apres un ajout reussi, ce qui demande `switchView` — qui vit dans `js/app.js` et lit
@@ -271,6 +268,27 @@ export function onManualCategoryChange() {
     showCategoryIndicator(null);
 }
 
+/**
+ * Apres un ajout REUSSI — SSOT (LOT 014, volet D). Les deux chemins d'ajout (saisie libre et
+ * clic sur une suggestion du catalogue) enchainaient les MEMES douze lignes : vider les
+ * quatre champs, oublier le choix manuel de categorie, redessiner, puis renvoyer Joel a son
+ * inventaire. Deux copies a maintenir pour un seul comportement.
+ *
+ * Le retour differe de 500 ms (LOT 012, zone C ; oracle l.6458) : ne pas laisser Joel sur un
+ * formulaire vide sans lien evident avec ce qu'il vient de faire. Le formulaire, lui, est
+ * deja reinitialise — enchainer plusieurs ajouts avant l'echeance reste possible.
+ */
+function apresAjoutReussi(messageDeConfirmation) {
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-emoji').value = '';
+    document.getElementById('add-category').value = '';
+    document.getElementById('add-frozen').checked = false;
+    _isManualCategory = false;
+    renderAdd();
+    toast(messageDeConfirmation);
+    setTimeout(() => _nav.switchView('pantry'), 500);
+}
+
 export function addIngredient() {
     const name = document.getElementById('add-name')?.value;
     if (!name) { toast('Nom requis', 'error'); return; }
@@ -294,19 +312,7 @@ export function addIngredient() {
 
     saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
 
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-    toast(`"${name}" ajouté ✓`);
-    // LOT 012, zone C (oracle l.6458) : retour a l'inventaire apres un ajout reussi,
-    // pour ne pas laisser Joel sur un formulaire vide sans lien evident avec ce qu'il
-    // vient de faire. Le formulaire s'est deja reinitialise juste au-dessus (LOT 006) :
-    // un enchainement de plusieurs ajouts reste possible avant l'echeance des 500 ms.
-    setTimeout(() => _nav.switchView('pantry'), 500);
+    apresAjoutReussi(`"${name}" ajouté ✓`);
 }
 
 export function addIngredientFromDb(dbItem) {
@@ -322,20 +328,7 @@ export function addIngredientFromDb(dbItem) {
 
     saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
 
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-
-    toast(`${dbItem.name} ajouté !`);
-    // LOT 012, zone C — trouvé par l'audit du diff final (Codex Terra) : ce chemin
-    // d'ajout (clic sur une suggestion d'autocomplétion, absent de l'oracle) ajoute
-    // vraiment un ingrédient au même titre que `addIngredient` — même retour auto pour
-    // que les deux parcours se comportent pareil du point de vue de Joel.
-    setTimeout(() => _nav.switchView('pantry'), 500);
+    apresAjoutReussi(`${dbItem.name} ajouté !`);
 }
 
 export async function searchEmojiAddAI() {

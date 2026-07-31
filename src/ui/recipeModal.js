@@ -150,6 +150,24 @@ export function requestElementFullscreen(el) {
     return request.call(el);
 }
 
+/**
+ * SSOT de la sortie de plein ecran (LOT 014, volet D) : la combinaison « verifier PUIS
+ * sortir en avalant l'echec » etait ecrite ici ET dans `closeModal` de `js/app.js`.
+ * L'echec est volontairement ignore : le navigateur refuse parfois de sortir du plein
+ * ecran hors d'un geste utilisateur, et ce refus ne doit pas casser la fermeture.
+ *
+ * REND `true` si le plein ecran NAVIGATEUR etait actif. Ce retour n'est pas cosmetique :
+ * `toggleRecipeFullscreen` en a besoin pour son repli CSS. Quand le navigateur n'est PAS
+ * en plein ecran (il a refuse la demande, ou l'appareil ne le propose pas), c'est la
+ * classe `recipe-fullscreen` seule qui fait l'effet — il faut donc la retirer a la main.
+ * Un helper sans retour aurait supprime ce repli EN SILENCE.
+ */
+export function quitterPleinEcranSiBesoin() {
+    if (!isDocumentFullscreen()) return false;
+    exitDocumentFullscreen().catch(() => {});
+    return true;
+}
+
 export function exitDocumentFullscreen() {
     const exit = document.exitFullscreen || document.webkitExitFullscreen ||
         document.mozCancelFullScreen || document.msExitFullscreen;
@@ -161,8 +179,7 @@ export function toggleRecipeFullscreen(id) {
     const el = typeof id === 'string' ? document.getElementById(id) : id;
     if (!el) return;
     if (el.classList.contains('recipe-fullscreen')) {
-        if (isDocumentFullscreen()) exitDocumentFullscreen().catch(() => {});
-        else el.classList.remove('recipe-fullscreen');
+        if (!quitterPleinEcranSiBesoin()) el.classList.remove('recipe-fullscreen');
     } else {
         el.classList.add('recipe-fullscreen');
         requestElementFullscreen(el).catch(() => { /* repli CSS pur, cf. commentaire ci-dessus */ });

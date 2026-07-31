@@ -369,7 +369,10 @@ export function importStockOnly(file) {
           if (!aUnNomExploitable(jsonIng)) return;
           const newId = jsonIng.id && jsonIng.id.startsWith('custom_')
             ? jsonIng.id
-            : 'custom_restore_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            // LOT 014, volet D — passe par `generateId`, SSOT des identifiants. Le prefixe
+            // reste `custom_` : c'est lui que teste la branche du dessus pour reconnaitre
+            // un id deja genere par ce chemin.
+            : generateId('custom_restore');
           state.ingredients.push({ ...jsonIng, id: newId });
           // LOT 015, §G — même purge que la branche ci-dessus. Cette branche CONSERVE l'id
           // quand il commence par `custom_` : un id ré-inséré hors panier pouvait donc

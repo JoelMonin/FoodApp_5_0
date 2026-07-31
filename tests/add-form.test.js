@@ -89,6 +89,40 @@ describe('LOT 014 §A — selectEmoji (caractérisation avant déplacement)', ()
     });
 });
 
+// TROU TROUVÉ PAR MUTATION (LOT 014 §D) : rien ne prouvait que le formulaire se REDESSINE
+// après un ajout réussi. Les quatre champs étaient bien vidés — et testés — mais la liste de
+// suggestions et la grille d'emojis pouvaient rester affichées, avec les propositions de
+// l'ingrédient précédent, sans qu'aucun test ne bronche.
+describe('LOT 014 §D — après un ajout réussi, le formulaire est REMIS À NEUF', () => {
+    beforeEach(() => {
+        setupTestDOM(['add', 'pantry']);
+        resetTestState(state, shoppingChecked, defaultAiConfig);
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        window.switchView('add');
+        vi.clearAllTimers();
+        vi.useRealTimers();
+    });
+
+    it('vide la liste de suggestions ET la grille d\'emojis, pas seulement les champs', () => {
+        document.getElementById('add-name').value = 'Salsifis';
+        window.handleAddInput('tomate');          // peuple les deux zones
+        vi.advanceTimersByTime(200);
+        expect(document.querySelectorAll('#add-results-list .add-res-item').length).toBeGreaterThan(0);
+        expect(document.querySelectorAll('#emoji-suggestions .emoji-sug-btn').length).toBeGreaterThan(0);
+
+        document.getElementById('add-name').value = 'Salsifis';
+        window.addIngredient();
+
+        expect(document.getElementById('add-results-list').children.length).toBe(0);
+        expect(document.getElementById('emoji-suggestions').children.length).toBe(0);
+        expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
+        expect(document.getElementById('add-name').value).toBe('');
+    });
+});
+
 describe('LOT 014 §A — updateEmojiSuggestions (caractérisation avant déplacement)', () => {
     beforeEach(() => {
         setupTestDOM('add');
