@@ -370,8 +370,11 @@
     /* Recipe detail modal — styles reels (le JS insere .modal-content directement dans
        .modal-overlay via replaceChildren ; depuis le LOT 009, ce modal n'a plus AUCUN
        wrapper statique .modal dans index.html, .modal-content est la seule racine.
-       Ces classes mh- et rd- sont celles reellement utilisees par src/ui/recipe.js,
-       contrairement aux .recipe-detail / .recipe-steps ci-dessus, orphelines) */
+       CORRECTIF (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait que
+       `.recipe-detail-section`/`.recipe-steps` etaient orphelines — c'est FAUX, verifie sur
+       piece (`src/ui/recipe.js:222, :230, :269, :271, :273`, 5 usages actifs). C'est au
+       contraire LEUR definition ICI, dans ce fichier, qui gagne sur le doublon retire de
+       `05-ai.css` (meme selecteur, cascade). */
     .modal-content {
       background: white;
       border-radius: 18px;

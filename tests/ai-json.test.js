@@ -72,6 +72,33 @@ describe('extraireJsonIA — pieges de decoupage', () => {
     });
 });
 
+describe('extraireJsonIA — LE DEFAUT CORRIGE : un crochet de PROSE avant le vrai JSON', () => {
+    // Trouve par audit adversarial (LOT 014, 2026-07-31), verifie sur piece avant correctif :
+    // la premiere version de ce module ne regardait QUE depuis le tout premier `{`/`[` du
+    // texte. Un crochet de prose (lien Markdown, enumeration) qui s'EQUILIBRE sans etre du
+    // JSON valide faisait echouer toute l'extraction — recreant exactement le symptome que
+    // ce module devait eliminer (la suggestion disparait sans message).
+    it('un lien Markdown avant le JSON ne bloque plus l\'extraction', () => {
+        const brut = 'Voir [la documentation](https://exemple.com) pour plus d\'info. {"category":"Fruits"}';
+        expect(extraireJsonIA(brut)).toEqual({ category: 'Fruits' });
+    });
+
+    it('un crochet de prose (enumeration) avant le JSON ne bloque plus l\'extraction', () => {
+        const brut = 'Je ne peux pas traiter la categorie [inconnue] mais voici : {"category":"Fruits"}';
+        expect(extraireJsonIA(brut)).toEqual({ category: 'Fruits' });
+    });
+
+    it('meme piege A L\'INTERIEUR d\'un bloc Markdown', () => {
+        const brut = '```json\nLe format est [ainsi] : {"category":"Fruits"}\n```';
+        expect(extraireJsonIA(brut)).toEqual({ category: 'Fruits' });
+    });
+
+    it('decouperJsonIA beneficie du meme correctif (contrat chaine de callAI)', () => {
+        const brut = 'Voir [la documentation] : {"category":"Fruits"}';
+        expect(decouperJsonIA(brut)).toBe('{"category":"Fruits"}');
+    });
+});
+
 describe('extraireJsonIA — bloc Markdown', () => {
     it('lit un bloc ```json ... ```', () => {
         expect(extraireJsonIA('Voici le JSON :\n```json\n{"data":123}\n```')).toEqual({ data: 123 });

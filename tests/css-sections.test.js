@@ -64,3 +64,26 @@ describe('LOT 014 §E — verrou du découpage CSS', () => {
         expect(fautives).toEqual([]);
     });
 });
+
+// LOT 014 §E — trouvé par audit adversarial le 2026-07-31 : `.recipe-detail-section` était
+// définie deux fois AU MÊME NIVEAU (hors `@media`), dans deux fichiers différents, avec des
+// valeurs CONTRADICTOIRES — héritage du monolithe d'origine, invisible avant le découpage en
+// sections nommées. Comme les deux définitions partagent la même spécificité, c'est TOUJOURS
+// la dernière importée qui gagne : l'autre n'a jamais eu le moindre effet visuel. Corrigée
+// (la version morte a été retirée de `05-ai.css`, seule celle de `09-modals.css` demeure).
+//
+// UN VERROU GÉNÉRIQUE « aucun sélecteur ne se répète entre sections » A ÉTÉ ESSAYÉ ET
+// ABANDONNÉ : il remontait 14 « doublons », et les 14 étaient des surcharges `@media`
+// (mobile, impression) — le mécanisme CSS standard pour le responsive, pas un défaut. Un tel
+// verrou aurait exigé une liste blanche sans fin pour rester vert, donc plus de bruit que de
+// protection. Verrou étroit à la place : seul le sélecteur réellement fautif est surveillé.
+describe('LOT 014 §E — .recipe-detail-section ne redevient pas un doublon mort', () => {
+    it('n\'est défini qu\'UNE seule fois hors @media, dans 09-modals.css', () => {
+        const definitions = presentes
+            .map(f => ({ f, corps: readFileSync(join(DOSSIER, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '') }))
+            .filter(({ corps }) => /(?:^|\n|\})[ \t]*\.recipe-detail-section[ \t]*\{/.test(corps))
+            .map(({ f }) => f);
+
+        expect(definitions).toEqual(['09-modals.css']);
+    });
+});

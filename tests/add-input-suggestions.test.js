@@ -137,6 +137,43 @@ describe('LOT 013 — handleAddInput (js/app.js, accessible via window)', () => 
         expect(document.getElementById('category-suggestion-indicator').style.display).toBe('none');
     });
 
+    // LOT 014 — trouvé par audit adversarial le 2026-07-31, vérifié sur pièce : un élément du
+    // tableau `emojis` qui n'a pas la forme d'un emoji construisait un sélecteur CSS invalide
+    // (`[data-emoji="${e}"]`), ce qui LEVAIT dans le `catch` global et éteignait la catégorie
+    // déjà correctement posée juste avant. Même filet que `cartPicker.js`/`stockMatch.js`
+    // (SSOT `AI_EMOJI_ONLY`).
+    it('un emoji malformé (guillemet dans la valeur) ne casse plus le sélecteur et n\'efface '
+       + 'pas la catégorie déjà posée', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fetchOk(
+            geminiEnveloppe({ category: 'Fruits', emojis: ['🍎', 'trop "bon"'] })
+        )));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('Fruits');
+        expect(document.getElementById('category-suggestion-indicator').textContent)
+            .toBe('✨ Catégorie suggérée par l\'IA');
+        expect([...document.querySelectorAll('#emoji-suggestions .emoji-sug-btn')].map(b => b.dataset.emoji))
+            .toEqual(['🍎']);
+    });
+
+    it('un emoji qui est en fait un mot de texte est écarté de la grille, la catégorie reste',
+       async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fetchOk(
+            geminiEnveloppe({ category: 'Fruits', emojis: ['pomme', '🍎'] })
+        )));
+
+        window.handleAddInput('xyzfoo');
+        await vi.advanceTimersByTimeAsync(800);
+        await flush();
+
+        expect(document.getElementById('add-category').value).toBe('Fruits');
+        expect([...document.querySelectorAll('#emoji-suggestions .emoji-sug-btn')].map(b => b.dataset.emoji))
+            .toEqual(['🍎']);
+    });
+
     // ─── LOT 014 — extracteur JSON unique (correctif validé par Joel le 2026-07-31) ────────
     // Avant : la lecture de la réponse s'arrêtait à la première accolade fermante, et c'est
     // son ÉCHEC qui servait de signal « réponse inutilisable » pour éteindre l'indicateur.

@@ -367,7 +367,17 @@ export function importStockOnly(file) {
           // exact que §C1 ferme. Mettre à jour un id connu sans répéter son nom reste permis
           // (branche du dessus) ; en CRÉER un sans nom ne l'est plus.
           if (!aUnNomExploitable(jsonIng)) return;
-          const newId = jsonIng.id && jsonIng.id.startsWith('custom_')
+          // CORRECTIF (LOT 014, trouve par audit adversarial le 2026-07-31) — GARDE DE TYPE.
+          // `estFusionnable` laisse passer une entree des qu'elle a un NOM exploitable,
+          // meme si son `id` n'est pas une chaine (`{"id":123,"name":"Test"}` : `id` seul ne
+          // suffirait pas a fusionner, mais `name` si). `.startsWith` sur un id numerique ou
+          // booleen LEVAIT ici, en PLEIN MILIEU de la boucle : les entrees deja traitees
+          // avant le crash restaient mutees sur `state.ingredients` (reference live, LOT 014
+          // volet B), et le prochain `saveState()` — n'importe quelle action ulterieure de
+          // Joel — les persistait et les poussait au cloud sans lien apparent avec l'import
+          // rate. `typeof` fait retomber un id non-textuel sur `generateId`, exactement
+          // comme un id absent.
+          const newId = typeof jsonIng.id === 'string' && jsonIng.id.startsWith('custom_')
             ? jsonIng.id
             // LOT 014, volet D — passe par `generateId`, SSOT des identifiants. Le prefixe
             // reste `custom_` : c'est lui que teste la branche du dessus pour reconnaitre

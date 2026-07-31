@@ -3,7 +3,7 @@ import { toast } from '../utils/dom.js';
 import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { callAI } from '../services/gemini.js';
 import { extraireJsonIA } from '../utils/aiJson.js';
-import { renderRecipeDetail } from './recipe.js';
+import { renderRecipeDetail, NUTRI_BTN_LABEL } from './recipe.js';
 import { buildIngredientTags } from '../utils/stockMatch.js';
 
 /**
@@ -128,10 +128,11 @@ export async function analyzeNutrition(r, source, favId) {
         toast("Erreur analyse nutrition", 'error');
         if (btn) {
             btn.disabled = false;
-            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton
-            // (`src/ui/recipe.js`, NUTRI_BTN_LABEL) — sans ce rappel, un échec laissait
-            // un texte plus court que celui rendu la première fois.
-            btn.textContent = '🔍 Estimer la valeur nutritionnelle (IA)';
+            // LOT 011 (chantier 2) : même libellé qu'à l'affichage initial du bouton — sans
+            // ce rappel, un échec laissait un texte plus court que la première fois. SSOT
+            // (LOT 014, audit adversarial) : importée depuis `recipe.js` plutôt que recopiée
+            // en dur, comme ce commentaire le prétendait déjà sans le faire.
+            btn.textContent = NUTRI_BTN_LABEL;
         }
     }
 }

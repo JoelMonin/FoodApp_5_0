@@ -152,8 +152,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 
 ## POINT DE REPRISE — LOT 014 (état au 2026-07-31, arbre propre)
 
-**Métriques : 773/773 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
-· feuille de style 49,5 → 44,2 Ko (−10,9 %).**
+**Métriques : 784/784 Vitest · 16/16 Pytest · build OK · `js/app.js` 2823 → 1523 lignes (−46 %)
+· feuille de style 49,5 → 43,96 Ko.**
 
 ### Ce qui est FAIT
 
@@ -170,27 +170,34 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 | **D — 2 passes faites** | 13 duplications supprimées + 1 défaut réel (« Autres » absent du menu) + verrou `categories-ssot` |
 | **Correctifs IA — FAITS** | extracteur JSON unique (`src/utils/aiJson.js`, **4** sites et non 3) + message unique de clé API. 13 mutations, 13 rouges. Détail : fiche du lot, § « Correctifs IA » |
 | **E — TERMINÉ** | CSS découpé en 13 sections (**feuille produite identique octet pour octet**, contre-épreuve incluse) + **62 règles mortes retirées (−10,9 %)**. Les 3 recherches convergentes ont évité de casser le Nutri-Score. Verrou `css-sections` (5 mutations / 5 rouges) |
+| **Check-list régressions — RE-PARCOURUE** | 41 points, un par un. 1 trou trouvé (retour auto 500 ms non verrouillé) + comblé |
+| **Audit DUR final — FAIT** | 6 agents adversariaux locaux en parallèle (un bloquant, trois moyens, trois mineurs corrigés — 10 tests neufs, tous prouvés par retrait). Détail : fiche du lot, § « Audit DUR final de campagne » |
 
 **Correctifs de comportement décidés par Joel et livrés** : les 2 défauts de catégorisation ·
 la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icône) ·
 `sanitize()` supprimée (addendum posé sur la fiche du LOT 003).
 
-### Ce qui RESTE — **tous les volets sont livrés ; 4 points de sortie**
+### Ce qui RESTE — **tout le périmètre technique est livré et audité ; 2 points de sortie**
 
-1. **CRITÈRE NON ATTEINT, décision de périmètre pour Joel** : `js/app.js` devait passer sous
-   **700 lignes**, il en fait **1 523** (−46 %). Atteindre la cible demande une SECONDE
-   tournée d'extraction (~1 000 lignes : modale « coller une recette », favoris, panneau IA,
-   barre supérieure, modales génériques, réglages), de la taille du volet A mais bien moins
-   risquée — ces zones sont désormais couvertes par les LOTS 013/014. **Soit on la fait, soit
-   on entérine le −46 %.**
-2. **Audit DUR final de campagne** (Gemini en questions fermées + agents adversariaux locaux).
-3. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
+1. **Coup d'œil de Joel sur les 5 vues et les modales** : le découpage CSS est prouvé au
    niveau du fichier produit, mais le retrait des 62 règles mortes change forcément ce
    fichier. Le raisonnement est solide, un regard humain reste la ceinture et les bretelles.
+2. **Décision de Joel sur `.r-tag.red`/`.r-tag.green`** (trouvé par l'audit DUR du
+   2026-07-31) : probablement dupliquées entre `05-ai.css` et `12-utilities.css` avec des
+   valeurs différentes (même mécanisme que `.recipe-detail-section`, déjà corrigé — la
+   version de `05-ai.css` serait alors du CSS mort). **Non touché** : `.r-tag` figure sur la
+   liste des classes explicitement protégées « CSS REBRANCHÉ par la campagne » plus haut dans
+   ce document — remonté plutôt que tranché seul.
+
+**SECOND RANGEMENT de `js/app.js` (2823 → 1523 lignes, −46 %, cible 700 non atteinte)** :
+tranché par Joel le 2026-07-31 — ni abandonné, ni empilé sur ce lot déjà énorme, un lot
+séparé à froid. Fiche prête avec l'inventaire mesuré : `Backlog/BACKLOG - Second rangement de
+app.js.md`.
 
 **Un point signalé, sans décision** : la recherche d'emoji par IA de la modale d'édition
 (`src/ui/emojiModal.js`) affiche « Erreur recherche emoji » quand c'est simplement la clé qui
-manque. Hors des quatre sites du correctif validé, donc laissé tel quel.
+manque. Hors des quatre sites du correctif validé — **corrigé par Joel le 2026-07-31** malgré
+tout, cinquième site aligné sur `MESSAGE_CLE_API_MANQUANTE`.
 **Clos** : les émojis de repli divergents (`🔸`/`❓`/`🛒`/`📦`) — Joel a dit « laisse comme ça ».
 
 ### Règles de ce lot à ne pas perdre
@@ -210,7 +217,14 @@ manque. Hors des quatre sites du correctif validé, donc laissé tel quel.
 - **Vérifier toute piste d'audit sur pièce.** La fiche de découverte contenait 2 affirmations
   FAUSSES (sur `searchEmojiAI`), NotebookLM 2 sur 13. Aucune n'a été appliquée telle quelle.
 - **Traquer les commentaires menteurs.** Mes propres correctifs en ont créé 4 dans la journée
-  (dont 2 blocs de doc orphelins laissés par un déplacement). Balayer après chaque geste.
+  (dont 2 blocs de doc orphelins laissés par un déplacement) ; l'audit DUR final en a trouvé
+  2 de plus, dont un qui affirmait l'EXACT INVERSE du code (`toggleSpecialFilter`). Balayer
+  après chaque geste ne suffit pas — un second regard, indépendant, en trouve encore.
+- **Un audit final rouvre TOUJOURS le code, même sur du travail déjà auto-audité.** L'audit
+  DUR de clôture a trouvé un défaut BLOQUANT (l'extracteur JSON unique recréait le symptôme
+  qu'il devait éliminer, sur un chemin différent) dans du code livré le jour même avec ses
+  propres mutations vertes. Les mutations prouvent ce qu'elles testent, pas ce à quoi
+  personne n'a pensé — un regard adversarial indépendant reste irremplaçable.
 - **`PROJECT_MAP.md` à chaque nouveau module ou fichier de test** (le verrou pytest l'exige,
   et il est désormais durci : une mention en passant ne suffit plus).
 

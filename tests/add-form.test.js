@@ -125,6 +125,28 @@ describe('LOT 014 §D — après un ajout réussi, le formulaire est REMIS À NE
         expect(document.getElementById('add-name').value).toBe('');
     });
 
+    // TROUVÉ PAR AUDIT ADVERSARIAL le 2026-07-31 : `addIngredient` et `addIngredientFromDb`
+    // recopiaient les MÊMES quatre lignes mot pour mot (la confirmation « existe déjà /
+    // ressemble beaucoup »), seule la source du nom changeait. Factorisées dans
+    // `confirmerSiSemblable` (SSOT). Ce test verrouille que les DEUX chemins d'ajout passent
+    // toujours par la même règle, avec le même texte.
+    it('les deux chemins d\'ajout affichent EXACTEMENT le même avertissement pour un '
+       + 'ingrédient déjà présent', () => {
+        state.ingredients = [{ id: 'ing_1', name: 'Tomate', category: 'Légumes' }];
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+        document.getElementById('add-name').value = 'Tomate';
+        window.addIngredient();
+        const messageSaisieLibre = confirmSpy.mock.calls.at(-1)[0];
+
+        addIngredientFromDb({ name: 'Tomate', emoji: '🍅', category: 'Légumes' });
+        const messageSuggestionCatalogue = confirmSpy.mock.calls.at(-1)[0];
+
+        expect(messageSaisieLibre).toContain('existe déjà');
+        expect(messageSaisieLibre).toBe(messageSuggestionCatalogue);
+        confirmSpy.mockRestore();
+    });
+
     // TROU TROUVÉ PAR LE RE-PARCOURS DE LA CHECK-LIST DES RÉGRESSIONS (LOT 014, clôture) :
     // le retour automatique à l'inventaire 500 ms après un ajout — un confort restauré par le
     // LOT 012, et dont l'audit d'alors avait déjà relevé qu'il manquait sur le second chemin —
@@ -143,9 +165,17 @@ describe('LOT 014 §D — après un ajout réussi, le formulaire est REMIS À NE
     it('fait de même après un clic sur une suggestion du catalogue (c\'est ce second '
        + 'chemin que l\'audit du LOT 012 avait trouvé manquant)', () => {
         window.switchView('add');
-        addIngredientFromDb('Tomate', '🍅', 'Légumes');
+        // `addIngredientFromDb` prend un OBJET (celui d'une entrée DEFAULT_DB, cf.
+        // `addForm.js:178`, `onclick: () => addIngredientFromDb(i)`) — pas trois arguments
+        // positionnels. Corrigé lors de l'audit adversarial du 2026-07-31 : la version
+        // précédente de ce test appelait la fonction avec 3 chaînes, ce qui faisait spreader
+        // la CHAÎNE 'Tomate' en `{0:'T',1:'o',…}` (l'exact « ingrédient fantôme » que le
+        // volet C1 ferme côté import) — silencieux ici car aucune assertion ne regardait la
+        // forme de l'ingrédient poussé, seulement le minutage du retour à l'inventaire.
+        addIngredientFromDb({ name: 'Tomate', emoji: '🍅', category: 'Légumes' });
 
         expect(state.currentView).toBe('add');
+        expect(state.ingredients.find(i => i.name === 'Tomate')).toBeTruthy();
         vi.advanceTimersByTime(500);
         expect(state.currentView).toBe('pantry');
     });

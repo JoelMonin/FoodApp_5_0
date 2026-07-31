@@ -3,14 +3,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { analyzeNutrition } from '../js/app.js';
 import { state, defaultAiConfig } from '../src/state.js';
 import { MESSAGE_CLE_API_MANQUANTE } from '../src/constants.js';
+import { NUTRI_BTN_LABEL } from '../src/ui/recipe.js';
 import { setupTestDOM, mockFetchResponse, mockFetchNetworkError, readToasts } from './_helpers/dom-helpers.js';
 
 // LOT 013 — analyzeNutrition (js/app.js:1111) n'avait que 2 tests avant ce lot
 // (tests/recipe-scaling.test.js:272/294), tous deux focalisés sur la PRÉSERVATION de
 // l'échelle, jamais sur l'analyse elle-même ni ses 3 branches d'échec. Le libellé exact du
 // bouton réarmé après un échec (LOT 011, chantier 2) n'était figé nulle part.
-
-const NUTRI_BTN_LABEL = '🔍 Estimer la valeur nutritionnelle (IA)';
+//
+// `NUTRI_BTN_LABEL` importée depuis la SSOT (LOT 014, audit adversarial du 2026-07-31) —
+// recopiée en dur ici et dans `recipeModal.js` avant ce correctif, malgré un commentaire qui
+// citait déjà cette constante sans jamais l'importer.
 
 function recette(over = {}) {
     return {

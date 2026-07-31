@@ -6,7 +6,7 @@ import { guessCategoryLocally, sanitizeCategory } from '../utils/categorize.js';
 import { escapePromptValue } from '../utils/validate.js';
 import { callAI } from '../services/gemini.js';
 import { extraireJsonIA } from '../utils/aiJson.js';
-import { AI_ROLES, GENERIC_EMOJI_FALLBACK } from '../constants.js';
+import { AI_ROLES, GENERIC_EMOJI_FALLBACK, AI_EMOJI_ONLY } from '../constants.js';
 
 /**
  * FORMULAIRE D'AJOUT — extrait de `js/app.js` au LOT 014, volet A.
@@ -242,7 +242,19 @@ export function handleAddInput(val) {
             // CHAINE (« 🍎🍏 ») passait le test precedent puis faisait lever `.forEach`,
             // annulant au passage la categorie deja posee. Elle est desormais simplement
             // ignoree — ce qui a ete compris reste acquis.
-            const emojisProposes = (data && Array.isArray(data.emojis)) ? data.emojis : [];
+            //
+            // CORRECTIF (LOT 014, trouve par audit adversarial le 2026-07-31) — MEME FILET
+            // que `cartPicker.js`/`stockMatch.js` (SSOT `AI_EMOJI_ONLY`). Un element du
+            // tableau qui n'est pas emoji-shape (l'IA a repondu du texte a la place d'un
+            // emoji) construisait un selecteur CSS invalide dans la boucle plus bas
+            // (`[data-emoji="${e}"]`) : `container.querySelector` LEVAIT une exception,
+            // rattrapee par le `catch` global de la fonction, qui eteignait au passage la
+            // categorie deja correctement posee juste au-dessus. Filtrer ICI, avant la
+            // boucle, protege les deux — et une « suggestion d'emoji » qui n'a pas la forme
+            // d'un emoji n'a de toute facon rien a faire dans la grille.
+            const emojisProposes = (data && Array.isArray(data.emojis))
+                ? data.emojis.filter(e => typeof e === 'string' && AI_EMOJI_ONLY.test(e.trim()))
+                : [];
 
             // Catégorie : l'IA écrase toujours la détection locale (jamais le choix manuel)
             let categorieAppliquee = false;
@@ -309,6 +321,19 @@ function apresAjoutReussi(messageDeConfirmation) {
     setTimeout(() => _nav.switchView('pantry'), 500);
 }
 
+/**
+ * Prevenir si un ingredient tres proche existe deja, laisser Joel decider — SSOT (LOT 014,
+ * trouvee par audit adversarial le 2026-07-31). Les deux chemins d'ajout (saisie libre et
+ * clic sur une suggestion du catalogue) enchainaient les MEMES quatre lignes, mot pour mot,
+ * seule la source du nom differait. Rend `true` si l'ajout doit continuer.
+ */
+function confirmerSiSemblable(nom) {
+    const similar = state.ingredients.find(i => areSimilar(i.name, nom));
+    if (!similar) return true;
+    const type = normalizeString(similar.name) === normalizeString(nom) ? 'existe déjà' : 'ressemble beaucoup';
+    return confirm(`ℹ️ "${nom}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`);
+}
+
 export function addIngredient() {
     const name = document.getElementById('add-name')?.value;
     if (!name) { toast('Nom requis', 'error'); return; }
@@ -317,12 +342,7 @@ export function addIngredient() {
     const category = document.getElementById('add-category')?.value || CATEGORIE_PAR_DEFAUT;
     const frozen = document.getElementById('add-frozen')?.checked || false;
 
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
+    if (!confirmerSiSemblable(name)) return;
 
     const id = generateId('ing');
     state.ingredients.push({
@@ -336,12 +356,7 @@ export function addIngredient() {
 }
 
 export function addIngredientFromDb(dbItem) {
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, dbItem.name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(dbItem.name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${dbItem.name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
+    if (!confirmerSiSemblable(dbItem.name)) return;
 
     const id = generateId('ing');
     state.ingredients.push({ ...dbItem, id, inStock: true, inCart: false, pinned: false });

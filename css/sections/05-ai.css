@@ -320,17 +320,12 @@
       box-shadow: 0 1px 2px rgba(214, 48, 49, 0.2);
     }
 
-    .recipe-detail-section {
-      border-bottom: 2px solid #f0f0f0;
-      padding-bottom: 6px;
-      margin: 20px 0 12px;
-      font-weight: 700;
-      color: var(--txt-main);
-      letter-spacing: -0.2px;
-      text-transform: uppercase;
-      font-size: 11px;
-    }
-
+    /* Pas de `.recipe-detail-section` ici : elle vivait dans ce fichier ET dans
+       `09-modals.css` avec des valeurs CONTRADICTOIRES, un doublon herite du monolithe
+       d'origine (pas introduit par le decoupage LOT 014 §E). Meme selecteur, meme
+       specificite : la derniere declaree gagnait TOUJOURS — celle d'ici n'a donc jamais eu
+       le moindre effet visuel. Retiree (audit adversarial, LOT 014, 2026-07-31) ; la seule
+       version qui compte reste dans `09-modals.css`. */
     .creativity-labels {
       display: flex;
       justify-content: space-between;

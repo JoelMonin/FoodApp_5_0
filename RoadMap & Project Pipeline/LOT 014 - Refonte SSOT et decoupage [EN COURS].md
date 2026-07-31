@@ -894,6 +894,90 @@ que pas de verrou.
 
 ---
 
+### Audit DUR final de campagne (2026-07-31) — 6 agents adversariaux locaux
+
+**Auditeur : agents locaux** (Codex à court de tokens, Gemini non sollicité cette fois — cf.
+mémoire `feedback_avoid_ultra_audit`). Mandat identique aux 6 : réfuter les affirmations du
+code et des messages de commit, pas les valider. Périmètre : diff complet du lot contre
+`main` (79 fichiers, ~10 000 lignes, 35 commits), réparti par domaine, plus une traque SSOT
+et un audit qualité des tests menés indépendamment (sans consulter les listes déjà établies).
+
+**Chaque défaut a été rouvert et vérifié sur pièce avant traitement** (reproduit en isolation
+pour les 3 bugs de code, confirmé par lecture croisée pour les défauts CSS/commentaires) —
+aucun n'a été accepté sur la seule parole de l'agent qui l'a trouvé.
+
+**BLOQUANT — corrigé.** L'extracteur JSON unique (`src/utils/aiJson.js`) ne regardait que
+depuis le TOUT PREMIER `{`/`[` du texte : un crochet de prose avant le vrai JSON (lien
+Markdown, énumération — « Voir [la doc]... {"category":"Fruits"} ») le capturait, échouait à
+parser, et la fonction s'arrêtait là — **recréant exactement le symptôme que ce module devait
+éliminer**. Reproduit en isolation avant tout correctif. `blocsEquilibres` (pluriel) essaie
+désormais chaque bloc équilibré du texte, dans l'ordre, jusqu'à ce qu'un vrai JSON soit
+reconnu. 4 tests neufs, dont le cas exact trouvé par l'agent.
+
+**MOYEN — 3 corrigés.**
+- `importStockOnly` (`src/actions.js`) plantait sur un `id` non-textuel dans le fichier
+  importé (nombre, booléen) qui passait quand même le filtre d'entrée grâce à un `name`
+  exploitable — `.startsWith` sur un non-string lève en PLEIN MILIEU de la boucle. Les
+  entrées déjà traitées avant le crash restaient mutées sur `state.ingredients` (référence
+  live, volet B) : le prochain `saveState()` — n'importe quelle action ultérieure de Joel —
+  les aurait persistées et poussées au cloud, sans lien apparent avec l'import raté. Garde de
+  type posée. 2 tests neufs, prouvés par retrait.
+- `addForm.js` : un élément du tableau `emojis` renvoyé par l'IA qui n'a pas la forme d'un
+  emoji construisait un sélecteur CSS invalide (`` [data-emoji="${e}"] ``), qui LEVAIT et
+  éteignait au passage la catégorie déjà correctement posée. Même filet que
+  `cartPicker.js`/`stockMatch.js` (SSOT `AI_EMOJI_ONLY`) appliqué ici. 2 tests neufs.
+- `.recipe-detail-section` était définie deux fois (`05-ai.css` ET `09-modals.css`) avec des
+  valeurs CONTRADICTOIRES — doublon hérité du monolithe d'origine, invisible avant le
+  découpage en sections nommées, **pas introduit par ce lot**. Même spécificité : la
+  définition de `09-modals.css`, importée en dernier, gagnait déjà tout le temps — celle de
+  `05-ai.css` n'a jamais eu le moindre effet visuel, retirée sans impact visuel (vérifié :
+  une seule occurrence dans la feuille produite, la bonne). Le commentaire adjacent, qui
+  affirmait `.recipe-detail-section`/`.recipe-steps` ORPHELINES, disait l'exact inverse —
+  vérifié sur pièce (`src/ui/recipe.js`, 5 usages actifs). Les deux corrigés ensemble, verrou
+  étroit posé et prouvé par réintroduction du doublon.
+
+**MINEUR — 3 corrigés.** `addIngredient`/`addIngredientFromDb` (`src/ui/addForm.js`)
+recopiaient les mêmes quatre lignes de confirmation « déjà présent / ressemble beaucoup » mot
+pour mot — factorisées dans `confirmerSiSemblable`, verrou posé sur le texte partagé. Le
+commentaire de `toggleSpecialFilter` (`js/app.js`) affirmait que deux filtres se
+désactivaient mutuellement — c'est l'inverse, contredit par deux autres commentaires du même
+fichier ; corrigé. `NUTRI_BTN_LABEL` (`src/ui/recipe.js`) était recopiée en dur dans
+`recipeModal.js` **et** dans son propre test, malgré un commentaire qui citait déjà cette
+constante comme référence sans jamais l'importer — exportée, les deux sites l'importent
+désormais.
+
+**MINEUR — documenté, pas corrigé.**
+- Le verrou SSOT du message de clé API (`tests/api-key-message-ssot.test.js`) repose sur un
+  motif regex contournable par simple reformulation (« Configurez votre clé Gemini... » ne
+  matche pas). Aucune violation actuelle ; protection structurelle plutôt que sémantique,
+  acceptée telle quelle.
+- `tests/css-sections.test.js` ne vérifie pas l'ORDRE des imports du sommaire — assumé dans
+  le test lui-même : c'est le build (feuille produite identique octet pour octet) qui en
+  fait la preuve, pas une liste recopiée.
+- **`.r-tag.red`/`.r-tag.green`** sont probablement dupliquées entre `05-ai.css` et
+  `12-utilities.css` avec des valeurs différentes — même mécanisme que
+  `.recipe-detail-section` (la version de `05-ai.css` serait alors du CSS mort). **Non
+  corrigé** : `.r-tag` figure explicitement sur la liste des classes « CSS REBRANCHÉ par la
+  campagne — interdiction de les traiter en CSS mort » (`CURRENT_GOAL.md`). Remonté à Joel
+  plutôt que tranché unilatéralement.
+
+**Vérifié CLEAN, aucun défaut trouvé après tentative sincère de réfutation :**
+- Découpage de `js/app.js` (volet A) — les 4 crochets d'injection (`registerXxxHooks`) sont
+  tous branchés au démarrage ; le motif « modale testée sans vérifier qu'elle s'affiche »
+  (déjà connu de ce lot) ne s'est pas reproduit ailleurs ; aucune fuite d'état privé entre
+  modules ; aucun import circulaire caché.
+- Sécurité des données (volets B/C/G) — invariant de mutation de `state` respecté partout ;
+  l'élagage cloud des articles libres passe par une liste blanche explicite (jamais par
+  spread de l'état complet), donc étanche indépendamment de l'ordre sanitize/push ; clé API
+  jamais exposée par aucun chemin neuf de ce lot.
+- Qualité des tests — 12 fichiers de tests audités par mutation réelle (muter le code source,
+  lancer le test ciblé, vérifier qu'un test NOMMÉ rougit, restaurer), **aucun faux verrou
+  trouvé** sur cet échantillon. `git status` confirmé propre après coup.
+
+**Métriques finales : 774 → 784 Vitest (+10 pour ce seul audit) · 16/16 Pytest · build OK.**
+
+---
+
 ## Traçabilité
 
 - Fiches d'origine (supprimées à la promotion, contenus repris) :

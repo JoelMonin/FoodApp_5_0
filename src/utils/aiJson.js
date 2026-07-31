@@ -53,15 +53,10 @@ function parserJson(candidat) {
 }
 
 /**
- * Rend le PREMIER bloc `{...}` ou `[...]` equilibre du texte, ou `null`.
- * Le type retenu est celui du premier delimiteur rencontre : c'est ce que le motif non
- * gourmand cherchait deja a faire (« le premier bloc »), sans savoir le faire.
- * Une reponse tronquee ne s'equilibre jamais : elle rend `null` plutot qu'un fragment.
+ * Trouve la fin du bloc equilibre qui COMMENCE a `debut`, ou `-1` s'il ne s'equilibre
+ * jamais. Chaines et echappements ignores dans le comptage — voir l'en-tete du module.
  */
-function blocEquilibre(texte) {
-    const debut = texte.search(/[{[]/);
-    if (debut === -1) return null;
-
+function finDuBloc(texte, debut) {
     const ouvrant = texte[debut];
     const fermant = ouvrant === '{' ? '}' : ']';
     let profondeur = 0;
@@ -78,9 +73,40 @@ function blocEquilibre(texte) {
         }
         if (c === '"') dansUneChaine = true;
         else if (c === ouvrant) profondeur++;
-        else if (c === fermant && --profondeur === 0) return texte.slice(debut, i + 1);
+        else if (c === fermant && --profondeur === 0) return i;
     }
-    return null;
+    return -1;
+}
+
+/**
+ * Rend TOUS les blocs `{...}` ou `[...]` equilibres du texte, dans l'ordre ou ils
+ * apparaissent — pas seulement le premier.
+ *
+ * CORRECTIF (LOT 014, trouve par audit adversarial le 2026-07-31, verifie sur piece). La
+ * version precedente ne regardait QUE depuis le tout premier `{`/`[` du texte, et abandonnait
+ * si ce premier bloc ne s'equilibrait pas ou ne parsait pas. Un crochet de PROSE avant le
+ * vrai JSON (« Voir [la documentation]... {"category":"Fruits"} ») capturait `[la
+ * documentation]`, un bloc qui S'EQUILIBRE tres bien sans etre du JSON valide — et la
+ * fonction s'arretait la, recreant exactement le symptome que ce module devait eliminer
+ * (« la suggestion disparait sans message »). La liste ci-dessous laisse l'appelant essayer
+ * CHAQUE bloc trouve, dans l'ordre, jusqu'a ce qu'un vrai JSON soit reconnu.
+ */
+function blocsEquilibres(texte) {
+    const blocs = [];
+    let depart = 0;
+    while (depart < texte.length) {
+        const relatif = texte.slice(depart).search(/[{[]/);
+        if (relatif === -1) break;
+        const debut = depart + relatif;
+        const fin = finDuBloc(texte, debut);
+        if (fin === -1) {
+            depart = debut + 1; // ce delimiteur ne s'equilibre jamais : on tente le suivant
+            continue;
+        }
+        blocs.push(texte.slice(debut, fin + 1));
+        depart = fin + 1;
+    }
+    return blocs;
 }
 
 /** Contenu d'un bloc Markdown ```json ... ``` (la balise `json` reste facultative). */
@@ -90,23 +116,29 @@ function contenuDuBlocMarkdown(texte) {
 }
 
 /**
- * Les deux endroits ou chercher, dans l'ordre : d'abord A L'INTERIEUR du bloc Markdown quand
- * l'IA en a pose un, ensuite dans la reponse entiere. Cet ordre n'est pas cosmetique : une
- * reponse qui bavarde AVANT le bloc (« format attendu : {clé: valeur}, voici : ```json… »)
- * ferait mordre le decoupage sur les accolades du bavardage.
+ * Toutes les pistes a essayer, dans l'ordre : d'abord CHAQUE bloc trouve A L'INTERIEUR du
+ * bloc Markdown quand l'IA en a pose un, ensuite chaque bloc de la reponse entiere. Cet
+ * ordre n'est pas cosmetique : une reponse qui bavarde AVANT le bloc Markdown (« format
+ * attendu : {clé: valeur}, voici : ```json… ») ne doit pas faire gagner l'accolade du
+ * bavardage sur le vrai JSON encadre.
  */
 function candidatsJson(texte) {
     const dansMarkdown = contenuDuBlocMarkdown(texte);
-    return [dansMarkdown && blocEquilibre(dansMarkdown), blocEquilibre(texte)];
+    return [...(dansMarkdown ? blocsEquilibres(dansMarkdown) : []), ...blocsEquilibres(texte)];
 }
 
 /**
  * Decoupe la portion JSON d'une reponse IA et la rend TELLE QUELLE (chaine), ou `null`.
- * Utilise par `callAI`, dont le contrat public est de rendre une chaine.
+ * Utilise par `callAI`, dont le contrat public est de rendre une chaine. Rend le PREMIER
+ * candidat qui parse reellement — un bloc qui s'equilibre sans etre du JSON valide (ex. un
+ * crochet de prose) est ignore, pas retenu tel quel.
  */
 export function decouperJsonIA(texte) {
     if (typeof texte !== 'string') return null;
-    return candidatsJson(texte).find(Boolean) || null;
+    for (const piste of candidatsJson(texte)) {
+        if (parserJson(piste) !== undefined) return piste;
+    }
+    return null;
 }
 
 /** Lit une reponse IA et rend l'objet ou le tableau qu'elle contient, sinon `null`. */

@@ -546,8 +546,12 @@ function setFilter(f) {
 }
 
 function toggleSpecialFilter(key) {
+    // CORRIGÉ (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait le
+    // contraire du code — les deux toggles « En-Stock » et « Liste courses » sont
+    // INDÉPENDANTS et CUMULABLES, comme le disent déjà `renderPantryFilters` (ligne 412) et
+    // `getFilteredIngredients` (ligne 486), qui les appliquent l'un après l'autre sans
+    // jamais désactiver l'autre.
     state[key] = !state[key];
-    // Si on active un toggle, désactiver l'autre pour la cohérence panier/stock
     renderPantry();
 }
 

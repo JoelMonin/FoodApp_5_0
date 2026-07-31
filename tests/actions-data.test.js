@@ -267,6 +267,46 @@ describe('Actions — LOT 008 Données en sécurité', () => {
 
       expect(state.ingredients.length).toBe(2);
     });
+
+    // TROISIÈME fuite, trouvée par audit adversarial le 2026-07-31, vérifiée sur pièce.
+    // `estFusionnable` accepte une entrée dès qu'elle a un NOM exploitable, sans jamais
+    // vérifier le TYPE de son `id` — un id numérique passe le filtre d'entrée grâce au nom.
+    // La branche de création faisait alors `jsonIng.id.startsWith('custom_')` SANS garde de
+    // type : `.startsWith` sur un nombre LÈVE, en PLEIN MILIEU de la boucle. Les entrées déjà
+    // traitées avant le crash restaient mutées sur `state.ingredients` (référence live,
+    // volet B), et le message d'erreur ne disait rien de cette mutation partielle.
+    it('un id non-textuel (nombre) ne fait plus planter l\'import : les entrées qui le '
+       + 'précèdent restent traitées, et l\'entrée elle-même est ajoutée avec un id généré',
+       () => {
+        importerStock(JSON.stringify({
+          ingredients: [
+            { id: 'ing_1', inStock: true, pinned: true },   // traité AVANT l'entrée fautive
+            { id: 123, name: 'Mangue', inStock: true }       // id non-textuel, nom exploitable
+          ]
+        }));
+
+        // L'entrée valide qui précède est bien allée au bout — pas seulement mutée en
+        // silence pendant qu'un crash plus loin annonçait un échec.
+        expect(state.ingredients[0].inStock).toBe(true);
+        expect(state.ingredients[0].pinned).toBe(true);
+
+        const mangue = state.ingredients.find(i => i.name === 'Mangue');
+        expect(mangue).toBeTruthy();
+        expect(typeof mangue.id).toBe('string');   // jamais le 123 brut du fichier
+        expect(mangue.id).not.toBe(123);
+
+        expect(dernierToast()).toMatch(/Stock fusionné/);   // pas "Format JSON invalide"
+      });
+
+    it('un id non-textuel (booléen) est traité de la même façon', () => {
+      importerStock(JSON.stringify({
+        ingredients: [{ id: true, name: 'Basilic', inStock: true }]
+      }));
+
+      const basilic = state.ingredients.find(i => i.name === 'Basilic');
+      expect(basilic).toBeTruthy();
+      expect(typeof basilic.id).toBe('string');
+    });
   });
 
   describe('Chantier 2 — exportJSON blanchit la clé API (casse C3a)', () => {
