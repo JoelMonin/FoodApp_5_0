@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { h, sanitize } from '../src/utils/dom.js';
+import { h } from '../src/utils/dom.js';
 import { JSDOM } from 'jsdom';
 
 describe('DOM Utility', () => {
@@ -31,9 +31,4 @@ describe('DOM Utility', () => {
     });
   });
 
-  describe('sanitize', () => {
-    it('should escape HTML tags', () => {
-      expect(sanitize('<b>bold</b>')).toBe('&lt;b&gt;bold&lt;/b&gt;');
-    });
-  });
 });

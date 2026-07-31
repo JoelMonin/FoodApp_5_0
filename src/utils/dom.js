@@ -32,18 +32,6 @@ export function h(tag, props = {}, children = []) {
   return el;
 }
 
-/**
- * Nettoie une chaîne de caractères pour éviter les injections HTML de base
- * si l'utilisation de textContent n'est pas possible.
- * @param {string} str 
- * @returns {string}
- */
-export function sanitize(str) {
-  if (!str) return '';
-  const temp = document.createElement('div');
-  temp.textContent = str;
-  return temp.innerHTML;
-}
 
 /**
  * Affiche une notification temporaire.
