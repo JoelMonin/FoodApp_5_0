@@ -19,11 +19,28 @@ import {
 } from '../src/utils/helpers.js';
 import { CATEGORIES, DEFAULT_DB, getCategoryEmoji } from '../src/data.js';
 import { guessCategoryLocally, sanitizeCategory } from '../src/utils/categorize.js';
+// Formulaire d'ajout — extrait d'ici au LOT 014, volet A. Son état (catégorie choisie à la
+// main, temporisations, jeton anti-course) est désormais PRIVÉ au module : la seule écriture
+// possible depuis ici passe par `resetManualCategory`, appelée par `switchView`.
+import {
+  renderAdd,
+  showCategoryIndicator,
+  selectEmoji,
+  updateEmojiSuggestions,
+  updateEmojiSuggestionsDebounced,
+  handleAddInput,
+  onManualCategoryChange,
+  addIngredient,
+  addIngredientFromDb,
+  searchEmojiAddAI,
+  resetManualCategory,
+  registerAddFormNav
+} from '../src/ui/addForm.js';
 // Gardes d'entrée des données externes — SSOT (LOT 014, volet C).
 import { validateState, isValidRecipe, escapePromptValue } from '../src/utils/validate.js';
 // Composition des textes de partage — extraite d'ici au LOT 014, volet A.
 import { buildClipboardText, writeToClipboard } from '../src/services/exports.js';
-import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS } from '../src/constants.js';
+import { AI_ROLES, LOCAL_STORAGE_SYNC_REF_KEY, FB_USER, LOCAL_STORAGE_KEY, MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, GENERIC_EMOJI_FALLBACK } from '../src/constants.js';
 import { syncPush, syncPull, buildSyncDocument, extractSyncedState } from '../src/services/firebase.js';
 import { generateRecipes, callAI, transformRecipeFromText } from '../src/services/gemini.js';
 import { renderPantryGrid } from '../src/ui/pantry.js';
@@ -36,12 +53,6 @@ import * as Actions from '../src/actions.js';
 // toujours. Les trois rattrapages `state = moduleState` qui suivaient chaque réassignation
 // (ex-l.62, :96, :422) ont disparu ; `const` interdit qu'un quatrième réapparaisse.
 const state = moduleState;
-let _isManualCategory = false;
-let _localCategoryFill = false; // true = catégorie posée par détection locale faible (IA peut écraser)
-let _addSuggestTimer = null;
-// Incremente a chaque requete de suggestion IA : seule la derniere lancee a le droit
-// d'appliquer sa reponse (cf. handleAddInput).
-let _aiSuggestGenId = 0;
 // LOT 011 (trouve par l'audit du sous-lot 11A) : deux generations de recettes concurrentes
 // (bouton normal + 🎲, ou deux clics rapides sur 🎲) pouvaient se marcher dessus — chacune
 // restaure "sa" creativite sauvegardee dans un finally, et la derniere a finir l'emporte
@@ -117,6 +128,9 @@ import {
 // circulaire (cf. en-tete de sync.js) : re-lecture du formulaire IA apres un pull applique,
 // et rafraichissement du panneau systeme apres un succes.
 registerSyncUi({ restoreAiForm: restoreAIConfig, refreshSystemInfo: updateSystemInfo });
+// Le formulaire d'ajout renvoie a l'inventaire apres un ajout reussi : `switchView` vit
+// ici et lit l'etat du formulaire, d'ou l'injection plutot qu'un import croise.
+registerAddFormNav({ switchView });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -212,7 +226,9 @@ function renderCurrentView() {
 // toast function moved to dom.js
 
 function switchView(view) {
-    if (view === 'add') _isManualCategory = false;
+    // Voir le defaut connu n°1 de `src/ui/addForm.js` : ce reset est redondant avec
+    // `renderAdd` dans le parcours normal, et conserve tel quel (pare-feu A/B).
+    if (view === 'add') resetManualCategory();
     state.currentView = view;
     saveState();
 }
@@ -1344,11 +1360,6 @@ function openEditEmoji(id) {
     openModal('modal-edit-emoji');
 }
 
-// Socle générique de secours pour les suggestions d'emoji — SSOT unique, partagé
-// par `updateEmojiSuggestions` (flux Ajouter) et `buildEmojiEditSuggestions` (flux
-// Édition, LOT 009). Ne JAMAIS dupliquer cette liste ailleurs.
-const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
-
 /**
  * Suggestions locales pour la grille d'édition d'icône (oracle : monolithe
  * `getEmojiSuggestions`/`EMOJI_MAP`). Construites depuis `DEFAULT_DB` — jamais
@@ -1415,246 +1426,11 @@ function applyEditedEmoji(emoji) {
     closeModal('modal-edit-emoji');
 }
 
-function renderAdd() {
-    _isManualCategory = false;
-    _localCategoryFill = false;
-    clearTimeout(_addSuggestTimer);
-    _aiSuggestGenId++; // invalide une requete IA deja en vol
-    const list = document.getElementById('add-results-list');
-    if (list) list.replaceChildren();
-    const emojiSug = document.getElementById('emoji-suggestions');
-    if (emojiSug) emojiSug.replaceChildren();
-    showCategoryIndicator(null);
-}
-
-// LOT 014, volet A — la deduction de categorie a demenage dans `src/utils/categorize.js`
-// (deplacement pur ; filet pose AVANT, tests/categorize.test.js).
-
-function showCategoryIndicator(type) {
-    const el = document.getElementById('category-suggestion-indicator');
-    if (!el) return;
-    if (!type) {
-        el.style.display = 'none';
-    } else if (type === 'thinking') {
-        el.style.display = 'block';
-        el.style.color = 'var(--txt-soft)';
-        el.textContent = "✨ Analyse par l'IA...";
-    } else if (type === 'local') {
-        el.style.display = 'block';
-        el.style.color = 'var(--green)';
-        el.textContent = '✨ Catégorie auto-détectée';
-    } else if (type === 'ai') {
-        el.style.display = 'block';
-        el.style.color = 'var(--green)';
-        el.textContent = '✨ Catégorie suggérée par l\'IA';
-    }
-}
-
-function updateEmojiSuggestions(val) {
-    const container = document.getElementById('emoji-suggestions');
-    if (!container) return;
-    if (!val) {
-        container.replaceChildren(...GENERIC_EMOJI_FALLBACK.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
-        return;
-    }
-    const s = val.toLowerCase();
-    const matches = DEFAULT_DB.filter(i => i.name.toLowerCase().includes(s)).slice(0, 15);
-    const emojis = [...new Set(matches.map(i => i.emoji))];
-    container.replaceChildren(...emojis.map(e => h('span', { class: 'emoji-item emoji-sug-btn', onclick: () => selectEmoji(e) }, e)));
-}
-
-// Balaye les 273 ingredients de la base : temporise sur la frappe, immediat sur un reset.
-const _updateEmojiSuggestionsDebounced = debounce(updateEmojiSuggestions, 200);
-
-function handleAddInput(val) {
-    const list = document.getElementById('add-results-list');
-    const emojiInput = document.getElementById('add-emoji');
-    const catSelect = document.getElementById('add-category');
-
-    // 1. Champ vide → tout réinitialiser
-    if (!val || val.trim().length === 0) {
-        _isManualCategory = false;
-        _localCategoryFill = false;
-        clearTimeout(_addSuggestTimer);
-        _aiSuggestGenId++; // invalide une requete IA deja en vol
-        if (list) list.replaceChildren();
-        if (emojiInput) emojiInput.value = '';
-        if (catSelect) catSelect.value = '';
-        _updateEmojiSuggestionsDebounced.cancel();
-        updateEmojiSuggestions('');
-        showCategoryIndicator(null);
-        return;
-    }
-
-    // 2. Autocomplétion DB (instantané)
-    if (list) {
-        const s = normalizeString(val);
-        const results = DEFAULT_DB.filter(i => normalizeString(i.name).includes(s)).slice(0, 5);
-        list.replaceChildren(...results.map(i => h('div', {
-            class: 'add-res-item',
-            onclick: () => addIngredientFromDb(i)
-        }, [i.emoji + ' ', i.name])));
-    }
-
-    // 3. Grille d'emojis (temporisee, depuis DB)
-    _updateEmojiSuggestionsDebounced(val);
-
-    // Si l'utilisateur a choisi manuellement la catégorie, on s'arrête là
-    if (_isManualCategory) return;
-
-    // 4. Détection locale conservative (exact match ou règles par mot)
-    const localCat = guessCategoryLocally(val);
-    if (localCat) {
-        catSelect.value = localCat;
-        _localCategoryFill = true;
-        showCategoryIndicator('local');
-        // Exact match DB → on prend aussi l'emoji et on n'appelle pas l'IA
-        const exactEntry = DEFAULT_DB.find(i => normalizeString(i.name) === normalizeString(val));
-        if (exactEntry) {
-            if (emojiInput && !emojiInput.value) selectEmoji(exactEntry.emoji);
-            clearTimeout(_addSuggestTimer);
-            _aiSuggestGenId++; // invalide une requete IA deja en vol
-            return;
-        }
-    } else if (val.length >= 3 && state.aiConfig?.apiKey) {
-        showCategoryIndicator('thinking');
-    }
-
-    // 5. Suggestion IA (différée, écrase toujours la détection locale)
-    if (val.length < 3) return;
-    clearTimeout(_addSuggestTimer);
-    _addSuggestTimer = setTimeout(async () => {
-        const apiKey = state.aiConfig?.apiKey;
-        if (!apiKey || _isManualCategory) return;
-
-        // Jeton de generation : `clearTimeout` annule une requete PAS ENCORE partie,
-        // mais rien ne peut rappeler une requete deja en vol. Sans ce jeton, taper
-        // « salsifi » puis effacer et taper « tomate » laisse la reponse la plus lente
-        // ecraser la plus recente. On ignore donc toute reponse peremee.
-        const myGenId = ++_aiSuggestGenId;
-
-        try {
-            // LOT 014, volet C — la saisie de Joel est interpolee ENTRE GUILLEMETS dans une
-            // consigne qui decrit elle-meme du JSON a guillemets doubles. Un `"` tape casse
-            // la consigne ; un texte construit expres peut la reecrire. `escapePromptValue`
-            // n'est applique QU'ICI, a la valeur du prompt — jamais a la donnee elle-meme.
-            const prompt = `Tu es un assistant culinaire. Pour l'ingrédient "${escapePromptValue(val)}", réponds en JSON UNIQUEMENT: {"category":"Légumes","emojis":["🥕","🌿","🥦"]}. Catégories possibles: ${CATEGORIES.join(', ')}. Propose 3-5 emojis pertinents.`;
-            const model = state.aiConfig.models?.categorySuggest || AI_ROLES.FAST;
-            const raw = await callAI(prompt, apiKey, model, { isJSON: false, temperature: 0.1 });
-            if (myGenId !== _aiSuggestGenId) return; // saisie modifiee entre-temps
-            const match = raw.match(/\{[\s\S]*?\}/);
-            if (!match) { showCategoryIndicator(null); return; }
-            const data = JSON.parse(match[0]);
-
-            // Catégorie : l'IA écrase toujours la détection locale (jamais le choix manuel)
-            if (data.category && !_isManualCategory) {
-                const finalCat = sanitizeCategory(data.category, val);
-                if (finalCat) {
-                    catSelect.value = finalCat;
-                    _localCategoryFill = false;
-                    showCategoryIndicator('ai');
-                }
-            }
-
-            // Emojis : ajout dans la grille + auto-sélection si rien de choisi
-            if (data.emojis && data.emojis.length > 0) {
-                const container = document.getElementById('emoji-suggestions');
-                if (container) {
-                    data.emojis.forEach(e => {
-                        if (!container.querySelector(`[data-emoji="${e}"]`)) {
-                            container.appendChild(h('span', {
-                                class: 'emoji-item emoji-sug-btn',
-                                'data-emoji': e,
-                                onclick: () => selectEmoji(e)
-                            }, e));
-                        }
-                    });
-                }
-                if (emojiInput && !emojiInput.value && data.emojis[0]) {
-                    selectEmoji(data.emojis[0]);
-                }
-            }
-        } catch (e) {
-            if (myGenId !== _aiSuggestGenId) return;
-            showCategoryIndicator(null);
-            console.warn('[AI Suggest]', e.message);
-        }
-    }, 800);
-}
-
-// Called from HTML when user manually changes the category dropdown
-window._onManualCategoryChange = function() {
-    _isManualCategory = true;
-    _localCategoryFill = false;
-    showCategoryIndicator(null);
-};
-
-function addIngredient() {
-    const name = document.getElementById('add-name')?.value;
-    if (!name) { toast('Nom requis', 'error'); return; }
-    
-    const emoji = document.getElementById('add-emoji')?.value || '🛒';
-    const category = document.getElementById('add-category')?.value || 'Autres';
-    const frozen = document.getElementById('add-frozen')?.checked || false;
-    
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
-
-    const id = generateId('ing');
-    state.ingredients.push({
-        id, name, emoji, category, frozen,
-        inStock: true, inCart: false, pinned: false
-    });
-
-    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
-
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-    toast(`"${name}" ajouté ✓`);
-    // LOT 012, zone C (oracle l.6458) : retour a l'inventaire apres un ajout reussi,
-    // pour ne pas laisser Joel sur un formulaire vide sans lien evident avec ce qu'il
-    // vient de faire. Le formulaire s'est deja reinitialise juste au-dessus (LOT 006) :
-    // un enchainement de plusieurs ajouts reste possible avant l'echeance des 500 ms.
-    setTimeout(() => switchView('pantry'), 500);
-}
-
-function addIngredientFromDb(dbItem) {
-    // Check duplicate/similarity
-    const similar = state.ingredients.find(i => areSimilar(i.name, dbItem.name));
-    if (similar) {
-        const type = normalizeString(similar.name) === normalizeString(dbItem.name) ? 'existe déjà' : 'ressemble beaucoup';
-        if (!confirm(`ℹ️ "${dbItem.name}" ${type} à "${similar.name}" (${similar.category}).\nVoulez-vous quand même l'ajouter ?`)) return;
-    }
-
-    const id = generateId('ing');
-    state.ingredients.push({ ...dbItem, id, inStock: true, inCart: false, pinned: false });
-    
-    saveState(); // 'stateUpdated' relance le rendu de la vue courante : pas d'appel manuel.
-
-    // Reset form
-    document.getElementById('add-name').value = '';
-    document.getElementById('add-emoji').value = '';
-    document.getElementById('add-category').value = '';
-    document.getElementById('add-frozen').checked = false;
-    _isManualCategory = false;
-    renderAdd();
-
-    toast(`${dbItem.name} ajouté !`);
-    // LOT 012, zone C — trouvé par l'audit du diff final (Codex Terra) : ce chemin
-    // d'ajout (clic sur une suggestion d'autocomplétion, absent de l'oracle) ajoute
-    // vraiment un ingrédient au même titre que `addIngredient` — même retour auto pour
-    // que les deux parcours se comportent pareil du point de vue de Joel.
-    setTimeout(() => switchView('pantry'), 500);
-}
+// LOT 014, volet A — le FORMULAIRE D'AJOUT a demenage dans `src/ui/addForm.js`
+// (deplacement pur ; filet pose AVANT, tests/add-form.test.js). Y ont suivi :
+// renderAdd, showCategoryIndicator, updateEmojiSuggestions (+ sa version temporisee),
+// handleAddInput, _onManualCategoryChange, addIngredient, addIngredientFromDb,
+// searchEmojiAddAI et selectEmoji, ainsi que leurs 4 variables d'etat.
 
 function confirmBulkAdd() {
     const checked = document.querySelectorAll('#modal-shopping-bulk-list input:checked');
@@ -1685,48 +1461,6 @@ function toggleAllPickerItems(checked) {
         chk.checked = checked;
         updatePickerRow(i);
     });
-}
-
-async function searchEmojiAddAI() {
-    const searchVal = document.getElementById('add-emoji-search')?.value?.trim();
-    const nameVal = document.getElementById('add-name')?.value?.trim();
-    const target = searchVal || nameVal;
-    if (!target || !state.aiConfig.apiKey) return;
-
-    const btn = document.getElementById('add-emoji-search-btn');
-    if (btn) btn.textContent = '...';
-
-    try {
-        // LOT 014, volet C — meme formulaire d'ajout que `handleAddInput`, meme traitement :
-        // la valeur vient de `#add-emoji-search` ou, a defaut, de `#add-name`.
-        const prompt = `Trouve 12 emojis pertinents pour l'ingrédient "${escapePromptValue(target)}". Réponds uniquement par les emojis séparés par des espaces.`;
-        const model = state.aiConfig.models?.emojiSearch || AI_ROLES.FAST;
-        const res = await callAI(prompt, state.aiConfig.apiKey, model, { isJSON: false });
-        if (res) {
-            // Robust emoji detection using modern regex
-            const allEmojis = res.match(/\p{Emoji_Presentation}/gu) || res.match(/\p{Emoji}/gu) || [];
-            const uniqueEmojis = [...new Set(allEmojis)];
-
-            const grid = document.getElementById('emoji-suggestions');
-            if (grid) {
-                grid.replaceChildren(...uniqueEmojis.map(e => h('span', { 
-                    class: 'emoji-item emoji-sug-btn', 
-                    onclick: () => selectEmoji(e)
-                }, e)));
-                
-                // Auto-select first emoji if currently empty
-                const currentEmoji = document.getElementById('add-emoji');
-                if (currentEmoji && (!currentEmoji.value || !currentEmoji.value.trim()) && uniqueEmojis.length > 0) {
-                    selectEmoji(uniqueEmojis[0]);
-                }
-            }
-        }
-    } catch(e) {
-        console.error('[searchEmojiAddAI]', e);
-        toast(`Erreur emoji : ${e.message}`, 'error');
-    } finally {
-        if (btn) btn.textContent = '✨';
-    }
 }
 
 function addExtraIngredient() {
@@ -2014,26 +1748,6 @@ function saveApiKey() {
     closeModal('modal-api-config');
     toast(key ? 'Clé API sauvegardée ✓' : 'Clé API supprimée');
 }
-function selectEmoji(e) {
-    const input = document.getElementById('add-emoji');
-    if (input) {
-        input.value = e;
-        
-        // Smart category pick if not manual
-        if (!_isManualCategory) {
-            const match = DEFAULT_DB.find(i => i.emoji === e);
-            if (match) {
-                const catSelect = document.getElementById('add-category');
-                if (catSelect) catSelect.value = match.category;
-            }
-        }
-
-        document.querySelectorAll('.emoji-sug-btn').forEach(b => {
-            b.classList.toggle('selected', b.textContent === e);
-        });
-    }
-}
-
 async function searchEmojiAI() {
     const input = document.getElementById('emoji-search-input');
     const btn = document.getElementById('emoji-search-btn');
@@ -2212,5 +1926,8 @@ expose({
     exportClipboard, toggleAllPickerItems, deleteFav, searchEmojiAI, selectEmoji,
     // Appelee en inline depuis index.html (oninput du champ de recherche d'emoji) :
     // sans cette exposition, chaque frappe levait une ReferenceError.
-    updateEmojiSuggestions: _updateEmojiSuggestionsDebounced
+    updateEmojiSuggestions: updateEmojiSuggestionsDebounced,
+    // `onchange` du menu deroulant de categorie (index.html:648). Le nom public garde son
+    // tiret bas historique — c'est le contrat de la page, pas un detail de style.
+    _onManualCategoryChange: onManualCategoryChange
 });

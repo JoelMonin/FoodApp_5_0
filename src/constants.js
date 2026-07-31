@@ -37,6 +37,13 @@ export const BACKUP_STATE_KEYS = [
   'aiConfig'
 ];
 
+// Socle générique de secours pour les suggestions d'emoji — SSOT unique, partagé par
+// `updateEmojiSuggestions` (flux Ajouter, `src/ui/addForm.js`) et `buildEmojiEditSuggestions`
+// (flux Édition, `js/app.js`, LOT 009). Ne JAMAIS dupliquer cette liste ailleurs.
+// LOT 014, volet A : remonté ici quand le formulaire d'ajout est parti dans son module —
+// laissé dans `js/app.js`, il serait devenu la copie d'un des deux flux.
+export const GENERIC_EMOJI_FALLBACK = ['🧂', '🧅', '🧄', '🥦', '🥩', '🍎', '🥚', '🥛'];
+
 export const FB_USER = 'FoodApp_V5_Joel';
 export const FB_URL = 'https://food-app-ef43d-default-rtdb.europe-west1.firebasedatabase.app';
 

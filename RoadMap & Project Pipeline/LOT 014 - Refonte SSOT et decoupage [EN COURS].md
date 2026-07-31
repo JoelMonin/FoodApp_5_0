@@ -436,6 +436,14 @@ annexe) avant tout retrait, conformément à `CLAUDE.md` §5.
 - **Verrou parité** : test qui échoue si une fonction référencée par un `on*=` d'`index.html`
   n'est pas exposée sur `window` (aurait détecté une partie des casses de la migration) ;
 - `PROJECT_MAP.md` mis à jour (nouveaux modules) — le verrou de fraîcheur pytest y veille.
+- ⚠️ **TROISIÈME VERROU À DURCIR, trouvé pendant l'étape A du 2026-07-31** : le verrou de
+  fraîcheur (`tests/test_project_map_freshness.py:57`) se contente de chercher le **nom de
+  fichier n'importe où** dans `PROJECT_MAP.md`. Constaté sur pièce : `src/ui/addForm.js` est
+  passé **vert alors qu'il n'était déclaré nulle part** — la chaîne `addForm.js` se trouvait
+  déjà dans la phrase décrivant `tests/add-form.test.js`, ajoutée au commit précédent. Une
+  simple citation en passant suffit donc à satisfaire le verrou. Il prouve qu'une chaîne
+  existe, pas qu'un composant est documenté. **À resserrer** : exiger une ligne d'inventaire
+  qui COMMENCE par le chemin du module (`- \`src/…\` :`), pas une occurrence libre.
 
 ## Ordre d'exécution et livraison
 
