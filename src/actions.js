@@ -298,7 +298,7 @@ export function importJSON(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const data = JSON.parse(e.target.result);
+      const data = JSON.parse(String(e.target.result));
 
       // Un TABLEAU non vide ne suffit pas : `["Tomate","Oignon"]` franchissait la garde,
       // était filtré à vide par `sanitizeGlobalState`, qui **reconstruisait alors les ~297
@@ -369,7 +369,7 @@ export function importStockOnly(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const data = JSON.parse(e.target.result);
+      const data = JSON.parse(String(e.target.result));
 
       // LOT 014, §C1 — LA PORTE JUMELLE, restée ouverte quand le LOT 015 fermait celle de
       // la restauration totale. L'ancienne garde `if (!data.ingredients)` ne testait que la

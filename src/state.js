@@ -231,7 +231,30 @@ export function sanitizeGlobalState() {
     if (i.shoppingSource === undefined) i.shoppingSource = null;
   });
 
-  if (!state.aiConfig) state.aiConfig = { apiKey: '' };
+  // LOT 022 — LA FICHE DE RÉGLAGES IA EST COMPLÉTÉE, JAMAIS ÉCRASÉE.
+  //
+  // Constat ouvert par le vérificateur de types (LOT 021), tranché par Joel. Deux chemins
+  // fabriquaient cette fiche À LA MAIN avec la seule clé d'API : ce repli, et surtout
+  // `applyExternalState` (restauration cloud ou fichier, l.~330) — celui-là bien plus
+  // grave, car l'objet qu'il produit N'EST PAS VIDE : l'ancien garde `if (!state.aiConfig)`
+  // le laissait donc passer sans rien faire.
+  //
+  // CE QUE ÇA PRODUISAIT : la moitié des réglages ont un filet chez le constructeur de
+  // message (`aiConfig.diet || []`), l'autre moitié n'en a AUCUN. Le message envoyé à
+  // Gemini contenait alors, mot pour mot : « TYPE DE PLAT : Obligatoire -> undefined »,
+  // « Exactement undefined personnes », « niveau undefined ». Rien ne plantait, une partie
+  // des consignes tenait — d'où la discrétion du defaut.
+  //
+  // POURQUOI ICI, ET ICI SEULEMENT : c'est le rôle même de cette fonction, et TOUS les
+  // chemins d'entrée y passent (chargement local l.131, `setState` l.~304 — donc aussi
+  // `applyExternalState` —, réinitialisation `actions.js:207`). Un seul gardien vaut mieux
+  // que trois recopies : c'est exactement l'erreur qu'on corrige.
+  //
+  // L'ORDRE DE FUSION EST LE CŒUR DE LA RÈGLE : les valeurs par défaut d'ABORD, celles de
+  // Joel PAR-DESSUS. Seule une case ABSENTE est comblée ; une case présente est intouchable,
+  // y compris quand elle vaut `0` ou `''` — une créativité réglée à zéro est un choix,
+  // pas une absence (même piège qu'au LOT 017 sur ce réglage précis).
+  state.aiConfig = { ...defaultAiConfig(), ...(state.aiConfig || {}) };
 
   // Force la mise à jour des modèles à chaque chargement
   // pour écraser les valeurs périmées stockées en localStorage

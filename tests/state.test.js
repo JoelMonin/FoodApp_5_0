@@ -201,20 +201,30 @@ describe('State Management', () => {
       expect([...setCaptureAvant]).toEqual(['a', 'b']);
     });
 
-    // ÉQUIVALENCE EXIGÉE PAR LA FICHE, point 1 : `aiConfig` est REMPLACÉ EN ENTIER.
-    // C'est le comportement du spread d'origine, et il doit survivre au changement : une
-    // fusion en profondeur ferait survivre des réglages venus d'un ancien cloud par-dessus
-    // ceux qu'on applique.
-    it('aiConfig est REMPLACÉ en entier, jamais fusionné en profondeur', () => {
+    // ÉQUIVALENCE EXIGÉE PAR LA FICHE (LOT 014), point 1 : `aiConfig` est REMPLACÉ EN
+    // ENTIER. Une fusion en profondeur ferait survivre des réglages venus d'un ancien cloud
+    // par-dessus ceux qu'on applique. CETTE RÈGLE EST INTACTE.
+    //
+    // ⚠️ CE TEST A ÉTÉ RÉÉCRIT AU LOT 022, en connaissance de cause.
+    // Il vérifiait la règle par son SYMPTÔME — « les champs valent `undefined` » — et non
+    // par la règle elle-même. Or `undefined` n'était pas une intention : ces champs
+    // partaient LITTÉRALEMENT dans le message envoyé à Gemini (« Exactement undefined
+    // personnes »). Depuis le LOT 022, `sanitizeGlobalState` comble les cases absentes avec
+    // les valeurs par défaut — JAMAIS avec les anciennes.
+    // La règle de fond est donc doublement verrouillée ci-dessous : ce qui ne doit PAS
+    // survivre, et ce qu'on trouve désormais à la place.
+    it('aiConfig est REMPLACÉ en entier : l\'ANCIENNE fiche ne survit jamais', () => {
       state.aiConfig = { ...defaultAiConfig(), apiKey: 'CLE', creativity: 90, exclusions: 'ancien' };
 
       setState({ aiConfig: { apiKey: 'NOUVELLE' } }, { scheduleSync: false });
 
       expect(state.aiConfig.apiKey).toBe('NOUVELLE');
-      // `creativity` et `exclusions` ne DOIVENT PAS survivre : l'objet entier a été remplacé.
-      // (`models` fait exception, sanitizeGlobalState le repose systématiquement.)
-      expect(state.aiConfig.creativity).toBeUndefined();
-      expect(state.aiConfig.exclusions).toBeUndefined();
+      // La règle d'origine, vérifiée directement : rien de l'ancienne fiche ne repasse.
+      expect(state.aiConfig.creativity).not.toBe(90);
+      expect(state.aiConfig.exclusions).not.toBe('ancien');
+      // Ce qu'on trouve à la place depuis le LOT 022 : la valeur par défaut, pas un trou.
+      expect(state.aiConfig.creativity).toBe(50);
+      expect(state.aiConfig.exclusions).toBe('');
     });
 
     // ÉQUIVALENCE EXIGÉE PAR LA FICHE, point 2 : les tableaux sont REMPLACÉS, jamais

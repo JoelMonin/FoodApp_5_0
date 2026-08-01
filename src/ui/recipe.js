@@ -264,7 +264,7 @@ export function renderRecipeDetail(r, source, handlers, scale = 1, tags = []) {
                 h('span', { class: 'rd-meta-badge' }, `${difficultyEmoji} ${r.difficulty || r.diff || 'Normal'}`),
                 h('span', { class: 'rd-meta-badge' }, [
                     h('button', { class: 'scale-btn', 'data-testid': 'rd-scale-minus', onclick: () => changePplScale(-1) }, '−'),
-                    h('span', { id: 'rd-ppl-count' }, displayedPpl),
+                    h('span', { id: 'rd-ppl-count' }, String(displayedPpl)),
                     ' pers.',
                     h('button', { class: 'scale-btn', 'data-testid': 'rd-scale-plus', onclick: () => changePplScale(1) }, '+')
                 ]),

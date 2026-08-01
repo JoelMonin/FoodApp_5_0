@@ -9,7 +9,47 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun lot actif.** Le **LOT 020 est publié en Version 5.13 le 2026-08-01** (feu vert de Joel
+**Aucun.** Les **LOTS 021, 022, 023 et 024 sont publiés en Version 5.14 le 2026-08-01**
+(feu vert explicite de Joel, après essai réel : « la meilleure version jusqu'à aujourd'hui,
+vraiment utilisable dans la vraie vie »). Quatre lots nés de son évaluation de la qualité du
+code, ouverts et mis en ligne le même jour.
+
+- **LOT 021 — Le vérificateur de types** : relit le JavaScript existant, 128 signalements
+  → 0, **sans qu'une ligne de comportement ne change**. Le défaut du LOT 017 est rejoué et
+  attrapé en 1,2 s. Validation à 4 étapes. Fiche : `LOT 021 - Verificateur de types [CLOTURE].md`.
+- **LOT 022 — La fiche de réglages IA toujours complète** : née d'un constat du LOT 021.
+  Une restauration cloud/fichier sans réglages envoyait « Exactement **undefined**
+  personnes » à Gemini. Preuve par retrait 3/3. **Le premier endroit que j'avais montré à
+  Joel était le mauvais — corrigé, et vérifié par mutation.**
+  Fiche : `LOT 022 - Reglages IA toujours complets [CLOTURE].md`.
+- **LOT 023 — La jauge de créativité ne ment plus** : ressenti de Joel (« on a bricolé un
+  truc »). 101 positions pour 3 résultats réels, sans mise en évidence. Curseur à 3 arrêts
+  fermes, libellé actif visible, seuillage extrait en SSOT. **La consigne envoyée à l'IA
+  n'a pas changé d'un mot** — vérifié par mutation. Preuve par retrait 4/4.
+  Fiche : `LOT 023 - Jauge de creativite honnete [CLOTURE].md`.
+- **LOT 024 — Nettoyage de dette + rectification** : sweep des comments-dette (périmètre
+  bien plus étroit que redouté), `foodapp-v5-Joel.html` étiqueté archive de référence, et
+  une **auto-correction** — voir ci-dessous. Fiche :
+  `LOT 024 - Nettoyage dette et rectification [CLOTURE].md`.
+
+**⚠️ AUTO-CORRECTION DU 2026-08-01 — mon propre diagnostic « chiffres faux du LOT 018 »
+était FAUX.** En préparant le lot de rectification, j'ai réaudité l'historique git ligne
+par ligne (commits `add46f2`, `48d3cb2`, `62d4441`) plutôt que de refaire un `grep` rapide.
+**Les nombres déjà écrits dans la fiche LOT 018, cette page, `ROADMAP.md` et `SHIP_LOG.md`
+étaient CORRECTS** : 5 registrars (`registerModalHooks`, `registerRecipeModalHooks`,
+`registerTopbarHooks`, `registerAddFormNav`, **`registerSyncUi`**), 10 → 9 points de
+couplage. Mon affirmation « 3 béquilles, 6 entrées, jamais de changement », faite à Joel
+pendant l'évaluation de qualité, oubliait deux registrars dans un comptage `grep` trop
+rapide — `registerAddFormNav` (nommé `_nav`, pas `_hooks`) et `registerSyncUi`
+(`src/services/sync.js`, hors du dossier `src/ui/`). **Rien n'a été touché dans les
+documents de suivi : c'est ma déclaration à Joel qui était l'erreur**, corrigée ici pour
+qu'aucune version fausse ne reste la dernière écrite.
+
+---
+
+## Historique récent
+
+Le **LOT 020 a été publié en Version 5.13 le 2026-08-01** (feu vert de Joel
 après essai : « j'ai testé, c'est ok »). Demande née de son retour de courses, ouverte et
 mise en ligne le même jour. Détail, règle et preuves :
 `RoadMap & Project Pipeline/LOT 020 - Ranger les achats [CLOTURE].md`.

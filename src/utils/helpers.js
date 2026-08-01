@@ -204,14 +204,41 @@ export function scaleQty(qtyStr, scale) {
  * Utilisé pour ne pas re-filtrer tout l'inventaire à chaque touche frappée.
  * @param {Function} fn - La fonction à temporiser.
  * @param {number} delay - Délai d'inactivité en millisecondes avant exécution.
- * @returns {Function} La version temporisée, dotée d'une méthode `.cancel()`.
+ * @returns {((...args: any[]) => void) & { cancel: () => void }} La version temporisée,
+ *   dotée d'une méthode `.cancel()`. LOT 021 — cette ligne annonçait un simple `Function`,
+ *   alors que la phrase juste à côté mentionnait déjà le `.cancel()`. La PROSE savait, pas
+ *   l'ANNOTATION — et le vérificateur ne lit que l'annotation.
  */
+/**
+ * Classe une créativité (0-100) dans l'un des trois paliers du curseur IA (LOT 023).
+ *
+ * SSOT du seuillage : jusqu'ici DUPLIQUÉ implicitement entre la consigne envoyée à l'IA
+ * (`creativityInstruction`, `src/services/gemini.js`) et les libellés affichés sous le
+ * curseur (`index.html`, jamais mis en évidence). Extrait ici pour que les deux se
+ * réfèrent à UNE seule frontière — sans changer où elle passe : `<=33` / `<=66` / le reste,
+ * exactement les seuils d'origine du LOT 011.
+ *
+ * @param {number} creativity
+ * @returns {'classique'|'equilibre'|'creatif'}
+ */
+export function creativityLevel(creativity) {
+  if (creativity <= 33) return 'classique';
+  if (creativity <= 66) return 'equilibre';
+  return 'creatif';
+}
+
 export function debounce(fn, delay = 200) {
   let timer = null;
-  const debounced = (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
+  // LOT 021 — l'annotation dit ce que le code fait depuis toujours : la fonction rendue
+  // porte AUSSI une methode `cancel`. Sans elle, le verificateur signalait `.cancel()` comme
+  // inexistante chez ses deux appelants (`addForm.js`, `pantryView.js`). Pure declaration :
+  // aucun effet a l'execution.
+  const debounced = /** @type {((...args: any[]) => void) & { cancel: () => void }} */ (
+    (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    }
+  );
   debounced.cancel = () => clearTimeout(timer);
   return debounced;
 }

@@ -156,7 +156,7 @@
     <nav id="sidebar">
       <div class="sb-logo">
         <div class="sb-logo-name">🥘 FoodApp</div>
-        <div class="sb-logo-sub">Version 5.13</div>
+        <div class="sb-logo-sub">Version 5.14</div>
       </div>
       <div class="sb-section-label" id="sb-label-principal">Principal</div>
       <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
@@ -212,7 +212,7 @@
         <div class="mh-top">
           <div>
             <div class="mh-logo">🥘 FoodApp</div>
-            <div class="mh-sub" id="mh-subtitle">Version 5.13</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.14</div>
           </div>
           <div class="mh-icons">
             <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
@@ -424,14 +424,17 @@
 
                     <div class="ai-field-group">
                       <span class="ai-field-label">Créativité de l'IA</span>
+                      <!-- LOT 023 : `step="50"` limite le glisser à 3 arrêts fermes (0/50/100).
+                           Avant ce lot, les 101 positions du curseur ne produisaient que 3
+                           résultats réels, sans qu'aucune ne soit jamais mise en évidence. -->
                       <div class="creativity-row">
                         <span style="font-size:13px">🧠</span>
                         <input type="range" class="creativity-slider" id="creativity-slider" min="0" max="100"
-                          value="50" oninput="saveAiConfigFromUI()">
+                          step="50" value="50" oninput="saveAiConfigFromUI()">
                         <span style="font-size:13px">🔥</span>
                       </div>
                       <div class="creativity-labels">
-                        <span>Classique</span><span>Équilibrée</span><span>Très créatif</span>
+                        <span id="cr-label-classique">Classique</span><span id="cr-label-equilibre">Équilibrée</span><span id="cr-label-creatif">Très créatif</span>
                       </div>
                     </div>
 

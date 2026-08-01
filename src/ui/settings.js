@@ -3,13 +3,15 @@ import { h, toast } from '../utils/dom.js';
 import { FB_USER, LOCAL_STORAGE_KEY } from '../constants.js';
 import { SYNC_LAST_KEY, updateNetworkInfo } from '../services/sync.js';
 import { closeModal } from './modals.js';
+import { creativityLevel } from '../utils/helpers.js';
+import { updateCreativityLabels } from './aiPanel.js';
 
 /**
  * REGLAGES — extrait de `js/app.js` au LOT 017.
  *
- * Deplacement PUR : pas une regle n'a change. La zone etait deja couverte (LOT 015 l'a dotee
- * de 91 tests), a UNE exception pres — `saveAiConfigFromUI` n'avait AUCUN test, et son filet a
- * ete pose AVANT ce deplacement (`tests/save-ai-config.test.js`, 8 tests, 5 mutations prouvees).
+ * Deplacement PUR : pas une regle n'a change. La zone etait deja couverte depuis le LOT 015,
+ * a UNE exception pres — `saveAiConfigFromUI` n'avait AUCUN test, et son filet a ete pose
+ * AVANT ce deplacement (`tests/save-ai-config.test.js`, 8 tests, 5 mutations prouvees).
  *
  * CE QUE CE MODULE COUVRE : l'ecran « Reglages » et la fiche technique qu'il affiche —
  * derniere synchro, cle API (masquee), utilisateur Firebase, taille du stockage, etat du
@@ -108,6 +110,7 @@ export function onApiConfigOpen() {
 export function renderAiModelsInfo() {
     const el = document.getElementById('api-models-info');
     if (!el) return;
+    /** @type {Record<string, string>} */
     const models = state.aiConfig?.models || {};
     el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
         `Catégories et emojis : ${models.categorySuggest}`;
@@ -141,5 +144,8 @@ export function saveAiConfigFromUI() {
     state.aiConfig.exceptions = document.getElementById('ai-exceptions')?.value || '';
     state.aiConfig.exclusions = document.getElementById('ai-exclusions')?.value || '';
     state.aiConfig.creativity = parseInt(document.getElementById('creativity-slider')?.value || '50');
+    // LOT 023 — appelée à CHAQUE geste sur le curseur (oninput) : le libellé actif se met
+    // en évidence en direct pendant le glisser, pas seulement à la réouverture du panneau.
+    updateCreativityLabels(creativityLevel(state.aiConfig.creativity));
     saveState(false);
 }

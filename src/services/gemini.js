@@ -1,6 +1,7 @@
 import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
+import { creativityLevel } from '../utils/helpers.js';
 
 // Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
 // le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
@@ -17,6 +18,19 @@ const RECIPE_SAFETY_SETTINGS = [
  * @param {string} apiKey - La clé API de l'utilisateur.
  * @param {string} model - Le modèle à utiliser (voir AI_ROLES dans constants.js).
  * @param {Object} options - Options de génération.
+ *
+ * LOT 021 — LES SIX OPTIONS CI-DESSOUS N'ÉTAIENT PAS DOCUMENTÉES. Le vérificateur de types
+ * les a toutes exhumées d'un coup : le corps de la fonction les lisait, le contrat d'entrée
+ * les passait sous silence. Aucun test ne pouvait signaler ça — c'est exactement le genre
+ * d'écart entre ce qu'un code FAIT et ce qu'il ANNONCE que seule une relecture outillée voit.
+ *
+ * @param {number} [options.maxTokens=4096] - Plafond de longueur de la réponse.
+ * @param {boolean} [options.isJSON=true] - Exige une réponse en JSON strict. Le défaut est
+ *   VRAI : la quasi-totalité des appels de l'app attendent une structure, pas de la prose.
+ * @param {number} [options.temperature] - Créativité du modèle. N'est envoyé que si fourni.
+ * @param {number} [options.topK] - Diversité du vocabulaire. N'est envoyé que si fourni.
+ * @param {number} [options.topP] - Idem, par masse de probabilité. Envoyé si fourni.
+ * @param {Object} [options.schema] - Structure JSON imposée à la réponse.
  * @param {string} [options.thinkingLevel] - 'minimal'|'low'|'medium'|'high' (Gemini 3.x —
  *   remplace l'ancien `thinkingBudget` numérique, incompatible avec Gemini 3.x). Facultatif :
  *   n'est envoyé que s'il est fourni.
@@ -118,13 +132,18 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
  * Traduit le curseur de créativité (0-100) en consigne textuelle (LOT 011, arbitrage
  * Joel A2). Sur Gemini 3.x, `temperature` est déprécié et purement ignoré : le mécanisme
  * d'origine (créativité -> température) ne produit plus aucun effet. Paliers alignés sur
- * les libellés déjà affichés au-dessus du curseur (`index.html`, `.creativity-labels`).
+ * les libellés affichés sous le curseur (`index.html`, `.creativity-labels`).
+ *
+ * LOT 023 — le seuillage lui-même vit désormais dans `creativityLevel` (SSOT partagée avec
+ * la mise en évidence du libellé actif, `src/ui/aiPanel.js`). Les TROIS PHRASES ci-dessous
+ * sont INCHANGÉES au mot près : ce lot corrige le curseur, pas ce que l'IA reçoit.
  */
 function creativityInstruction(creativity) {
-  if (creativity <= 33) {
+  const niveau = creativityLevel(creativity);
+  if (niveau === 'classique') {
     return "Reste CLASSIQUE : des recettes connues et rassurantes, sans prise de risque.";
   }
-  if (creativity <= 66) {
+  if (niveau === 'equilibre') {
     return "Vise un bon ÉQUILIBRE entre recettes connues et touches d'originalité.";
   }
   return "Sois TRÈS CRÉATIF : ose des associations originales et surprenantes.";

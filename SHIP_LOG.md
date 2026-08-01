@@ -1,12 +1,40 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.13.0
+- **Version actuelle** : 5.14.0
 - **Dernière mise à jour** : 01/08/2026
-- **Statut** : Version 5.13 publiée (LOT 020) — ranger ses achats d'un geste au retour des
-  courses, plus la correction d'un défaut de coche fantôme.
+- **Statut** : Version 5.14 publiée (LOTS 021-024) — un vérificateur de types rejoint la
+  validation, la fiche de réglages IA ne peut plus arriver à moitié vide, la jauge de
+  créativité ne ment plus, nettoyage de dette. Joel : « la meilleure version jusqu'à
+  aujourd'hui, vraiment utilisable dans la vraie vie. »
 
 ## Historique des modifications
+- [x] [VERSION 5.14 - OnLine] 01/08/2026 : Publication des lots 021 à 024
+    - Quatre lots chaînés, nés de l'évaluation de la qualité du code demandée par Joel —
+      publiés d'un bloc, comportement quasi entièrement inchangé
+    - **LOT 021 — Le vérificateur de types** : relit le JavaScript existant sans rien
+      convertir. 128 signalements au premier passage → **0**, sans qu'une ligne de
+      comportement ne change (tests identiques avant/après). 87 des 128 dus à une seule
+      cause. Le défaut du LOT 017 (imports cassés, 798 tests verts) est rejoué et attrapé
+      en **1,2 s** — la validation unifiée passe de 3 à **4 étapes**, le vérificateur en tête
+    - **LOT 022 — La fiche de réglages IA toujours complète** : née d'un constat du LOT 021.
+      Une restauration cloud/fichier sans réglages envoyait littéralement « Exactement
+      **undefined** personnes » à Gemini. Un seul gardien comble les cases absentes sans
+      jamais toucher à un choix (`0` et `''` compris). **Le premier endroit diagnostiqué
+      était le mauvais** — corrigé, prouvé par mutation (3/3)
+    - **LOT 023 — La jauge de créativité ne ment plus** : ressenti de Joel (« on a bricolé
+      un truc »). Le curseur avait 101 positions pour seulement 3 résultats réels, sans
+      qu'aucun ne soit jamais mis en évidence. Curseur à 3 arrêts fermes, libellé actif
+      visible en direct. **La consigne envoyée à l'IA n'a pas changé d'un mot**, vérifié par
+      mutation (4/4)
+    - **LOT 024 — Nettoyage + une auto-correction.** Sweep des comments-dette : périmètre
+      bien plus étroit que redouté (6 cas sur tout `src/`, 3 traités). `foodapp-v5-Joel.html`
+      étiqueté ARCHIVE en tête de fichier. **Le plus notable** : en préparant la correction
+      des « chiffres faux du LOT 018 » que j'avais moi-même signalés la veille, un réaudit
+      git ligne par ligne a montré que les chiffres déjà publiés étaient **corrects** — mon
+      diagnostic de la veille, lui, était faux (deux registrars oubliés dans un `grep` trop
+      rapide). Rien à corriger dans les fiches LOT 017/018 ; corrigé où l'erreur vivait
+    - Métriques : types OK + 842/842 Vitest + 16/16 Pytest verts, build OK
 - [x] [VERSION 5.13 - OnLine] 01/08/2026 : Publication du lot 020
     - Lot 020 — Ranger les achats : une barre collante « 🏠 Ranger N achats » apparaît en bas
       de la liste dès qu'un article est coché. Les cochés passent en stock et quittent la

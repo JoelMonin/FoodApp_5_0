@@ -183,13 +183,21 @@ check-list ciblee sur les ressources existantes de la zone (`DOCTRINE_PRODUIT.md
 
 **Tests — zero echec tolere :** lot non clonable si la validation unifiée échoue.
 - **Validation Unifiée** : Exécutée via `.\validate.bat` (ou `npm run check`). Elle enchaîne :
-  1. `npx vitest run` (tests applicatifs JS en mode une passe sans watch).
-  2. `pytest` (verrous de fraîcheur Python pour `AGENTS.md` et `PROJECT_MAP.md`).
-  3. `npm run build` (construction de production) — **ajouté au LOT 017 apres un defaut REEL**
+  1. `npx tsc -p jsconfig.json` (vérificateur de types sur le JS existant) — **ajouté au
+     LOT 021**. Ne convertit RIEN en TypeScript : il relit le JavaScript et signale les fautes
+     factuelles (import d'un nom inexistant, faute de frappe, mauvais nombre d'arguments).
+     Placé en tête car le plus rapide (~1,2 s) et le plus précoce. Réglage NON strict à
+     dessein. Premier passage : 128 signalements, 87 dus à une seule cause, zéro à l'arrivée
+     sans qu'une ligne de comportement change.
+  2. `npx vitest run` (tests applicatifs JS en mode une passe sans watch).
+  3. `pytest` (verrous de fraîcheur Python pour `AGENTS.md` et `PROJECT_MAP.md`).
+  4. `npm run build` (construction de production) — **ajouté au LOT 017 apres un defaut REEL**
      que les deux premieres etapes n'ont pas vu : `js/app.js` a importe pendant cinq volets
      deux fonctions qui n'existaient plus, avec 798 tests verts. Vitest resout les modules a
      la demande, la construction echoue net. **Une suite de tests verte ne prouve pas que
-     l'application se construit** — donc qu'elle est publiable.
+     l'application se construit** — donc qu'elle est publiable. (L'étape 1 attrape désormais
+     ce défaut précis bien plus tôt, prouvé par mutation ; la construction reste
+     indispensable — elle seule vérifie que Vite sait assembler l'application.)
 
 **Commandes courantes :**
 

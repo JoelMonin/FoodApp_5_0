@@ -23,7 +23,7 @@ export function h(tag, props = {}, children = []) {
   const childrenArray = Array.isArray(children) ? children : [children];
   childrenArray.forEach(child => {
     if (typeof child === 'string' || typeof child === 'number') {
-      el.appendChild(document.createTextNode(child));
+      el.appendChild(document.createTextNode(String(child)));
     } else if (child instanceof Node) {
       el.appendChild(child);
     }
@@ -39,6 +39,7 @@ export function h(tag, props = {}, children = []) {
  * @param {string} type - 'error', 'success', or ''
  */
 export function toast(msg, type = '') {
+  /** @type {HTMLElement} */
   let container = document.getElementById('toast-container');
   if (!container) {
     container = h('div', { id: 'toast-container' });
