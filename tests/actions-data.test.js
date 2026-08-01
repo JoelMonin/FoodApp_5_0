@@ -6,6 +6,7 @@ import {
   resetCart,
   resetAllData,
   toggleCart,
+  toggleStock,
   deleteIngredient
 } from '../src/actions.js';
 import { state, shoppingChecked, sanitizeGlobalState, applyExternalState, registerSyncScheduler } from '../src/state.js';
@@ -478,6 +479,36 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       toggleCart('ing_1'); // bascule inCart à false
 
       expect(shoppingChecked.has('ing_1')).toBe(false);
+    });
+
+    // LOT 020 — LE QUATRIÈME CHEMIN, oublié depuis le LOT 008. `toggleCart`,
+    // `removeFromCart` et `resetCart` nettoient tous la coche en sortant du panier ;
+    // `toggleStock` ne le faisait pas. Symptôme réel : on coche « Carotte » dans la liste,
+    // on la marque en stock depuis l'inventaire, elle quitte la liste — mais son id reste
+    // dans le Set, persisté ET synchronisé. Le jour où elle revient dans la liste, elle y
+    // est DÉJÀ cochée sans qu'on ait rien fait.
+    it('toggleStock (passage en stock) retire l\'id du Set', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true, inStock: false })];
+      shoppingChecked.add('ing_1');
+
+      toggleStock('ing_1'); // bascule inStock à true → sortie du panier
+
+      expect(state.ingredients[0].inStock).toBe(true);
+      expect(state.ingredients[0].inCart).toBe(false);
+      expect(shoppingChecked.has('ing_1')).toBe(false);
+    });
+
+    // Le sens INVERSE ne doit rien nettoyer : repasser un article en rupture ne le remet pas
+    // dans la liste de courses, donc n'a aucune coche à toucher. Verrou anti-surcorrection.
+    it('toggleStock (retour en rupture) ne touche NI au panier NI aux coches', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true, inStock: true })];
+      shoppingChecked.add('ing_1');
+
+      toggleStock('ing_1'); // bascule inStock à false
+
+      expect(state.ingredients[0].inStock).toBe(false);
+      expect(state.ingredients[0].inCart).toBe(true);
+      expect(shoppingChecked.has('ing_1')).toBe(true);
     });
 
     it('deleteIngredient retire l\'id du Set', () => {

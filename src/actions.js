@@ -15,16 +15,34 @@ export function switchView(view) {
   window.dispatchEvent(new CustomEvent('viewChanged', { detail: view }));
 }
 
+/**
+ * SSOT du PASSAGE EN STOCK d'un article (LOT 020). Un article qui redevient disponible n'a
+ * plus rien a faire dans la liste de courses : il en sort, oublie la recette qui l'y avait
+ * mis (LOT 012, zone C — oracle l.4719), et sa coche disparait.
+ *
+ * LA COCHE, C'EST LE CORRECTIF DU LOT 020. Trois chemins sortent un article du panier et
+ * nettoient sa coche (`toggleCart`, `removeFromCart`, `resetCart`) ; `toggleStock` etait le
+ * QUATRIEME et l'oubliait depuis le LOT 008. L'id restait dans le Set, persiste ET
+ * synchronise : le jour ou l'article revenait dans la liste, il y etait deja coche tout seul.
+ * C'est exactement le symptome contre lequel le commentaire de `toggleCart` met en garde.
+ *
+ * Ne PAS y appeler `saveState()` : les appelants decident quand sauvegarder — `toggleStock`
+ * a chaque bascule, `rangerLesAchats` une seule fois pour tout le lot d'articles.
+ */
+function _passerEnStock(ing) {
+  ing.inStock = true;
+  ing.inCart = false;
+  ing.shoppingSource = null;
+  shoppingChecked.delete(ing.id);
+}
+
 export function toggleStock(id) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
-    ing.inStock = !ing.inStock;
-    if (ing.inStock) {
-      ing.inCart = false;
-      // LOT 012, zone C (oracle l.4719) : un article qui redevient en stock n'a plus
-      // besoin d'etre achete, donc plus de trace de "pour quelle recette".
-      ing.shoppingSource = null;
-    }
+    // Le sens « retour en rupture » ne touche NI au panier NI aux coches : un article qui
+    // s'epuise ne repart pas en courses tout seul (verrou anti-surcorrection du LOT 020).
+    if (ing.inStock) ing.inStock = false;
+    else _passerEnStock(ing);
     saveState();
   }
 }
