@@ -1,6 +1,6 @@
 # LOT 017 — Second rangement de `js/app.js` — SPÉCIFICATION
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-07-31
+> **Statut :** ✅ CLOTURE — publié en **Version 5.11** le 2026-08-01 (avec les LOTS 016 et 018)
 > **Branche :** `feat/lot17-second-rangement-app-js`, chaînée depuis `feat/lot16` (le LOT 016
 > est `[A PUBLIER]`, pas encore en ligne — précédent des LOTS 007+008, 009+010, 011+012)
 > **Niveau d'audit : Standard** — déménagement de code sous filet de tests déjà dense

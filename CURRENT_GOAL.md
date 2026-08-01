@@ -9,10 +9,28 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 018 — L'écran inventaire dans son module** : ouvert ET **TERMINÉ le 2026-08-01** sur
-`feat/lot18-ecran-inventaire`, statut **A PUBLIER**. Chaînée depuis `feat/lot17` (elle-même
-sur `feat/lot16`) — **trois lots non publiés s'empilent**, signalé à Joel. Détail :
-`RoadMap & Project Pipeline/LOT 018 - Ecran inventaire dans son module [A PUBLIER].md`.
+**Aucun.** La **Version 5.11 est publiée le 2026-08-01** (feu vert explicite de Joel) : les
+LOTS 016 + 017 + 018 sont fusionnés dans `main` et en ligne.
+
+**Prochain chantier décidé par Joel (2026-08-01, cap validé, lot pas encore ouvert)** : la
+règle de correspondance stock ↔ recette du sélecteur de courses. Deux volets arrêtés :
+1. **Correction pure** : `matchIngredientToStock` prend le PREMIER article au nom voisin au
+   lieu du MEILLEUR (l'oracle prenait exact > en stock > n'importe lequel) — cas prouvé en
+   usage réel : « Fécule de tapioca » déclarée absente alors qu'elle est dans l'inventaire.
+2. **Nouvelle règle d'arbitrage** (décision produit, PAS un retour à l'oracle) :
+   l'inventaire a le dernier mot quand il parle clairement (correspondance exacte → en stock ;
+   aucune correspondance → manquant) ; l'IA n'arbitre QUE la zone du doute (correspondance
+   approchante non exacte — ex. « Épices tajine » vs « Épices couscous », où elle seule sait
+   que ce n'est pas pareil). Critères d'acceptation = les captures de Joel du 2026-08-01 :
+   fécule reconnue, levure plus jamais rachetée, épices tajine toujours proposées.
+   ⚠️ Les tests de `tests/stock-match.test.js` qui gravent « l'IA fait autorité » seront
+   RÉÉCRITS en connaissance de cause, pas « réparés ».
+
+## Lot précédent — LOT 018, publié en V5.11
+
+**LOT 018 — L'écran inventaire dans son module** : ouvert ET terminé le 2026-08-01 sur
+`feat/lot18-ecran-inventaire`, **publié en V5.11 le 2026-08-01**. Détail :
+`RoadMap & Project Pipeline/LOT 018 - Ecran inventaire dans son module [CLOTURE].md`.
 
 **Le vrai enjeu n'était pas le nombre de lignes, c'était le couplage — et il a baissé.**
 
@@ -42,7 +60,7 @@ mélange d'ancien et de nouveau code. Vérifié par reproduction : seuls (15/15)
 **Un échec non reproduit ne prouve rien** : « corriger » sur cette foi aurait cassé du code
 sain. C'est le pendant exact de la leçon du LOT 014 sur les faux rouges du harnais de mutation.
 
-## Lot précédent — LOT 017, en attente de publication
+## Lot précédent — LOT 017, publié en V5.11
 
 **LOT 017 — Second rangement de `js/app.js`** : ouvert ET **TERMINÉ le 2026-07-31** sur
 `feat/lot17-second-rangement-app-js`, statut **A PUBLIER**. Chaînée depuis `feat/lot16`
@@ -78,7 +96,7 @@ aussi. **La valeur réelle est 1527 lignes**, identique depuis 5 commits. Deux c
 d'affilée sur la mesure la plus simple du lot : rien ne se cite sans être remesuré, pas même
 une correction.
 
-## Lot précédent — LOT 016, en attente de publication
+## Lot précédent — LOT 016, publié en V5.11
 
 **LOT 016 — Étiquettes de recette au propre** : ouvert et **terminé le 2026-07-31** sur
 `feat/lot16-etiquettes-recette-css`, statut **A PUBLIER**. Traite le point de sortie n°2 du
@@ -190,11 +208,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
 - **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
   campagne « Restauration & Refonte ».
-- **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31)
-- **017** Second rangement de `js/app.js` — 🟡 **A PUBLIER** (terminé le 2026-07-31) — part
-  avec le 016, en V5.11
-- **018** L'écran inventaire dans son module — 🟡 **A PUBLIER** (terminé le 2026-08-01) —
-  part avec les 016 et 017, en V5.11
+- **016 + 017 + 018** Le grand rangement de `js/app.js` — ✅ **PUBLIÉS en Version 5.11 le
+  2026-08-01** — `js/app.js` : 2823 → 568 lignes (−80 %), 7 modules d'écran, première baisse
+  réelle du couplage (10 → 9)
 
 ## Vérités à ne pas perdre
 

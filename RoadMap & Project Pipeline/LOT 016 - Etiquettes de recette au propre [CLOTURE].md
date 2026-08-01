@@ -1,6 +1,6 @@
 # LOT 016 — Étiquettes de recette au propre — FICHE
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-07-31
+> **Statut :** ✅ CLOTURE — publié en **Version 5.11** le 2026-08-01 (avec les LOTS 017 et 018)
 > **Branche :** `feat/lot16-etiquettes-recette-css` (ouverte depuis `main` après publication du 5.10)
 > **Niveau d'audit : Léger** (nettoyage CSS ciblé, aucun changement de comportement)
 > **Effort réel :** ~1 heure · **Version visée :** 5.10.1

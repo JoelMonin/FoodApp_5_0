@@ -1,6 +1,6 @@
 # LOT 018 — L'écran inventaire dans son module — FICHE
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-08-01
+> **Statut :** ✅ CLOTURE — publié en **Version 5.11** le 2026-08-01 (avec les LOTS 016 et 017)
 > **Branche :** `feat/lot18-ecran-inventaire`, chaînée depuis `feat/lot17` (elle-même sur
 > `feat/lot16`) — **trois lots non publiés s'empilent**, signalé à Joel
 > **Niveau d'audit : Standard** — déménagement pur, sous filet de tests déjà dense
