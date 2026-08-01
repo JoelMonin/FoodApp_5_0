@@ -60,6 +60,9 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [018](LOT%20018%20-%20Ecran%20inventaire%20dans%20son%20module%20%5BCLOTURE%5D.md) | L'écran inventaire dans son module — **625 → 568 lignes**, et surtout la **première baisse réelle du couplage** de la série (10 points → 9). Sort « sec » : zéro cycle, zéro crochet créé. Trois pièges évités par la découverte, dont un faux ami parfait | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot18-ecran-inventaire` |
+| [017](LOT%20017%20-%20Second%20rangement%20de%20app.js%20%5BCLOTURE%5D.md) | Second rangement de `js/app.js` — **1527 → 625 lignes (−59 %)**, six modules extraits (couplages stables : 5 crochets avant comme après — l'annonce d'une baisse à 4 était fausse, rectifiée dans la fiche). A trouvé un défaut que 798 tests verts ne voyaient pas : la construction de production était cassée depuis le premier volet. Validation unifiée portée de 2 à 3 étapes | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot17-second-rangement-app-js` |
+| [016](LOT%20016%20-%20Etiquettes%20de%20recette%20au%20propre%20%5BCLOTURE%5D.md) | Étiquettes de recette au propre — solde le point de sortie `.r-tag` laissé ouvert par le LOT 014 : les variantes rouge et verte n'ont plus qu'une définition, apparence prouvée identique, +6 tests de verrou (4 mutations, 4 rouges) | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot16-etiquettes-recette-css` |
 | [014](LOT%20014%20-%20Refonte%20SSOT%20et%20decoupage%20%5BCLOTURE%5D.md) | Refonte SSOT et découpage — les 9 volets faits et testés, check-list de régressions reparcourue, audit DUR final (6 agents adversariaux locaux : 1 bloquant + 3 moyens + 3 mineurs corrigés, rien laissé sans vérification sur pièce) | **CLOTURE** — publié en V5.10 le 2026-07-31 | `feat/lot14-refonte-ssot` |
 
 ## ✅ Clôturés
@@ -100,6 +103,35 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-01 — LOT 018 ouvert et terminé (A PUBLIER)** : l'écran inventaire sort dans
+  `src/ui/pantryView.js`, en rapatriant au passage les puces de filtre que le LOT 017 avait
+  logées dans la barre du haut. **Première baisse réelle du couplage de toute la série**
+  (10 points → 9) : le crochet `renderPantry` disparaît, il n'existait que pour ces puces.
+  `js/app.js` : 625 → 568 lignes, soit **−80 % depuis le début du rangement** (2823 avant le
+  LOT 014). Premier module à sortir « sec » — zéro cycle, zéro crochet créé. La découverte a
+  évité trois régressions invisibles, dont un faux ami parfait (`initChipsRowTouchScroll`,
+  dont le commentaire parle des puces de filtre alors que son sélecteur couvre surtout le
+  panneau IA). **Incident d'outillage consigné** : 77 tests rouges au premier passage,
+  aucun réel — cache Vite obsolète, démonté par reproduction. Un échec non reproduit ne
+  prouve rien.
+- **2026-07-31 — LOT 017 ouvert et terminé (A PUBLIER)** : le second rangement de `js/app.js`
+  aboutit **au-delà de sa cible** — 1527 → 625 lignes (−59 %) pour un objectif de ~700. Six
+  modules extraits. **Rectification** : j'avais annoncé une baisse des couplages (5 crochets
+  → 4) ; remesuré, c'est **5 avant et 5 après**, et 9 points de couplage contre 10. Le
+  couplage n'a pas baissé — sa nature a changé (les crochets visent désormais l'écran
+  inventaire, qui attend son module, au lieu de retenir du code prisonnier du fourre-tout). La phase découverte a corrigé trois erreurs du
+  plan (mesure fausse deux fois, 16 fonctions oubliées, cible inatteignable en l'état) et
+  l'ordre des volets a été revu deux fois en cours de route pour éviter des crochets
+  temporaires. **Défaut majeur trouvé en fin de lot** : la construction de production était
+  cassée depuis le premier volet, avec 798 tests verts — la branche était impubliable sans
+  que rien ne le dise. La validation unifiée passe de 2 à 3 étapes.
+- **2026-07-31 — LOT 016 ouvert et terminé (A PUBLIER)** : solde le point `.r-tag` reporté
+  par le LOT 014. Le diagnostic a **infirmé l'hypothèse de départ** : `.r-tag.green` de
+  `05-ai.css` était bien intégralement morte, mais `.r-tag.red` gardait deux propriétés
+  vivantes (`font-weight`, `box-shadow`) — la retirer en bloc aurait changé l'écran. Joel a
+  choisi de figer l'apparence actuelle et de laisser les variantes `gold`/`terra` inutilisées.
+  Apparence prouvée identique par comparaison de la cascade calculée sur la feuille buildée,
+  avec contre-épreuve ; verrou de 6 tests, 4 mutations et 4 rouges nommés. 790/790 Vitest.
 - **2026-07-31 — LOT 014 publié en Version 5.10, campagne « Restauration & Refonte »
   achevée** : feu vert de Joel donné le soir même, fusion `--no-ff` de
   `feat/lot14-refonte-ssot` dans `main` et mise en ligne. Fiche passée en `[CLOTURE]`.

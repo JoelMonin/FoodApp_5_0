@@ -9,6 +9,7 @@ import { matchIngredientToStock } from '../utils/stockMatch.js';
 // la troisieme injection annoncee en en-tete, desormais supprimee. Pas de cycle : la
 // modale d'edition ne connait pas le selecteur.
 import { buildEmojiEditSuggestions } from './emojiModal.js';
+import { openModal, closeModal } from './modals.js';
 
 /**
  * SELECTEUR DE COURSES — extrait de `js/app.js` au LOT 014, volet A.
@@ -27,36 +28,26 @@ import { buildEmojiEditSuggestions } from './emojiModal.js';
  * qu'UNE case a cocher. Deplacer la maitresse dans la liste, ou ajouter une seconde case par
  * ligne, decalerait le marquage visuel en silence.
  *
- * DEUX COUPLAGES INJECTES plutot qu'importes (`registerCartPickerHooks`) — c'est le noeud
- * que la phase decouverte annoncait (§B5). Ils etaient TROIS : le troisieme
- * (`buildEmojiEditSuggestions`) a disparu des que la modale d'edition d'icone est sortie
- * dans son propre module, d'ou il s'importe maintenant directement.
- *  · `openModal`/`closeModal` vivent dans `js/app.js` et ne sont PAS de simples helpers :
- *    `openModal` porte des cas particuliers pour la modale « coller une recette » et pour
- *    les reglages IA. En extraire un socle propre demanderait deux injections de plus.
- *  · `buildEmojiEditSuggestions` appartient a la modale d'edition d'icone. `cycleEmoji` lui
- *    passe TOUJOURS une categorie, donc l'appel est pur de ce cote — mais la fonction lit
- *    `_currentEditingIngId` quand la categorie est omise, ce qui interdit de la rendre pure
- *    sans changer son comportement. Le pare-feu du lot l'interdit : on injecte.
+ * PLUS AUCUNE INJECTION — et l'histoire de leur disparition est la meilleure illustration de
+ * la regle. Ce module en exigeait TROIS au LOT 014, ce qui en faisait l'exemple du couplage
+ * le plus lourd du projet :
+ *  · `buildEmojiEditSuggestions` est tombee des que la modale d'edition d'icone est sortie
+ *    dans son propre module (LOT 014) ;
+ *  · `openModal`/`closeModal` sont tombees au LOT 017, quand le socle des modales est sorti
+ *    dans `src/ui/modals.js`. L'en-tete affirmait ici qu'« en extraire un socle propre
+ *    demanderait deux injections de plus » : c'etait vrai, et ces deux injections-la vivent
+ *    desormais dans `modals.js`, ou elles sont a leur place — l'ecran qui s'ouvre y decrit sa
+ *    propre remise a zero, au lieu que le socle connaisse tous les ecrans.
+ * Un crochet n'est donc jamais un choix definitif : c'est une dette qui s'eteint quand sa
+ * cible trouve son module.
  */
-
-const _hooks = {
-    openModal: () => {},
-    closeModal: () => {}
-};
-
-export function registerCartPickerHooks(hooks = {}) {
-    for (const cle of Object.keys(_hooks)) {
-        if (typeof hooks[cle] === 'function') _hooks[cle] = hooks[cle];
-    }
-}
 
 // Etat PRIVE du selecteur : la recette en cours et ses lignes, telles qu'affichees.
 let _currentPickerData = [];
 let _currentPickerRecipeName = '';
 
 export function openEnhancedCartPicker(recipe) {
-    _hooks.closeModal('modal-recipe-detail');
+    closeModal('modal-recipe-detail');
     _currentPickerRecipeName = recipe.name || 'Recette';
     _currentPickerData = (recipe.ingredients || []).map(i => {
         const name = i.n || i.name;
@@ -135,7 +126,7 @@ export function openEnhancedCartPicker(recipe) {
     const selectAll = document.getElementById('picker-select-all');
     if (selectAll) selectAll.checked = _currentPickerData.every(it => it.isMissing);
 
-    _hooks.openModal('modal-recipe-to-cart');
+    openModal('modal-recipe-to-cart');
 }
 
 export function confirmRecipeToCart() {
@@ -171,7 +162,7 @@ export function confirmRecipeToCart() {
         }
     });
     saveState();
-    _hooks.closeModal('modal-recipe-to-cart');
+    closeModal('modal-recipe-to-cart');
     toast('Course ajoutée !');
 }
 

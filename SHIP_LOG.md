@@ -1,13 +1,27 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.10.0
-- **Dernière mise à jour** : 31/07/2026
-- **Statut** : Version 5.10 publiée (LOT 014) — la campagne « Restauration & Refonte » est
-  achevée et en ligne. Prochain chantier pressenti : second rangement de `js/app.js`
-  (fiche prête au backlog), plus le point CSS `.r-tag` à regarder à froid
+- **Version actuelle** : 5.11.0
+- **Dernière mise à jour** : 01/08/2026
+- **Statut** : Version 5.11 publiée (LOTS 016 + 017 + 018) — le grand rangement de `js/app.js`
+  est achevé et en ligne : 568 lignes (−80 % depuis la 5.10), 7 modules d'écran extraits,
+  aucun changement visible. Prochain chantier décidé par Joel : la règle de correspondance
+  stock ↔ recette (le sélecteur de courses se trompe dans les deux sens)
 
 ## Historique des modifications
+- [x] [VERSION 5.11 - OnLine] 01/08/2026 : Publication des lots 016 + 017 + 018
+    - Trois lots chaînés sur une même lignée de branches, publiés d'un bloc — aucun
+      changement voulu à l'écran, tout est sous le capot
+    - **LOT 016 — Étiquettes de recette au propre** : les variantes `.r-tag` rouge et verte
+      n'ont plus qu'une seule définition CSS (apparence prouvée identique au pixel), +6 tests
+    - **LOT 017 — Second rangement de `js/app.js`** : 1527 → 625 lignes, six modules d'écran
+      extraits (`modals`, `settings`, `favorites`, `topbar`, `pasteRecipe`, `aiPanel`).
+      A révélé un trou systémique : la construction de production était cassée avec 798 tests
+      verts — la **validation unifiée passe de 2 à 3 étapes** (le build en fait partie)
+    - **LOT 018 — L'écran inventaire dans son module** : `src/ui/pantryView.js`, 625 → 568
+      lignes, et la **première baisse réelle du couplage** de la série (10 points → 9)
+    - Bilan du rangement complet : `js/app.js` 2823 → 568 lignes (−80 %) depuis la V5.10
+    - Métriques : 798/798 Vitest + 16/16 Pytest verts, build OK — Tests: 814 passed
 - [x] [VERSION 5.10 - OnLine] 31/07/2026 : Publication du lot 014
     - Lot 014 — Refonte SSOT et découpage : dernier lot de la campagne. Aucun changement
       voulu à l'écran ; tout le travail est sous le capot pour rendre le code sûr à modifier

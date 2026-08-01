@@ -116,6 +116,11 @@ check-list ciblee sur les ressources existantes de la zone (`DOCTRINE_PRODUIT.md
 - **Validation Unifiée** : Exécutée via `.\validate.bat` (ou `npm run check`). Elle enchaîne :
   1. `npx vitest run` (tests applicatifs JS en mode une passe sans watch).
   2. `pytest` (verrous de fraîcheur Python pour `AGENTS.md` et `PROJECT_MAP.md`).
+  3. `npm run build` (construction de production) — **ajouté au LOT 017 apres un defaut REEL**
+     que les deux premieres etapes n'ont pas vu : `js/app.js` a importe pendant cinq volets
+     deux fonctions qui n'existaient plus, avec 798 tests verts. Vitest resout les modules a
+     la demande, la construction echoue net. **Une suite de tests verte ne prouve pas que
+     l'application se construit** — donc qu'elle est publiable.
 
 **Commandes courantes :**
 

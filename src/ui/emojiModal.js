@@ -4,6 +4,7 @@ import { normalizeString } from '../utils/helpers.js';
 import { DEFAULT_DB, getCategoryEmoji } from '../data.js';
 import { GENERIC_EMOJI_FALLBACK, AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { callAI } from '../services/gemini.js';
+import { openModal, closeModal } from './modals.js';
 
 /**
  * MODALE « CHANGER L'ICONE » — extraite de `js/app.js` au LOT 014, volet A.
@@ -28,16 +29,10 @@ import { callAI } from '../services/gemini.js';
  *     l'inverse (« une regex qui rate des emojis ») ; verifie sur piece, fiche corrigee.
  */
 
-// `openModal` / `closeModal` vivent dans `js/app.js` et portent des cas particuliers pour
-// d'autres ecrans : meme idiome d'injection que le selecteur de courses et le moteur de
-// synchro, plutot qu'un import croise.
-const _hooks = { openModal: () => {}, closeModal: () => {} };
-
-export function registerEmojiModalHooks(hooks = {}) {
-    for (const cle of Object.keys(_hooks)) {
-        if (typeof hooks[cle] === 'function') _hooks[cle] = hooks[cle];
-    }
-}
+// LOT 017 — l'injection a disparu : `openModal`/`closeModal` sont sortis de `js/app.js` dans
+// `src/ui/modals.js`, donc ils s'importent directement (regle du LOT 014 : un crochet qui
+// survit a l'extraction de sa cible est de la dette). Aucun cycle possible — `modals.js` ne
+// connait pas cet ecran.
 
 // Ingredient dont on edite l'icone. Etat PRIVE : `applyEditedEmoji` est le seul a le lire.
 let _currentEditingIngId = null;
@@ -50,7 +45,7 @@ export function openEditEmoji(id) {
     const searchInput = document.getElementById('emoji-search-input');
     if (searchInput) searchInput.value = '';
     renderEmojiEditGrid(ing.name);
-    _hooks.openModal('modal-edit-emoji');
+    openModal('modal-edit-emoji');
 }
 
 /**
@@ -117,7 +112,7 @@ export function applyEditedEmoji(emoji) {
         ing.emoji = emoji;
         saveState(); // 'stateUpdated' relance le rendu : pas d'appel manuel.
     }
-    _hooks.closeModal('modal-edit-emoji');
+    closeModal('modal-edit-emoji');
 }
 
 export async function searchEmojiAI() {

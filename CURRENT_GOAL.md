@@ -9,15 +9,116 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014
-a été **publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff`
-dans `main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
-`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
+**Aucun.** La **Version 5.11 est publiée le 2026-08-01** (feu vert explicite de Joel) : les
+LOTS 016 + 017 + 018 sont fusionnés dans `main` et en ligne.
 
-**Prochain chantier pressenti (décidé par Joel, pas encore ouvert)** : le second rangement
-de `js/app.js` — fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir
-via `/new-lot`, avec phase découverte obligatoire. Reste aussi le point CSS
-`.r-tag.red`/`.r-tag.green`, à regarder à froid, séparément, « sans tout casser ».
+**Prochain chantier décidé par Joel (2026-08-01, cap validé, lot pas encore ouvert)** : la
+règle de correspondance stock ↔ recette du sélecteur de courses. Deux volets arrêtés :
+1. **Correction pure** : `matchIngredientToStock` prend le PREMIER article au nom voisin au
+   lieu du MEILLEUR (l'oracle prenait exact > en stock > n'importe lequel) — cas prouvé en
+   usage réel : « Fécule de tapioca » déclarée absente alors qu'elle est dans l'inventaire.
+2. **Nouvelle règle d'arbitrage** (décision produit, PAS un retour à l'oracle) :
+   l'inventaire a le dernier mot quand il parle clairement (correspondance exacte → en stock ;
+   aucune correspondance → manquant) ; l'IA n'arbitre QUE la zone du doute (correspondance
+   approchante non exacte — ex. « Épices tajine » vs « Épices couscous », où elle seule sait
+   que ce n'est pas pareil). Critères d'acceptation = les captures de Joel du 2026-08-01 :
+   fécule reconnue, levure plus jamais rachetée, épices tajine toujours proposées.
+   ⚠️ Les tests de `tests/stock-match.test.js` qui gravent « l'IA fait autorité » seront
+   RÉÉCRITS en connaissance de cause, pas « réparés ».
+
+## Lot précédent — LOT 018, publié en V5.11
+
+**LOT 018 — L'écran inventaire dans son module** : ouvert ET terminé le 2026-08-01 sur
+`feat/lot18-ecran-inventaire`, **publié en V5.11 le 2026-08-01**. Détail :
+`RoadMap & Project Pipeline/LOT 018 - Ecran inventaire dans son module [CLOTURE].md`.
+
+**Le vrai enjeu n'était pas le nombre de lignes, c'était le couplage — et il a baissé.**
+
+| | Avant | Après |
+|---|---|---|
+| `js/app.js` | 625 lignes | **568** |
+| Crochets | 5 | 5 |
+| **Points de couplage** | **10** | **9** |
+
+**Première baisse réelle du couplage de toute la série** (celle annoncée au LOT 017 était
+fausse). Elle tient à un point précis : `renderPantry` appelait `renderPantryFilters`, que le
+LOT 017 avait logée dans `topbar.js`. En rapatriant les puces de filtre avec l'écran qu'elles
+filtrent, le crochet `renderPantry` disparaît — il n'existait que pour elles.
+
+**Depuis le début du rangement : `js/app.js` est passé de 2823 à 568 lignes, soit −80 %.**
+
+**Trois pièges évités par la découverte**, chacun porteur d'une régression invisible :
+`initChipsRowTouchScroll` (faux ami : son sélecteur couvre 8 éléments, dont 7 pour le panneau
+IA), les 4 alias `Actions.*` (ils servent AUSSI à `expose()` — les emporter cassait 4 gestes
+sans faire rougir un test), et l'annonce « le crochet tombera à 1 » (faux : il en reste 2,
+trois textes du dépôt corrigés).
+
+**⚠️ Leçon d'outillage à ne pas perdre** : la première validation après ce déménagement a
+affiché **77 tests rouges**. Aucun n'était réel — cache de transformation Vite servant un
+mélange d'ancien et de nouveau code. Vérifié par reproduction : seuls (15/15), deux à deux
+(25/25), suite entière (798/798), puis deux validations complètes consécutives vertes.
+**Un échec non reproduit ne prouve rien** : « corriger » sur cette foi aurait cassé du code
+sain. C'est le pendant exact de la leçon du LOT 014 sur les faux rouges du harnais de mutation.
+
+## Lot précédent — LOT 017, publié en V5.11
+
+**LOT 017 — Second rangement de `js/app.js`** : ouvert ET **TERMINÉ le 2026-07-31** sur
+`feat/lot17-second-rangement-app-js`, statut **A PUBLIER**. Chaînée depuis `feat/lot16`
+(également `[A PUBLIER]`) : les deux lots partiront ensemble, comme les LOTS 007+008,
+009+010 et 011+012. Détail et preuves :
+`RoadMap & Project Pipeline/LOT 017 - Second rangement de app.js [A PUBLIER].md`.
+
+**Objectif dépassé : `js/app.js` passe de 1527 à 625 lignes (−59 %)**, pour une cible
+annoncée à ~700. Six modules extraits (`modals`, `settings`, `favorites`, `topbar`,
+`pasteRecipe`, `aiPanel`).
+
+**⚠️ RECTIFICATION du 2026-07-31** : j'ai annoncé partout « couplages en baisse, 5 crochets
+→ 4 ». **C'est faux.** Vrai au premier volet, faux dès le suivant (`registerTopbarHooks` a
+rétabli le compte). Mesure réelle : **5 crochets avant, 5 après ; 9 points de couplage avant,
+10 après.** Le couplage n'a pas baissé, il a très légèrement augmenté. Ce qui a changé est sa
+NATURE : les crochets ne retiennent plus du code prisonnier du fourre-tout, ils pointent vers
+l'écran inventaire, qui attend son propre module. Troisième chiffre recopié sans être
+remesuré sur ce lot, après 1523 et 1366 — **une affirmation chiffrée se remesure à chaque
+étape**.
+
+**🔴 LE DÉFAUT À RETENIR DE CE LOT : la construction de production était cassée depuis le
+premier volet, avec 798 tests verts.** `js/app.js` importait deux fonctions supprimées de
+leurs modules ; Vitest résout les modules à la demande et n'a rien vu, `vite build` échoue
+net. La branche a été **impubliable pendant cinq volets** sans que rien ne le signale.
+Contre-épreuve faite : un import d'une fonction totalement imaginaire laisse les 798 tests
+verts. **La validation unifiée passe donc de 2 à 3 étapes** (`validate.bat`, `npm run check`,
+`CLAUDE.md` §4). Une suite de tests verte ne prouve pas que l'application se construit.
+
+**⚠️ La mesure de départ était fausse DEUX FOIS** : la fiche backlog annonçait `js/app.js` à
+**1523 lignes** (chiffre écrit à la main à la clôture du LOT 014, jamais remesuré), et ma
+première vérification a répondu **1366** — un comptage des lignes NON VIDES, donc faux lui
+aussi. **La valeur réelle est 1527 lignes**, identique depuis 5 commits. Deux chiffres faux
+d'affilée sur la mesure la plus simple du lot : rien ne se cite sans être remesuré, pas même
+une correction.
+
+## Lot précédent — LOT 016, publié en V5.11
+
+**LOT 016 — Étiquettes de recette au propre** : ouvert et **terminé le 2026-07-31** sur
+`feat/lot16-etiquettes-recette-css`, statut **A PUBLIER**. Traite le point de sortie n°2 du
+LOT 014 (`.r-tag`), que Joel avait volontairement reporté. Détail et preuves :
+`RoadMap & Project Pipeline/LOT 016 - Etiquettes de recette au propre [A PUBLIER].md`.
+
+**Le diagnostic a corrigé l'hypothèse du LOT 014** : `.r-tag.green` de `05-ai.css` était bien
+100 % morte, mais `.r-tag.red` ne l'était qu'à moitié — `font-weight` et `box-shadow` y
+survivaient. Un retrait en bloc, tel que l'hypothèse initiale l'aurait suggéré, aurait donc
+changé l'apparence. **Décisions de Joel** : garder l'aspect actuel (zéro pixel modifié) et
+laisser les variantes `gold`/`terra`, jamais produites par l'application.
+
+**Suite prévue (décidée par Joel, pas encore ouverte)** : le second rangement de `js/app.js`
+— fiche prête : `Backlog/BACKLOG - Second rangement de app.js.md`. À ouvrir via `/new-lot`,
+avec phase découverte obligatoire.
+
+## Lot tout juste publié — Version 5.10 (2026-07-31)
+
+La campagne « Restauration & Refonte » est **achevée et en ligne** : le LOT 014 a été
+**publié en Version 5.10 le 2026-07-31** (feu vert explicite de Joel, fusion `--no-ff` dans
+`main`). Détail complet, y compris l'audit DUR final (6 agents adversariaux) :
+`RoadMap & Project Pipeline/LOT 014 - Refonte SSOT et decoupage [CLOTURE].md`.
 
 **Ordre arrêté : C1 → B → C → G → A → D → E → F.**
 
@@ -107,6 +208,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **013** Filet de tests UI — ✅ **PUBLIÉ en Version 5.9 le 2026-07-31**
 - **014** Refonte SSOT et découpage — ✅ **PUBLIÉ en Version 5.10 le 2026-07-31** — ferme la
   campagne « Restauration & Refonte ».
+- **016 + 017 + 018** Le grand rangement de `js/app.js` — ✅ **PUBLIÉS en Version 5.11 le
+  2026-08-01** — `js/app.js` : 2823 → 568 lignes (−80 %), 7 modules d'écran, première baisse
+  réelle du couplage (10 → 9)
 
 ## Vérités à ne pas perdre
 
@@ -126,6 +230,9 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - `.picker-magic-btn`, `.emoji-edit-btn`, `.sync-indicator.*`, `.r-tag`, `.tb-btn-add`,
   `.add-results-list`, `.tb-btn.small` : CSS REBRANCHÉ par la campagne — interdiction de les
   traiter en « CSS mort » ou de les supprimer au LOT 014.
+  **`.r-tag` a été traitée au LOT 016**, sans jamais rien supprimer de vivant : les variantes
+  rouge et verte étaient définies deux fois, elles ne le sont plus qu'une, et l'apparence à
+  l'écran est prouvée identique. Les autres classes de cette liste restent intouchées.
 - **`areSimilar`** (`src/utils/helpers.js`) compare désormais des mots entiers, jamais des
   fragments de texte (porté depuis l'oracle, LOT 011 hors-plan) — ne pas revenir à une
   comparaison de sous-chaînes brutes en y retouchant plus tard.
@@ -189,9 +296,11 @@ la grille d'emojis insensible aux accents (formulaire d'ajout ET édition d'icô
    `05-ai.css` et `12-utilities.css`, même mécanisme que `.recipe-detail-section` déjà
    corrigé — mais `.r-tag` figure sur la liste des classes protégées « CSS REBRANCHÉ par la
    campagne », donc remonté plutôt que tranché seul) — **Joel a choisi de clôturer le lot
-   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. Reste donc
-   ouvert, sciemment, hors du lot 014 : ne pas le re-décider seul si le sujet revient, c'est
-   déjà un choix de Joel.
+   d'abord et de regarder ce point ensuite, séparément, « sans tout casser »**. ✅ **SOLDÉ
+   par le LOT 016** le 2026-07-31, après publication de la 5.10. À retenir : l'hypothèse
+   posée ici (« la version de `05-ai.css` serait du CSS mort ») n'était vraie que pour le
+   VERT ; la rouge gardait deux propriétés vivantes, et l'appliquer telle quelle aurait
+   changé l'écran.
 
 **Publication : FAITE.** Après une première clôture en `[A PUBLIER]` (Joel ne voulait pas
 publier tout de suite), le feu vert explicite est arrivé le 2026-07-31 au soir
