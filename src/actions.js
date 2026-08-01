@@ -121,6 +121,38 @@ export function removeFromCart(id) {
   saveState();
 }
 
+/**
+ * RANGER LES ACHATS (LOT 020) — demande de Joel au retour de ses courses.
+ *
+ * Fonctionnalite NEUVE, pas une restauration : l'oracle ne connait que « Vider »
+ * (`resetCart`, ci-dessous), qui balaie toute la liste sans jamais toucher au stock.
+ *
+ * Chaque article a la fois DANS LE PANIER et COCHE rejoint l'inventaire ; les autres ne
+ * bougent pas d'un poil. L'intersection des deux conditions n'est pas un exces de prudence :
+ * une coche peut survivre a la disparition de son article du panier (etat ancien, ou id
+ * venu du cloud), et elle ne doit surtout pas remettre en stock un article que Joel n'a
+ * jamais mis dans sa liste.
+ *
+ * Le point que Joel a demande de surveiller — « attention au cas ou j'avais encore du
+ * stock » — est sans danger, et pour une raison precise : le modele ne connait pas les
+ * quantites, seulement un oui/non. Racheter ce qu'on avait deja est donc une operation
+ * neutre. C'est verifie par un test dedie, pas seulement affirme ici.
+ *
+ * Pas de rendu declenche a la main : `saveState()` emet `stateUpdated`, que `js/app.js`
+ * ecoute pour relancer le rendu de la vue courante et les pastilles de comptage.
+ *
+ * @returns {number} Nombre d'articles ranges — sert au message et aux tests.
+ */
+export function rangerLesAchats() {
+  const achetes = state.ingredients.filter(i => i.inCart && shoppingChecked.has(i.id));
+  if (achetes.length === 0) return 0;
+
+  achetes.forEach(_passerEnStock);
+  saveState();
+  toast(`${achetes.length} article${achetes.length > 1 ? 's rangés' : ' rangé'} dans l'inventaire`);
+  return achetes.length;
+}
+
 export function resetCart() {
   if (confirm('Vider la liste de courses ?')) {
     state.ingredients.forEach(i => i.inCart = false);

@@ -38,6 +38,29 @@ export function renderShoppingItem(item, isChecked, handlers) {
   ]);
 }
 
+/**
+ * BARRE « RANGER MES ACHATS » (LOT 020). Rendue en DERNIER dans la liste et collante en bas
+ * de l'ecran (`position: sticky`, cf. `css/sections/04-shopping.css`) : au magasin, le pouce
+ * l'atteint sans avoir a faire defiler jusqu'en bas d'une longue liste.
+ *
+ * Elle n'existe qu'a partir d'UN article coche — hors d'un retour de courses, elle
+ * n'encombre rien. Le compte est annonce sur le bouton lui-meme : c'est le filet de securite
+ * retenu par Joel (voir ce qui va partir AVANT d'appuyer), a la place d'une fenetre de
+ * confirmation qui ajouterait un clic les mains pleines.
+ *
+ * @returns {HTMLElement|null} La barre, ou `null` s'il n'y a rien a ranger.
+ */
+export function renderShoppingDoneBar(nbCoches, handlers) {
+  if (nbCoches < 1) return null;
+  const { rangerLesAchats } = handlers;
+  return h('div', { class: 'shop-done-bar', 'data-testid': 'shop-done-bar' }, [
+    h('button', {
+      class: 'sdb-btn',
+      onclick: () => rangerLesAchats?.()
+    }, `🏠 Ranger ${nbCoches} achat${nbCoches > 1 ? 's' : ''}`)
+  ]);
+}
+
 export function renderShoppingList(containerEl, cartItems, shoppingChecked, handlers) {
   if (!containerEl) return;
 
@@ -92,6 +115,12 @@ export function renderShoppingList(containerEl, cartItems, shoppingChecked, hand
           fragment.appendChild(renderShoppingItem(item, shoppingChecked.has(item.id), handlers));
         });
     });
+
+  // LOT 020 — la barre de rangement ferme la liste. Le compte reutilise `checkedCount`,
+  // deja filtre sur les articles PRESENTS : une coche fantome ne doit pas faire promettre
+  // au bouton de ranger un article qui n'est plus la.
+  const doneBar = renderShoppingDoneBar(checkedCount, handlers);
+  if (doneBar) fragment.appendChild(doneBar);
 
   containerEl.replaceChildren(fragment);
 }

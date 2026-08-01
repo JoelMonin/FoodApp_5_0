@@ -9,7 +9,34 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun lot actif.** Le **LOT 019 est publié en Version 5.12 le 2026-08-01** (feu vert
+**LOT 020 — Ranger les achats** : ouvert ET **TERMINÉ le 2026-08-01** sur
+`feat/lot20-ranger-les-achats`, statut **A PUBLIER**. Demande de Joel au retour de ses
+courses. Détail, règle et preuves :
+`RoadMap & Project Pipeline/LOT 020 - Ranger les achats [A PUBLIER].md`.
+
+**Ce que ça ajoute** : une barre collante en bas de la liste de courses, visible dès qu'un
+article est coché — « 🏠 Ranger 3 achats ». Les articles cochés passent en stock et quittent
+la liste ; les non cochés ne bougent pas. Le « 🗑️ Vider » est inchangé à côté.
+
+**Fonctionnalité NEUVE, pas une restauration** : vérifié, l'oracle ne connaît que « Vider »,
+qui balaie tout sans jamais toucher au stock. L'oracle n'est donc pas la référence ici.
+
+**+ un défaut existant corrigé, en commit séparé et EN PREMIER** (`be124cb`) : `toggleStock`
+était le seul des quatre chemins de sortie du panier à **ne pas effacer la coche**. L'id
+restait dans le jeu de coches, persisté ET synchronisé — l'article revenait plus tard dans la
+liste **déjà coché tout seul**. La règle du passage en stock vit désormais dans un helper
+unique, `_passerEnStock`.
+
+**Validation : 825/825 Vitest · preuve par retrait 6/6, 0 nulle.**
+
+**Deux erreurs rattrapées avant commit** : un libellé « mon 1 achat » qui ne se dit pas, et
+surtout **un test qui interrogeait `localStorage` sur une mauvaise clé** — il aurait comparé
+`null` à `null` et serait passé quoi que fasse le code. Faux verrou exactement du type que le
+LOT 014 traquait. Réécrit avec témoin explicite, et la mutation M4 prouve qu'il mord.
+
+## Lot précédent — LOT 019, publié en V5.12
+
+Le **LOT 019 est publié en Version 5.12 le 2026-08-01** (feu vert
 explicite de Joel au moment du déploiement) : ouvert, spécifié, implémenté et mis en ligne
 le même jour. Détail, règle contractuelle et preuves :
 `RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [CLOTURE].md`.

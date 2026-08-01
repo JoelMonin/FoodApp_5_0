@@ -131,3 +131,41 @@
       color: var(--terra)
     }
 
+
+    /* ═══════════ LOT 020 — BARRE « RANGER MES ACHATS » ═══════════
+       Collante en bas de la zone de defilement : au magasin, le pouce l'atteint sans avoir
+       a remonter une longue liste. Elle n'est rendue qu'a partir d'un article coche
+       (`renderShoppingDoneBar`), donc aucune regle d'affichage conditionnel ici. */
+    .shop-done-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      margin-top: 18px;
+      padding: 12px 0 4px 0;
+      /* Degrade vers le fond : les lignes qui passent dessous s'estompent au lieu de se
+         couper net sur un bord dur. */
+      background: linear-gradient(to top, var(--cream) 62%, transparent);
+    }
+
+    .sdb-btn {
+      width: 100%;
+      padding: 15px 18px;
+      border: none;
+      border-radius: var(--r);
+      background: var(--green);
+      color: white;
+      font-family: 'Lora', serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background .15s, transform .1s;
+    }
+
+    .sdb-btn:hover {
+      background: var(--green-mid)
+    }
+
+    .sdb-btn:active {
+      transform: scale(.985)
+    }
