@@ -1,3 +1,24 @@
+<!--
+  ⚠️ ARCHIVE DE RÉFÉRENCE — CE FICHIER N'EST PAS L'APPLICATION VIVANTE. ⚠️
+
+  Étiqueté ainsi au LOT 024, à la demande de Joel après son évaluation de la qualité du
+  code (2026-08-01) : « une seconde source de vérité qui traîne » à distinguer clairement
+  du code qui tourne réellement.
+
+  L'APPLICATION VIVANTE est `index.html` + `src/` + `js/app.js` (voir PROJECT_MAP.md).
+  Ce fichier est L'ORACLE : le monolithe pré-LOT 014, conservé intact comme référence de
+  comportement. Il est cité par NUMÉRO DE LIGNE dans des dizaines de commentaires du code
+  vivant (`foodapp-v5-Joel.html l.XXXX`) — c'est sa seule fonction depuis le découpage.
+
+  NE JAMAIS : le modifier pour corriger un bug (le bug vit dans le code vivant), le
+  charger dans `index.html`, l'inclure dans un build. Vérifié au LOT 024 : aucun script
+  (`package.json`, `vite.config.js`) ne le référence — il n'est lié par AUCUN chemin
+  d'exécution, seulement par des commentaires.
+
+  À CONSULTER pour : trancher un désaccord sur le comportement d'origine (cf. LOT 019,
+  qui l'a consulté pour prouver que « l'IA fait autorité » sur le stock n'a jamais existé
+  dans cette version), ou retrouver une règle métier dont la trace s'est perdue au portage.
+-->
 <!DOCTYPE html>
 <html lang="fr">
 

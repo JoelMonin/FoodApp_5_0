@@ -42,7 +42,7 @@
 ## 2. PAGES ET VUES FRONTALIERES
 
 - `index.html` : Point d'entrée SPA moderne Vite.
-- `foodapp-v5-Joel.html` : Version HTML historique monopage (> 1500 lignes, zone sensible).
+- `foodapp-v5-Joel.html` : **ARCHIVE DE RÉFÉRENCE, PAS DU CODE VIVANT** (étiqueté explicitement au LOT 024). Le monolithe pré-LOT 014 (6 802 lignes), conservé intact comme ORACLE de comportement — cité par numéro de ligne dans des dizaines de commentaires du code vivant. Vérifié : aucun script (`package.json`, `vite.config.js`) ne le référence, il n'est lié par aucun chemin d'exécution. Ne jamais le modifier pour corriger un bug ; le consulter pour trancher un désaccord sur le comportement d'origine (cf. LOT 019).
 - `js/app.js` : Point d'entrée d'initialisation du bundle.
 - `css/style.css` : SOMMAIRE des feuilles de style (LOT 014 §E) — plus aucune règle, seulement les 13 `@import` de `css/sections/`, **dans l'ordre exact d'avant le découpage**. `index.html` n'a pas bougé (une seule balise) et les imports sont fusionnés à la construction : aucun téléchargement de plus.
 - `css/sections/` : Les 13 sections, coupées strictement aux frontières déjà balisées dans l'ancien fichier — `01-variables` · `02-layout` · `03-components` · `04-shopping` · `05-ai` · `06-favorites` · `07-export` · `08-add` · `09-modals` · `10-spinner` · `11-responsive` · `12-utilities` · `13-nutrition`. ⚠️ `12-utilities.css` n'est PAS une boîte à outils : c'est un dépôt de surcharges tardives qui corrigent des sections situées plus haut — le remonter les désactiverait.

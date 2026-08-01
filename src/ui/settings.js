@@ -9,9 +9,9 @@ import { updateCreativityLabels } from './aiPanel.js';
 /**
  * REGLAGES — extrait de `js/app.js` au LOT 017.
  *
- * Deplacement PUR : pas une regle n'a change. La zone etait deja couverte (LOT 015 l'a dotee
- * de 91 tests), a UNE exception pres — `saveAiConfigFromUI` n'avait AUCUN test, et son filet a
- * ete pose AVANT ce deplacement (`tests/save-ai-config.test.js`, 8 tests, 5 mutations prouvees).
+ * Deplacement PUR : pas une regle n'a change. La zone etait deja couverte depuis le LOT 015,
+ * a UNE exception pres — `saveAiConfigFromUI` n'avait AUCUN test, et son filet a ete pose
+ * AVANT ce deplacement (`tests/save-ai-config.test.js`, 8 tests, 5 mutations prouvees).
  *
  * CE QUE CE MODULE COUVRE : l'ecran « Reglages » et la fiche technique qu'il affiche —
  * derniere synchro, cle API (masquee), utilisateur Firebase, taille du stockage, etat du

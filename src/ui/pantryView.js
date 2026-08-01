@@ -9,8 +9,8 @@ import { openEditEmoji } from './emojiModal.js';
 /**
  * ECRAN INVENTAIRE — extrait de `js/app.js` et de `src/ui/topbar.js` au LOT 018.
  *
- * Deplacement PUR : pas une regle n'a change. Zone deja couverte — 21 tests dans
- * `tests/pantry-filters-search.test.js`, 6 dans `tests/pantry-sort.test.js`, 3 dans
+ * Deplacement PUR : pas une regle n'a change. Zone deja couverte par
+ * `tests/pantry-filters-search.test.js`, `tests/pantry-sort.test.js` et
  * `tests/keyboard-gestures.test.js`. Aucun test neuf n'a ete necessaire, aucun import de test
  * n'a bouge.
  *

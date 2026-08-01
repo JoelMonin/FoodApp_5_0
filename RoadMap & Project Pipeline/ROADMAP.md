@@ -60,6 +60,8 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [024](LOT%20024%20-%20Nettoyage%20dette%20et%20rectification%20%5BA%20PUBLIER%5D.md) | Nettoyage + rectification, 3 volets. (1) Comments-dette : 3 mentions de nombre de tests, sans valeur de « pourquoi », trimées dans `aiPanel.js`/`settings.js`/`pantryView.js` — sweep bien plus étroit que prévu, la base de commentaires du projet s'est révélée saine. (2) `foodapp-v5-Joel.html` étiqueté explicitement ARCHIVE DE RÉFÉRENCE en tête de fichier. (3) **Auto-correction** : mon diagnostic « chiffres faux du LOT 018 » était lui-même faux — réaudit git ligne par ligne, les nombres déjà publiés (5 registrars, 10→9) étaient corrects | **A PUBLIER** — avec les LOTS 021-023 (V5.14) | `feat/lot24-nettoyage-dette` |
+| [023](LOT%20023%20-%20Jauge%20de%20creativite%20honnete%20%5BA%20PUBLIER%5D.md) | La jauge de créativité ne ment plus — 101 positions ne produisaient que 3 résultats, sans mise en évidence. Curseur à 3 arrêts fermes (`step="50"`), libellé actif visible en direct, seuillage extrait en SSOT (`creativityLevel`). **La consigne envoyée à l'IA n'a pas changé d'un mot**, vérifié par mutation. Preuve par retrait 4/4 | **A PUBLIER** — avec les LOTS 021-022 (V5.14) | `feat/lot23-jauge-creativite` |
 | [022](LOT%20022%20-%20Reglages%20IA%20toujours%20complets%20%5BA%20PUBLIER%5D.md) | La fiche de réglages IA ne peut plus arriver à moitié vide. Une restauration cloud ou fichier sans réglages produisait un message envoyé à Gemini contenant littéralement « Exactement **undefined** personnes ». Un seul gardien (`sanitizeGlobalState`) comble les cases absentes sans jamais toucher à un choix — `0` et `''` compris. **Le premier endroit que j'avais montré à Joel était le mauvais** : prouvé par la mutation M3. Preuve par retrait 3/3 | **A PUBLIER** — avec le LOT 021 (V5.14) | `feat/lot22-reglages-ia-complets` |
 | [021](LOT%20021%20-%20Verificateur%20de%20types%20%5BEN%20COURS%5D.md) | Un vérificateur de types relit le JavaScript existant. 128 signalements → 0, **sans qu'une ligne de comportement ne change**. 87 des 128 avaient une seule cause. Trois vrais défauts trouvés (options non documentées, béquilles mentant sur leur signature, annotation vague là où la prose était juste). Le défaut du LOT 017 rejoué et attrapé en 1,2 s, quand Vitest reste vert. Validation à 4 étapes | **A PUBLIER** — avec le LOT 022 (V5.14) | `feat/lot21-verificateur-de-types` |
 | [020](LOT%20020%20-%20Ranger%20les%20achats%20%5BCLOTURE%5D.md) | Ranger les achats — une barre collante « 🏠 Ranger N achats » apparaît dès qu'un article est coché : les cochés passent en stock et quittent la liste, les autres ne bougent pas. Fonctionnalité NEUVE (l'oracle ne connaît que « Vider »). **+ un défaut existant corrigé en commit séparé** : `toggleStock` était le seul des 4 chemins de sortie du panier à ne pas effacer la coche, d'où des articles qui revenaient « déjà cochés ». Preuve par retrait 6/6 | **CLOTURE** — publié en V5.13 le 2026-08-01, après essai de Joel | `feat/lot20-ranger-les-achats` |
@@ -107,6 +109,15 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-01 — LOTS 023 et 024 terminés, en file pour la V5.14** : la jauge de créativité
+  (ressenti de Joel : « on a bricolé un truc ») retrouve un curseur à 3 arrêts fermes, avec
+  le palier actif visible — sans toucher un mot de ce que l'IA reçoit, vérifié par mutation.
+  Puis nettoyage : `foodapp-v5-Joel.html` étiqueté ARCHIVE en tête de fichier, quelques
+  comments-dette trimés. **Ironie assumée** : en préparant la « correction des chiffres
+  faux du LOT 018 » demandée par Joel, un réaudit git ligne par ligne a montré que les
+  chiffres déjà publiés étaient CORRECTS — c'est mon propre diagnostic de la veille qui
+  s'est trompé, en oubliant deux registrars dans un comptage `grep` trop rapide. Corrigé
+  dans `CURRENT_GOAL.md`, rien à toucher dans les fiches LOT 017/018.
 - **2026-08-01 — LOT 020 publié en V5.13, le jour même de son ouverture** : demande de Joel
   au retour de ses courses. Une barre collante range d'un geste les articles cochés dans
   l'inventaire. **Fonctionnalité neuve** (l'oracle ne connaît que « Vider »), donc décision

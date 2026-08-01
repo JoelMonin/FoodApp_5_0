@@ -15,9 +15,9 @@ import { togglePin } from '../actions.js';
 /**
  * PANNEAU « RECETTES IA » — extrait de `js/app.js` au LOT 017.
  *
- * Deplacement PUR : pas une regle n'a change. C'est la zone la mieux couverte du projet
- * (~71 tests repartis sur 7 fichiers : cartes riches, confort de generation, mode aleatoire,
- * fidelite aux ingredients, zone imposee, message de cle API, lecture d'URL).
+ * Deplacement PUR : pas une regle n'a change. Zone deja couverte avant le deplacement — cartes
+ * riches, confort de generation, mode aleatoire, fidelite aux ingredients, zone imposee,
+ * message de cle API, lecture d'URL — repartie sur plusieurs fichiers `tests/*.test.js`.
  *
  * LE PLAN N'EN CITAIT QUE 9 FONCTIONS ; IL EN FALLAIT 17. Les huit oubliees n'avaient aucun
  * appelant hors de cet ecran — les laisser dans `js/app.js` y aurait fait vivre des orphelines
