@@ -99,13 +99,21 @@ import {
 // crochets du module a CINQ, contre TROIS en les emportant.
 import {
   renderTopbar,
-  renderPantryFilters,
   updateBadges,
+  registerTopbarHooks
+} from '../src/ui/topbar.js';
+// Ecran INVENTAIRE — extrait d'ici au LOT 018, avec les puces de filtre que le LOT 017 avait
+// logees dans la barre du haut. Premier module de la serie a sortir SANS aucun crochet.
+import {
+  renderPantry,
+  renderPantryFilters,
   setFilter,
   toggleSpecialFilter,
   resetFilters,
-  registerTopbarHooks
-} from '../src/ui/topbar.js';
+  getFilteredIngredients,
+  handleSearch,
+  clearSearch
+} from '../src/ui/pantryView.js';
 // Ecran FAVORIS — extrait d'ici au LOT 017, avec `buildRecipeHandlers` que le LOT 014 avait
 // laissee exprès : elle trouve la-bas ses six dependances en simples imports.
 import {
@@ -237,10 +245,11 @@ registerRecipeModalHooks({ openModal, buildRecipeHandlers });
 // `openModal`. Ils partiront avec leurs modules (`pasteRecipe`, `settings`), et ce branchement
 // suivra sans changer de forme.
 registerModalHooks({ resetPasteModal, onApiConfigOpen });
-// Ce que la barre superieure delegue : trois fonctions qui appartiennent a l'ecran INVENTAIRE
-// (`renderPantry`, `switchView`) ou au partage (`exportClipboard`), et qui n'ont pas encore de
-// module a elles. Le jour ou `src/ui/pantryView.js` existera, il n'en restera qu'une.
-registerTopbarHooks({ switchView, exportClipboard, renderPantry });
+// LOT 018 — le crochet `renderPantry` a disparu : il n'existait que pour les puces de filtre,
+// desormais dans `src/ui/pantryView.js` avec l'ecran qu'elles filtrent. Les deux restants ne
+// visent AUCUN ecran : la navigation elle-meme et le partage, tous deux communs a plusieurs
+// vues. Les sortir serait deux autres chantiers.
+registerTopbarHooks({ switchView, exportClipboard });
 
 // Exportes UNIQUEMENT pour les tests unitaires : index.html charge ce fichier en
 // module, ces exports sont sans effet a l'execution dans le navigateur.
@@ -355,15 +364,7 @@ function switchView(view) {
 // LOT 017 — barre superieure, puces de filtre et pastilles de comptage vivent dans
 // `src/ui/topbar.js`.
 
-function renderPantry() {
-    renderPantryFilters();
-    renderPantryGrid(
-        document.getElementById('ing-grid'),
-        document.getElementById('ing-empty'),
-        getFilteredIngredients(),
-        { toggleStock, togglePin, toggleCart, deleteIngredient, openEditEmoji }
-    );
-}
+// LOT 018 — l'ecran INVENTAIRE (rendu, filtres, recherche) vit dans `src/ui/pantryView.js`.
 
 function renderShopping() {
     renderShoppingList(
@@ -374,65 +375,7 @@ function renderShopping() {
     );
 }
 
-function getFilteredIngredients() {
-    let list = [...state.ingredients];
 
-    // 1. Toggles indépendants (cumulatifs)
-    if (state.showInStockOnly) list = list.filter(i => i.inStock);
-    if (state.showInCartOnly)  list = list.filter(i => i.inCart);
-
-    // 2. Filtre de catégorie ou filtre exclusif
-    if (state.filter === 'pinned') list = list.filter(i => i.pinned);
-    else if (state.filter === 'frozen') list = list.filter(i => i.frozen);
-    else if (state.filter && state.filter !== 'all') {
-        list = list.filter(i => i.category === state.filter);
-    }
-
-    // 3. Recherche texte
-    if (state.search) {
-        const s = normalizeString(state.search);
-        list = list.filter(i => normalizeString(i.name).includes(s));
-    }
-
-    // 4. Tri alphabétique (LOT 010, casse C11) — porté depuis l'oracle
-    // (`foodapp-v5-Joel.html` l.4646). N'affecte QUE la grille d'inventaire : l'export
-    // presse-papier lit `state.ingredients` directement via `groupByCategory`, dont le
-    // tri « par défaut volontaire » (LOT 005) reste intact — chemins disjoints, vérifié
-    // en phase découverte du lot.
-    return list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-}
-
-// Le filtrage normalise chaque nom d'ingredient : trop couteux a chaque touche frappee.
-const _renderPantryDebounced = debounce(() => renderPantry(), 200);
-
-// Deux barres de recherche coexistent : celle du bureau et celle du mobile.
-const SEARCH_INPUT_IDS = ['search-input', 'mobile-search'];
-const SEARCH_CLEAR_IDS = ['clear-search-desktop', 'clear-search-mobile'];
-
-/** Affiche la croix d'effacement uniquement quand une recherche est en cours. */
-function updateSearchClearButtons() {
-    const hasQuery = !!state.search;
-    SEARCH_CLEAR_IDS.forEach(id => {
-        document.getElementById(id)?.classList.toggle('visible', hasQuery);
-    });
-}
-
-function handleSearch(val) {
-    state.search = val;
-    updateSearchClearButtons();
-    _renderPantryDebounced();
-}
-
-function clearSearch() {
-    state.search = '';
-    SEARCH_INPUT_IDS.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    updateSearchClearButtons();
-    _renderPantryDebounced.cancel();
-    renderPantry();
-}
 
 
 

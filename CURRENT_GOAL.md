@@ -9,17 +9,38 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 018 — L'écran inventaire dans son module** : ouvert le 2026-08-01 sur
-`feat/lot18-ecran-inventaire`, chaînée depuis `feat/lot17` (elle-même chaînée sur
-`feat/lot16`) — **trois lots non publiés s'empilent donc**, à signaler à Joel. Niveau
-d'audit **Standard**. Achève le rangement : l'inventaire est le dernier écran encore logé
-dans le point d'entrée.
+**LOT 018 — L'écran inventaire dans son module** : ouvert ET **TERMINÉ le 2026-08-01** sur
+`feat/lot18-ecran-inventaire`, statut **A PUBLIER**. Chaînée depuis `feat/lot17` (elle-même
+sur `feat/lot16`) — **trois lots non publiés s'empilent**, signalé à Joel. Détail :
+`RoadMap & Project Pipeline/LOT 018 - Ecran inventaire dans son module [A PUBLIER].md`.
 
-**Le vrai enjeu n'est pas le nombre de lignes, c'est le couplage.** Le LOT 017 n'a pas fait
-baisser les crochets (5 avant, 5 après — cf. rectification ci-dessous) ; celui-ci le peut,
-parce que `renderPantry` appelle `renderPantryFilters`, aujourd'hui logée dans `topbar.js`.
-Sortir l'inventaire SANS emporter les puces de filtre créerait un aller-retour entre les
-deux modules : on déplacerait le problème au lieu de le résoudre.
+**Le vrai enjeu n'était pas le nombre de lignes, c'était le couplage — et il a baissé.**
+
+| | Avant | Après |
+|---|---|---|
+| `js/app.js` | 625 lignes | **568** |
+| Crochets | 5 | 5 |
+| **Points de couplage** | **10** | **9** |
+
+**Première baisse réelle du couplage de toute la série** (celle annoncée au LOT 017 était
+fausse). Elle tient à un point précis : `renderPantry` appelait `renderPantryFilters`, que le
+LOT 017 avait logée dans `topbar.js`. En rapatriant les puces de filtre avec l'écran qu'elles
+filtrent, le crochet `renderPantry` disparaît — il n'existait que pour elles.
+
+**Depuis le début du rangement : `js/app.js` est passé de 2823 à 568 lignes, soit −80 %.**
+
+**Trois pièges évités par la découverte**, chacun porteur d'une régression invisible :
+`initChipsRowTouchScroll` (faux ami : son sélecteur couvre 8 éléments, dont 7 pour le panneau
+IA), les 4 alias `Actions.*` (ils servent AUSSI à `expose()` — les emporter cassait 4 gestes
+sans faire rougir un test), et l'annonce « le crochet tombera à 1 » (faux : il en reste 2,
+trois textes du dépôt corrigés).
+
+**⚠️ Leçon d'outillage à ne pas perdre** : la première validation après ce déménagement a
+affiché **77 tests rouges**. Aucun n'était réel — cache de transformation Vite servant un
+mélange d'ancien et de nouveau code. Vérifié par reproduction : seuls (15/15), deux à deux
+(25/25), suite entière (798/798), puis deux validations complètes consécutives vertes.
+**Un échec non reproduit ne prouve rien** : « corriger » sur cette foi aurait cassé du code
+sain. C'est le pendant exact de la leçon du LOT 014 sur les faux rouges du harnais de mutation.
 
 ## Lot précédent — LOT 017, en attente de publication
 
@@ -172,7 +193,8 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31)
 - **017** Second rangement de `js/app.js` — 🟡 **A PUBLIER** (terminé le 2026-07-31) — part
   avec le 016, en V5.11
-- **018** L'écran inventaire dans son module — 🔵 **EN COURS** (ouvert le 2026-08-01)
+- **018** L'écran inventaire dans son module — 🟡 **A PUBLIER** (terminé le 2026-08-01) —
+  part avec les 016 et 017, en V5.11
 
 ## Vérités à ne pas perdre
 

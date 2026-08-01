@@ -12,30 +12,30 @@ import { resetCart } from '../actions.js';
  * `tests/topbar-context.test.js` (20 tests) et `tests/pantry-filters-search.test.js` (21).
  *
  * CE QUE CE MODULE COUVRE : le titre et le sous-titre contextuels, le bouton d'action et
- * l'icone mobile qui changent selon l'ecran, les puces de filtre de l'inventaire, et les
- * pastilles de comptage de la navigation.
+ * l'icone mobile qui changent selon l'ecran, et les pastilles de comptage de la navigation.
  *
- * TROIS FONCTIONS DE FILTRE SONT VENUES AVEC, hors plan — et c'est un choix mesure. Laissees
- * dans `js/app.js`, elles auraient porte le nombre de crochets de ce module a CINQ ; emportees
- * ici, il en reste TROIS. Le LOT 014 a fixe le seuil : « un module qui a besoin de six
- * crochets pour vivre n'est pas un module ». On s'en eloigne au lieu de s'en approcher, et
- * elles sont a leur place : elles n'ont pas d'autre appelant que les puces d'ici.
+ * LOT 018 — LES PUCES DE FILTRE N'Y SONT PLUS. Le LOT 017 les avait mises ici pour eviter des
+ * crochets ; elles sont parties dans `src/ui/pantryView.js`, ou elles sont reellement chez
+ * elles (ce sont les filtres de l'INVENTAIRE, pas de la barre du haut). Leur depart a supprime
+ * le crochet `renderPantry` : il n'existait que pour elles.
  *
- * `countStockAndCart` et `_favCountSub` ont suivi pour la meme raison : leurs seuls appelants
- * sont `renderTopbar` et `updateBadges`.
+ * `countStockAndCart` et `_favCountSub` restent : leurs seuls appelants sont `renderTopbar` et
+ * `updateBadges`.
  *
  * `resetCart` s'importe DIRECTEMENT depuis `src/actions.js` : ce n'etait qu'un alias dans
- * `js/app.js`, donc un quatrieme crochet inutile.
+ * `js/app.js`, donc un crochet inutile.
  *
- * LES TROIS CROCHETS RESTANTS pointent tous vers du code qui appartient a l'ecran INVENTAIRE,
- * lequel n'a pas encore de module a lui (`renderPantry`, `switchView`) ou au partage
- * (`exportClipboard`). Le jour ou un `src/ui/pantryView.js` existera, ils tomberont a un.
+ * LES DEUX CROCHETS RESTANTS visent du code qui n'appartient a aucun ecran en particulier :
+ * `switchView` (la navigation elle-meme, qui vit dans le point d'entree et n'est PAS
+ * l'homonyme de `src/actions.js`, dont le comportement differe) et `exportClipboard` (le
+ * partage, commun aux Reglages et a la liste de courses). Contrairement a ce qu'annoncait la
+ * version precedente de ce commentaire, ils ne tombent donc PAS a un : les sortir demanderait
+ * deux autres chantiers, sans rapport avec l'inventaire.
  */
 
 const _hooks = {
     switchView: () => {},
-    exportClipboard: () => {},
-    renderPantry: () => {}
+    exportClipboard: () => {}
 };
 
 export function registerTopbarHooks(hooks = {}) {
@@ -174,83 +174,9 @@ export function renderTopbar(view) {
     }
 }
 
-export function renderPantryFilters() {
-    const filterEl = document.getElementById('pantry-filters');
-    if (!filterEl) return;
-
-    // Toggles indépendants (combinables avec la catégorie)
-    const toggles = [
-        { key: 'showInStockOnly', label: 'En-Stock',      emoji: '☑ ', cls: 'stock',  onclick: () => toggleSpecialFilter('showInStockOnly') },
-        { key: 'showInCartOnly',  label: 'Liste courses', emoji: '🛒 ', cls: 'terra', onclick: () => toggleSpecialFilter('showInCartOnly') },
-    ];
-
-    // Filtres exclusifs (remplacent la catégorie)
-    const exclusifs = [
-        { val: 'pinned', label: 'Épinglés', emoji: '⭐ ', cls: 'gold' },
-        { val: 'frozen', label: 'Surgelés', emoji: '❄️ ', cls: '' },
-    ];
-
-    // LOT 013 (écart d'ancrage autorisé) : `data-filter` est un attribut de TEST pur, posé
-    // ici pour la première fois — contrairement à `data-val` des puces IA (js/app.js §aiConfig),
-    // aucun code applicatif ne le lit. Ne pas le confondre avec un attribut fonctionnel.
-    const chips = [
-        // "Tous" — remet tout à zéro
-        h('div', {
-            class: `chip ${state.filter === 'all' && !state.showInStockOnly && !state.showInCartOnly ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': 'all',
-            onclick: () => resetFilters()
-        }, 'Tous'),
-
-        // Toggles combinables
-        ...toggles.map(t => h('div', {
-            class: `chip ${t.cls} ${state[t.key] ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': t.key,
-            onclick: t.onclick
-        }, `${t.emoji}${t.label}`)),
-
-        // Filtres exclusifs
-        ...exclusifs.map(s => h('div', {
-            class: `chip ${s.cls} ${state.filter === s.val ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': s.val,
-            onclick: () => setFilter(s.val)
-        }, `${s.emoji}${s.label}`)),
-
-        // Catégories
-        ...CATEGORIES.map(cat => h('div', {
-            class: `chip ${state.filter === cat ? 'active' : ''}`,
-            'data-testid': 'filter-chip',
-            'data-filter': cat,
-            onclick: () => setFilter(cat)
-        }, `${getCategoryEmoji(cat)} ${cat}`))
-    ];
-
-    filterEl.replaceChildren(...chips);
-}
-
-export function setFilter(f) {
-    state.filter = f;
-    _hooks.renderPantry();
-}
-
-export function toggleSpecialFilter(key) {
-    // CORRIGÉ (audit adversarial, LOT 014, 2026-07-31) : ce commentaire affirmait le
-    // contraire du code — les deux toggles « En-Stock » et « Liste courses » sont
-    // INDÉPENDANTS et CUMULABLES, comme le disent déjà `renderPantryFilters` et
-    // `getFilteredIngredients`, qui les appliquent l'un après l'autre sans
-    // jamais désactiver l'autre.
-    state[key] = !state[key];
-    _hooks.renderPantry();
-}
-
-export function resetFilters() {
-    state.filter = 'all';
-    state.showInStockOnly = false;
-    state.showInCartOnly = false;
-    _hooks.renderPantry();
-}
+// LOT 018 — les puces de filtre et leurs trois actions sont parties dans
+// `src/ui/pantryView.js`. Elles filtrent l'inventaire : elles sont chez elles la-bas, et
+// leur depart supprime le va-et-vient qui obligeait ce module a se faire injecter`renderPantry`.
 
 export function updateBadges() {
     const { stock: stockCount, cart: cartCount } = countStockAndCart();
