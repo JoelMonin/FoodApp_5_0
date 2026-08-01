@@ -51,7 +51,8 @@ let _aiSuggestGenId = 0;
 // un cycle d'imports. Meme solution que pour le moteur de synchro — un point d'entree que
 // l'appelant branche au demarrage, et un defaut inoffensif si personne ne le branche (les
 // tests unitaires du formulaire n'ont pas a naviguer).
-const _nav = { switchView: () => {} };
+// LOT 021 — parametre nomme (cf. la note de `src/ui/topbar.js`).
+const _nav = { /** @param {string} _vue */ switchView: (_vue) => {} };
 
 export function registerAddFormNav(hooks = {}) {
     for (const cle of Object.keys(_nav)) {

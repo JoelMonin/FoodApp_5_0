@@ -1,0 +1,31 @@
+{
+  "// Pourquoi ce fichier": [
+    "LOT 021 — Le vérificateur de types. Il ne change RIEN à l'application : il relit le",
+    "JavaScript existant et signale les erreurs qu'aucun test ne peut voir.",
+    "",
+    "MOTIF CONCRET (incident du LOT 017) : pendant cinq étapes, `js/app.js` a importé deux",
+    "fonctions qui n'existaient plus dans leurs modules, AVEC 798 TESTS VERTS. Vitest résout",
+    "les modules à la demande et n'a jamais rien vu ; la construction de production, elle,",
+    "échouait net. La branche était impubliable et rien ne le disait.",
+    "",
+    "RÉGLAGE DÉLIBÉRÉMENT NON STRICT : le but n'est pas de convertir le projet en TypeScript,",
+    "c'est d'attraper les fautes FACTUELLES — import d'un nom qui n'existe pas, faute de",
+    "frappe sur une propriété, mauvais nombre d'arguments. `strict: false` évite de noyer ces",
+    "vraies erreurs sous des milliers de remarques sur des types absents. Durcir se décidera",
+    "plus tard, sur mesure, pas par principe."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/**/*.js", "js/**/*.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "scratch", "handoff"]
+}

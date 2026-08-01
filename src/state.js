@@ -231,7 +231,18 @@ export function sanitizeGlobalState() {
     if (i.shoppingSource === undefined) i.shoppingSource = null;
   });
 
-  if (!state.aiConfig) state.aiConfig = { apiKey: '' };
+  // ⚠️ CONSTAT DU LOT 021, DÉLIBÉRÉMENT NON CORRIGÉ ICI — le vérificateur de types l'a
+  // exhumé : ce repli fabrique une configuration À LA MAIN alors que `defaultAiConfig()`
+  // (l.25) existe juste au-dessus et est la source de vérité. Résultat : une configuration
+  // reconstruite par ce chemin n'a NI régime, NI cuisines, NI créativité — seulement une clé
+  // d'API vide, plus les modèles réinjectés trois lignes plus bas. L'app tient debout parce
+  // que chaque lecteur a son propre repli (`cfg.creativity ?? 50`), mais c'est une entorse à
+  // la règle « un paramètre, une seule représentation ».
+  // POURQUOI ON N'Y TOUCHE PAS : remplacer par `defaultAiConfig()` CHANGERAIT le comportement
+  // (les valeurs par défaut apparaîtraient là où il n'y avait rien). Le pare-feu A/B veut que
+  // ça sorte de ce lot d'outillage et devienne une décision de Joel. Le `@type` ci-dessous
+  // ne masque pas le défaut : il l'accompagne, le temps qu'il soit tranché.
+  if (!state.aiConfig) state.aiConfig = /** @type {any} */ ({ apiKey: '' });
 
   // Force la mise à jour des modèles à chaque chargement
   // pour écraser les valeurs périmées stockées en localStorage

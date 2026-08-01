@@ -108,6 +108,7 @@ export function onApiConfigOpen() {
 export function renderAiModelsInfo() {
     const el = document.getElementById('api-models-info');
     if (!el) return;
+    /** @type {Record<string, string>} */
     const models = state.aiConfig?.models || {};
     el.textContent = `Recettes, nutrition et transformation de texte : ${models.recipeGeneration} · ` +
         `Catégories et emojis : ${models.categorySuggest}`;

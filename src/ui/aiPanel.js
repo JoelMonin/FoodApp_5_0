@@ -137,7 +137,7 @@ export function restoreAIConfig() {
     // Slider de créativité (LOT 008, chantier 6) : ?? plutôt que || pour ne pas
     // écraser une créativité volontairement réglée à 0 (minimum légitime du slider).
     const creativitySlider = document.getElementById('creativity-slider');
-    if (creativitySlider) creativitySlider.value = cfg.creativity ?? 50;
+    if (creativitySlider) creativitySlider.value = String(cfg.creativity ?? 50);
 
     // Restore chips active state
     document.querySelectorAll('.ai-settings .chip').forEach(chip => {

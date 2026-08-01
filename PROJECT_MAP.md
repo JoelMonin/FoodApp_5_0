@@ -122,4 +122,6 @@
 - `scripts/sync_agents_md.py` : Générateur automatique d'AGENTS.md.
 - `scripts/sync_version.py` : Propagateur de version (SSOT : `APP_VERSION` de `src/constants.js`).
 - `scripts/audit_bridge.py` : Pont d'audit automatisé pour boucle autonome.
-- `validate.bat` : Script de validation unifiée (`vitest run` + `pytest`).
+- `validate.bat` : Script de validation unifiée, **4 étapes** (LOT 021) : `tsc` (types) → `vitest run` → `pytest` → `npm run build`. `npm run check` est strictement équivalent. Chaque étape a été ajoutée après un défaut RÉEL que les précédentes n'ont pas vu — l'ordre suit la rapidité, la plus prompte à échouer d'abord.
+- `jsconfig.json` : Configuration du vérificateur de types (LOT 021). Relit le JavaScript existant sans rien convertir ; réglage volontairement NON strict — la cible, ce sont les fautes factuelles (import d'un nom inexistant, faute de frappe, mauvais nombre d'arguments), pas une migration de langage.
+- `types/app-dom.d.ts` : Déclarations de types uniquement, **aucun code exécuté** (LOT 021). Décrit trois réalités du navigateur absentes de la bibliothèque standard : les sélecteurs du DOM qui rendent des champs de saisie (87 des 128 signalements du premier passage), le plein écran des vieux navigateurs, et le code d'état accroché à une erreur réseau.

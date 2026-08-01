@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest",
     "test:ci": "vitest run",
-    "check": "npx vitest run && python -m pytest && npm run build",
+    "check": "npx tsc -p jsconfig.json && npx vitest run && python -m pytest && npm run build",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -17,6 +17,7 @@
   "type": "module",
   "devDependencies": {
     "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
   }

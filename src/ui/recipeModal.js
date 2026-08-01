@@ -28,7 +28,14 @@ import { buildIngredientTags } from '../utils/stockMatch.js';
 // `openModal` porte des cas particuliers pour d'autres ecrans et `buildRecipeHandlers` cable
 // la zone favoris : les deux vivent dans `js/app.js`. Meme idiome d'injection que le selecteur
 // de courses, la modale d'icone et le moteur de synchro.
-const _hooks = { openModal: () => {}, buildRecipeHandlers: () => ({}) };
+// LOT 021 — parametres nommes : le contrat annonçait « aucun argument » alors que
+// `buildRecipeHandlers` en reçoit trois. Cf. la note de `src/ui/topbar.js`.
+const _hooks = {
+    /** @param {string} _idModale */
+    openModal: (_idModale) => {},
+    /** @param {Object} _recette @param {string} _source @param {string} [_favId] */
+    buildRecipeHandlers: (_recette, _source, _favId) => ({})
+};
 
 export function registerRecipeModalHooks(hooks = {}) {
     for (const cle of Object.keys(_hooks)) {

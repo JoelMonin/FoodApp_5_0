@@ -105,7 +105,7 @@ export function openEnhancedCartPicker(recipe) {
                 type: 'checkbox',
                 onchange: () => updatePickerRow(idx)
             });
-            checkboxEl.checked = checked;
+            /** @type {HTMLInputElement} */ (checkboxEl).checked = checked;
 
             return h('div', {
                 class: `picker-item ${checked ? 'checked' : ''} ${softMatch ? 'soft-match' : ''}`,

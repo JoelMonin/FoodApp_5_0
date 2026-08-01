@@ -17,6 +17,19 @@ const RECIPE_SAFETY_SETTINGS = [
  * @param {string} apiKey - La clé API de l'utilisateur.
  * @param {string} model - Le modèle à utiliser (voir AI_ROLES dans constants.js).
  * @param {Object} options - Options de génération.
+ *
+ * LOT 021 — LES SIX OPTIONS CI-DESSOUS N'ÉTAIENT PAS DOCUMENTÉES. Le vérificateur de types
+ * les a toutes exhumées d'un coup : le corps de la fonction les lisait, le contrat d'entrée
+ * les passait sous silence. Aucun test ne pouvait signaler ça — c'est exactement le genre
+ * d'écart entre ce qu'un code FAIT et ce qu'il ANNONCE que seule une relecture outillée voit.
+ *
+ * @param {number} [options.maxTokens=4096] - Plafond de longueur de la réponse.
+ * @param {boolean} [options.isJSON=true] - Exige une réponse en JSON strict. Le défaut est
+ *   VRAI : la quasi-totalité des appels de l'app attendent une structure, pas de la prose.
+ * @param {number} [options.temperature] - Créativité du modèle. N'est envoyé que si fourni.
+ * @param {number} [options.topK] - Diversité du vocabulaire. N'est envoyé que si fourni.
+ * @param {number} [options.topP] - Idem, par masse de probabilité. Envoyé si fourni.
+ * @param {Object} [options.schema] - Structure JSON imposée à la réponse.
  * @param {string} [options.thinkingLevel] - 'minimal'|'low'|'medium'|'high' (Gemini 3.x —
  *   remplace l'ancien `thinkingBudget` numérique, incompatible avec Gemini 3.x). Facultatif :
  *   n'est envoyé que s'il est fourni.

@@ -33,9 +33,15 @@ import { resetCart } from '../actions.js';
  * deux autres chantiers, sans rapport avec l'inventaire.
  */
 
+// LOT 021 — les valeurs par defaut portent desormais LEURS PARAMETRES. Elles annoncaient
+// « aucun argument » alors que les appelants leur en passent un : le contrat, cense se lire
+// ici d'un coup d'oeil, mentait sur la signature. Nommer les parametres le rend exact et
+// dispense d'aller lire les appels pour savoir ce qu'une bequille recoit.
 const _hooks = {
-    switchView: () => {},
-    exportClipboard: () => {}
+    /** @param {string} _vue */
+    switchView: (_vue) => {},
+    /** @param {'cart'|'stock'} _quoi */
+    exportClipboard: (_quoi) => {}
 };
 
 export function registerTopbarHooks(hooks = {}) {
@@ -192,10 +198,10 @@ export function updateBadges() {
     const sbCart = document.getElementById('sb-badge-cart');
     const sbFav = document.getElementById('sb-badge-fav');
 
-    if (sbStock) sbStock.textContent = stockCount || '0';
-    if (sbCart) sbCart.textContent = cartCount || '0';
+    if (sbStock) sbStock.textContent = String(stockCount || '0');
+    if (sbCart) sbCart.textContent = String(cartCount || '0');
     if (sbFav) {
-        sbFav.textContent = favCount || '0';
+        sbFav.textContent = String(favCount || '0');
         sbFav.classList.toggle('hidden', favCount === 0);
     }
 
@@ -203,11 +209,11 @@ export function updateBadges() {
     const bnStock = document.getElementById('bn-badge-stock');
     const bnCart = document.getElementById('bn-badge-cart');
     if (bnStock) {
-        bnStock.textContent = stockCount || '';
+        bnStock.textContent = String(stockCount || '');
         bnStock.classList.toggle('hidden', stockCount === 0);
     }
     if (bnCart) {
-        bnCart.textContent = cartCount || '';
+        bnCart.textContent = String(cartCount || '');
         bnCart.classList.toggle('hidden', cartCount === 0);
     }
 }

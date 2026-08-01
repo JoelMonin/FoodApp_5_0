@@ -168,7 +168,8 @@ export async function writeToClipboard(text) {
         // `finally` : le textarea ne doit JAMAIS rester orphelin dans la page, même si
         // `appendChild`, `select()` ou `execCommand` lèvent.
         ta.remove();
-        if (focusPrecedent && typeof focusPrecedent.focus === 'function') focusPrecedent.focus();
+        const precedent = /** @type {HTMLElement} */ (focusPrecedent);
+        if (precedent && typeof precedent.focus === 'function') precedent.focus();
     }
     return copied;
 }
