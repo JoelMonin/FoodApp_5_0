@@ -1,6 +1,7 @@
 # LOT 023 — La jauge de créativité ne ment plus — FICHE
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-08-01
+> **Statut :** ✅ CLOTURE — publié en **Version 5.14** le 2026-08-01, avec les LOTS 021, 022
+> et 024. Ouvert et terminé le même jour.
 > **Branche :** `feat/lot23-jauge-creativite`
 > **Niveau d'audit : Standard** — changement d'écran, zéro changement de la consigne envoyée
 > à l'IA (verrouillé par les tests existants du LOT 011, inchangés)

@@ -1,6 +1,8 @@
 # LOT 024 — Nettoyage de dette + rectification — FICHE
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-08-01
+> **Statut :** ✅ CLOTURE — publié en **Version 5.14** le 2026-08-01, avec les LOTS 021, 022
+> et 023. Ouvert et terminé le même jour. Joel, après essai : « la meilleure version jusqu'à
+> aujourd'hui, vraiment utilisable dans la vraie vie. »
 > **Branche :** `feat/lot24-nettoyage-dette`, chaînée depuis `feat/lot23-jauge-creativite`
 > **Niveau d'audit : Léger** — nettoyage documentaire, zéro changement de comportement
 > **Version visée :** 5.14, avec les LOTS 021, 022 et 023

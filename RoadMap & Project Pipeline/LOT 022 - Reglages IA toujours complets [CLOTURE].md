@@ -1,6 +1,7 @@
 # LOT 022 — La fiche de réglages IA ne peut plus arriver à moitié vide — FICHE
 
-> **Statut :** 🟡 A PUBLIER — ouvert et terminé le 2026-08-01
+> **Statut :** ✅ CLOTURE — publié en **Version 5.14** le 2026-08-01, avec les LOTS 021, 023
+> et 024. Ouvert et terminé le même jour.
 > **Branche :** `feat/lot22-reglages-ia-complets`, chaînée depuis `feat/lot21-verificateur-de-types`
 > **Niveau d'audit : Standard** — changement de COMPORTEMENT, dans le chemin de restauration
 > (cloud et fichier). Preuve par retrait obligatoire.

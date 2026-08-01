@@ -1,6 +1,7 @@
 # LOT 021 — Le vérificateur de types — FICHE
 
-> **Statut :** 🔵 EN COURS — ouvert et terminé le 2026-08-01
+> **Statut :** ✅ CLOTURE — publié en **Version 5.14** le 2026-08-01, avec les LOTS 022, 023
+> et 024. Ouvert et terminé le même jour.
 > **Branche :** `feat/lot21-verificateur-de-types` (depuis `main`, V5.13 publiée)
 > **Niveau d'audit : Léger** — outillage pur, zéro changement de comportement (825 tests
 > identiques avant et après), pare-feu A/B respecté à la lettre
