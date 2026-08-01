@@ -237,6 +237,9 @@ de courses.
 ici pour qu'aucun ne passe pour un oubli :
 1. **Sa vérification visuelle** sur ses propres cas (fécule, levure, tajine) — le seul
    critère que les tests ne remplacent pas : ils prouvent la règle, pas le ressenti.
+   → **PARTIELLEMENT LEVÉ après publication** : Joel a testé l'app en ligne le 2026-08-01,
+   verdict « ça a l'air de fonctionner ». C'est un essai rapide, pas un passage en revue des
+   trois cas un par un — le point reste donc à moitié ouvert, sans inquiétude particulière.
 2. **L'audit du diff final** (niveau Standard renforcé annoncé à l'ouverture) : agents
    adversariaux locaux + questions fermées à Gemini sur `src/utils/stockMatch.js` et
    `src/ui/recipe.js`. **Jamais lancé.**
