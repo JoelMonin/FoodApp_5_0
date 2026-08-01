@@ -9,7 +9,34 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun lot actif.** Le **LOT 020 est publié en Version 5.13 le 2026-08-01** (feu vert de Joel
+**DEUX LOTS TERMINÉS, EN ATTENTE DE PUBLICATION groupée (V5.14)** — chaînés :
+`feat/lot22-reglages-ia-complets` → `feat/lot21-verificateur-de-types` → `main`.
+Joel a demandé de tout publier ensemble à la fin des quatre chantiers issus de son
+évaluation de la qualité du code (2026-08-01).
+
+- **LOT 021 — Le vérificateur de types** (chantier 1/4) : relit le JavaScript existant,
+  128 signalements → 0, **sans qu'une ligne de comportement ne change**. Le défaut du
+  LOT 017 est rejoué et attrapé en 1,2 s. Validation à 4 étapes.
+  Fiche : `LOT 021 - Verificateur de types [EN COURS].md`.
+- **LOT 022 — La fiche de réglages IA toujours complète** : né d'un constat du LOT 021.
+  Une restauration cloud/fichier sans réglages envoyait « Exactement **undefined**
+  personnes » à Gemini. Preuve par retrait 3/3. **Le premier endroit que j'avais montré à
+  Joel était le mauvais — corrigé, et vérifié par mutation.**
+  Fiche : `LOT 022 - Reglages IA toujours complets [A PUBLIER].md`.
+
+**RESTE À FAIRE avant la publication groupée** — chantiers 2 et 3, validés par Joel :
+nettoyage des commentaires qui relèvent de la dette (ceux qui enregistrent des chiffres ou
+racontent l'histoire, par opposition à ceux qui expliquent le POURQUOI) · correction des
+**chiffres faux du LOT 018** que j'ai moi-même écrits (annoncés « 5 béquilles, couplage
+10 → 9 » ; mesure réelle : **3 béquilles, 6 entrées, avant comme après**) · étiquetage
+explicite de `foodapp-v5-Joel.html` (6 802 lignes) comme **archive de référence**, pas
+comme code vivant.
+
+---
+
+## Historique récent
+
+Le **LOT 020 a été publié en Version 5.13 le 2026-08-01** (feu vert de Joel
 après essai : « j'ai testé, c'est ok »). Demande née de son retour de courses, ouverte et
 mise en ligne le même jour. Détail, règle et preuves :
 `RoadMap & Project Pipeline/LOT 020 - Ranger les achats [CLOTURE].md`.
