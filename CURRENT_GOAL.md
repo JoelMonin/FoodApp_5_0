@@ -9,22 +9,51 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** La **Version 5.11 est publiée le 2026-08-01** (feu vert explicite de Joel) : les
-LOTS 016 + 017 + 018 sont fusionnés dans `main` et en ligne.
+**Aucun lot actif.** Le **LOT 019 est publié en Version 5.12 le 2026-08-01** (feu vert
+explicite de Joel au moment du déploiement) : ouvert, spécifié, implémenté et mis en ligne
+le même jour. Détail, règle contractuelle et preuves :
+`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [CLOTURE].md`.
 
-**Prochain chantier décidé par Joel (2026-08-01, cap validé, lot pas encore ouvert)** : la
-règle de correspondance stock ↔ recette du sélecteur de courses. Deux volets arrêtés :
-1. **Correction pure** : `matchIngredientToStock` prend le PREMIER article au nom voisin au
-   lieu du MEILLEUR (l'oracle prenait exact > en stock > n'importe lequel) — cas prouvé en
-   usage réel : « Fécule de tapioca » déclarée absente alors qu'elle est dans l'inventaire.
-2. **Nouvelle règle d'arbitrage** (décision produit, PAS un retour à l'oracle) :
-   l'inventaire a le dernier mot quand il parle clairement (correspondance exacte → en stock ;
-   aucune correspondance → manquant) ; l'IA n'arbitre QUE la zone du doute (correspondance
-   approchante non exacte — ex. « Épices tajine » vs « Épices couscous », où elle seule sait
-   que ce n'est pas pareil). Critères d'acceptation = les captures de Joel du 2026-08-01 :
-   fécule reconnue, levure plus jamais rachetée, épices tajine toujours proposées.
-   ⚠️ Les tests de `tests/stock-match.test.js` qui gravent « l'IA fait autorité » seront
-   RÉÉCRITS en connaissance de cause, pas « réparés ».
+**⚠️ PREMIER LOT DEPUIS LA 5.9 QUI CHANGE LE COMPORTEMENT VISIBLE** (les 016/017/018 étaient
+invisibles) — et **publié SANS la vérification visuelle de Joel ni l'audit du diff final**,
+les deux proposés et écartés par sa décision. Si un comportement du sélecteur de courses
+surprend à l'usage, revenir ici en premier : l'audit reste faisable à froid sur `662c6f2`.
+
+**Validation : 810/810 Vitest · 16/16 Pytest · build OK · preuve par retrait 7/7, 0 nulle.**
+
+**Deux choses que la preuve par retrait a trouvées et que 810 tests verts ne disaient pas :**
+1. **Un trou du filet** : rien ne couvrait le retrait du terme `|| i.s === 'missing'` de
+   `src/ui/recipe.js`. J'avais écrit un commentaire affirmant un comportement que rien ne
+   vérifiait. Test ajouté dans `tests/ai-cards-rich.test.js`.
+2. **Un défaut de conception dans mon propre moteur** : `_classer` portait une tolérance
+   « une faute de frappe » qui faisait DOUBLON avec la dépluralisation — les deux se
+   couvraient mutuellement, donc aucune n'était prouvable. La tolérance a été retirée : elle
+   était aussi la plus risquée (elle classait « Farine » et « Marine » comme le même
+   ingrédient, donnant le dernier mot à l'inventaire sur une paire que seule l'IA peut
+   départager). **Deux mécanismes qui se couvrent l'un l'autre ne sont pas une sécurité,
+   c'est un angle mort** — et seule la mutation le montre.
+
+**Ce que le lot change à l'écran** : « Fécule de tapioca » est enfin reconnue dans
+« Fécule (tapioca) » ; la levure boulangère n'est plus rachetée quand « levure » est en
+stock ; les épices tajine restent proposées à l'achat malgré les épices couscous.
+
+**La règle en une phrase** : l'inventaire a le dernier mot dès qu'il parle clairement
+(correspondance exacte ou article générique en stock), l'IA n'arbitre que la zone du doute
+(variantes cousines, stock plus spécifique que la demande, synonymes). Trois causes racines
+prouvées par la découverte : le « premier voisin » au lieu du « meilleur » (`stockMatch.js:30`
+vs oracle l.5339), « l'IA fait autorité » qui est une INVENTION de la v2 (l'oracle ne lit
+jamais `ing.s` dans ce calcul), et les mots vides + dépluralisation de l'oracle (l.6354-6381)
+perdus au portage — cause directe du cas « Fécule de tapioca ».
+
+**Décisions prises par Joel le 2026-08-01 (ne pas re-demander)** : D2 cas « lait »/« lait de
+coco » → l'IA départage ; D3 doute sans avis IA → proposer d'acheter. Critères
+d'acceptation = les 9 cas du §3 de la fiche, issus des captures réelles (fécule reconnue,
+levure plus jamais rachetée, épices tajine toujours proposées).
+
+⚠️ Les 4 tests de `tests/stock-match.test.js:65-91` qui gravent « l'IA fait autorité » seront
+RÉÉCRITS en connaissance de cause, pas « réparés ». Les 11 autres restent verts tels quels.
+`areSimilar`/`normalizeString` globaux : INTERDIT d'y toucher (9 appelants de production
+hors zone).
 
 ## Lot précédent — LOT 018, publié en V5.11
 

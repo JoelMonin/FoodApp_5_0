@@ -158,6 +158,23 @@ describe('LOT 011 / chantier 1 — cartes de résultats IA complètes', () => {
         expect([...card.querySelectorAll('.rc-btn')].some(b => b.textContent.includes('hors stock'))).toBe(false);
     });
 
+    // LOT 019 — ce test manquait, et la preuve par retrait l'a démasqué : la mutation qui
+    // rebranchait l'ancien `|| i.s === 'missing'` ne faisait rougir personne. Il verrouille
+    // la cohérence entre les tags et le bouton : l'IA croit la pomme manquante, l'inventaire
+    // dit qu'elle est en stock — depuis le LOT 019 l'inventaire l'emporte, le tag est VERT,
+    // donc le bouton « hors stock => courses » n'a plus rien à faire là.
+    it('pas de bouton "hors stock" quand l\'IA se trompe et que l\'inventaire la corrige', () => {
+        const openRecipeDetail = vi.fn();
+        const addMissingToCart = vi.fn();
+        const r = recette({ ingredients: [{ n: 'Pomme', s: 'missing' }] }); // Pomme EST en stock
+        const tags = buildIngredientTags(r.ingredients, 'card');
+
+        expect(tags[0].cls).toBe('green');
+
+        const card = renderRecipeCard(r, 0, { openRecipeDetail, addMissingToCart }, tags);
+        expect([...card.querySelectorAll('.rc-btn')].some(b => b.textContent.includes('hors stock'))).toBe(false);
+    });
+
     it('renderAIResults affiche toutes les recettes et bascule les conteneurs visible/caché', () => {
         state.aiSuggestions = [recette(), recette({ name: 'Soupe' })];
 

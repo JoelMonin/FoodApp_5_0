@@ -18,8 +18,11 @@ import { scaleQty } from '../utils/helpers.js';
 export function renderRecipeCard(r, index, handlers, tags = []) {
   const { openRecipeDetail, saveToFavorites, addMissingToCart, source = 'ai' } = handlers;
 
-  const hasMissing = typeof addMissingToCart === 'function'
-    && (tags.some(t => t.cls === 'red') || (r.ingredients || []).some(i => i.s === 'missing'));
+  // LOT 019 : le bouton suit les TAGS, et rien d'autre. Il testait aussi `i.s === 'missing'`
+  // en second terme d'un OU — depuis que l'inventaire a le dernier mot sur les cas clairs,
+  // un `s: 'missing'` périmé (l'IA croit manquant ce que Joel a en stock) aurait fait
+  // apparaître « hors stock => courses » sous une rangée de tags tous verts.
+  const hasMissing = typeof addMissingToCart === 'function' && tags.some(t => t.cls === 'red');
 
   return h('div', {
     class: 'recipe-card',
