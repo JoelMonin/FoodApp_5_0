@@ -9,14 +9,15 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 019 — La correspondance stock ↔ recette ne se trompe plus dans les cas clairs** :
-ouvert ET **TERMINÉ le 2026-08-01** sur `feat/lot19-correspondance-stock`, statut
-**A PUBLIER**. Spec validée par Joel AVANT la première ligne de code. Détail, règle
-contractuelle et preuves :
-`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [A PUBLIER].md`.
+**Aucun lot actif.** Le **LOT 019 est publié en Version 5.12 le 2026-08-01** (feu vert
+explicite de Joel au moment du déploiement) : ouvert, spécifié, implémenté et mis en ligne
+le même jour. Détail, règle contractuelle et preuves :
+`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [CLOTURE].md`.
 
-**⚠️ PREMIER LOT DEPUIS LONGTEMPS QUI CHANGE LE COMPORTEMENT VISIBLE** (les 016/017/018
-étaient invisibles). L'annonce du feu vert doit le dire explicitement.
+**⚠️ PREMIER LOT DEPUIS LA 5.9 QUI CHANGE LE COMPORTEMENT VISIBLE** (les 016/017/018 étaient
+invisibles) — et **publié SANS la vérification visuelle de Joel ni l'audit du diff final**,
+les deux proposés et écartés par sa décision. Si un comportement du sélecteur de courses
+surprend à l'usage, revenir ici en premier : l'audit reste faisable à froid sur `662c6f2`.
 
 **Validation : 810/810 Vitest · 16/16 Pytest · build OK · preuve par retrait 7/7, 0 nulle.**
 
@@ -32,8 +33,9 @@ contractuelle et preuves :
    départager). **Deux mécanismes qui se couvrent l'un l'autre ne sont pas une sécurité,
    c'est un angle mort** — et seule la mutation le montre.
 
-**Reste avant publication** : vérification visuelle par Joel sur ses cas + audit du diff
-final (niveau Standard renforcé, **non lancé**, attend son feu vert).
+**Ce que le lot change à l'écran** : « Fécule de tapioca » est enfin reconnue dans
+« Fécule (tapioca) » ; la levure boulangère n'est plus rachetée quand « levure » est en
+stock ; les épices tajine restent proposées à l'achat malgré les épices couscous.
 
 **La règle en une phrase** : l'inventaire a le dernier mot dès qu'il parle clairement
 (correspondance exacte ou article générique en stock), l'IA n'arbitre que la zone du doute

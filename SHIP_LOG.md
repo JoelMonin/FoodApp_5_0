@@ -1,14 +1,37 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.11.0
+- **Version actuelle** : 5.12.0
 - **Dernière mise à jour** : 01/08/2026
-- **Statut** : Version 5.11 publiée (LOTS 016 + 017 + 018) — le grand rangement de `js/app.js`
-  est achevé et en ligne : 568 lignes (−80 % depuis la 5.10), 7 modules d'écran extraits,
-  aucun changement visible. Prochain chantier décidé par Joel : la règle de correspondance
-  stock ↔ recette (le sélecteur de courses se trompe dans les deux sens)
+- **Statut** : Version 5.12 publiée (LOT 019) — la liste de courses cesse de se tromper dans
+  les cas clairs. **Premier lot depuis la 5.9 à changer le comportement visible.**
 
 ## Historique des modifications
+- [x] [VERSION 5.12 - OnLine] 01/08/2026 : Publication du lot 019
+    - Lot 019 — La correspondance stock ↔ recette : l'inventaire a le dernier mot dès qu'il
+      parle clairement, l'IA n'arbitre plus que la zone du doute
+    - **Trois défauts corrigés, tous constatés sur des captures réelles** : le « premier
+      voisin trouvé » au lieu du meilleur (« Fécule de tapioca » rattachée à « Fécule
+      (maïs) » alors que la tapioca était en stock) ; « l'IA fait autorité », qui était une
+      INVENTION de la version modulaire — l'oracle ne consulte jamais ce champ pour ce calcul
+      — et faisait racheter une levure déjà en stock ; les mots vides et les pluriels de
+      l'oracle, perdus au portage (cause directe du cas « Fécule DE tapioca »)
+    - **10 critères d'acceptation** transcrits des captures. Répartition rouge/vert prédite
+      AVANT écriture du code, puis vérifiée : exactement celle annoncée
+    - **Preuve par retrait 7/7, 0 nulle.** Deux échecs au premier passage, tous deux
+      instructifs : un trou du filet (rien ne couvrait le retrait du terme `s === missing`
+      de `recipe.js` — commentaire affirmant un comportement non vérifié) et un **défaut de
+      conception** dans le moteur neuf (une tolérance aux fautes de frappe doublait la
+      dépluralisation ; les deux se couvrant mutuellement, aucune n'était prouvable). La
+      tolérance a été retirée — elle était aussi la plus risquée (« Farine » et « Marine »
+      classées comme le même ingrédient). **Deux mécanismes qui se couvrent l'un l'autre ne
+      sont pas une sécurité, c'est un angle mort**
+    - Écart à la spec assumé : quand l'IA se tait sur un article PLUS PRÉCIS que la demande,
+      repli sur le comportement de l'oracle plutôt que sur « dans le doute, achète » — sans
+      quoi un ingrédient épinglé ET en stock aurait été annoncé manquant
+    - **⚠️ Publié sur feu vert explicite de Joel SANS sa vérification visuelle ni l'audit du
+      diff final**, tous deux proposés et écartés par sa décision. Tracé ici, pas un oubli
+    - Métriques : 810/810 Vitest + 16/16 Pytest verts, build OK — Tests: 826 passed
 - [x] [VERSION 5.11 - OnLine] 01/08/2026 : Publication des lots 016 + 017 + 018
     - Trois lots chaînés sur une même lignée de branches, publiés d'un bloc — aucun
       changement voulu à l'écran, tout est sous le capot

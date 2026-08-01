@@ -1,7 +1,8 @@
 # LOT 019 — La correspondance stock ↔ recette ne se trompe plus dans les cas clairs — SPÉCIFICATION
 
-> **Statut :** 🟡 A PUBLIER — ouvert ET terminé le 2026-08-01 (cap et spec validés par Joel
-> avant la première ligne de code)
+> **Statut :** ✅ CLOTURE — publié en **Version 5.12** le 2026-08-01. Ouvert, spécifié,
+> implémenté et publié le même jour ; cap et spec validés par Joel avant la première ligne
+> de code.
 > **Branche :** `feat/lot19-correspondance-stock` (depuis `main`, V5.11 publiée)
 > **Niveau d'audit : Standard renforcé** — changement de COMPORTEMENT dans le module le plus
 > sensible du découpage (`stockMatch.js` décide ce que Joel achète) : audit du diff final +
@@ -226,14 +227,22 @@ ne l'aurait jamais dit.
 
 ---
 
-## 7. Reste à faire avant publication
+## 7. Publication — et les deux points écartés par Joel
 
-- **Vérification visuelle par Joel sur ses propres cas** : ouvrir une recette IA et le
-  sélecteur de courses, contrôler la fécule, la levure et les épices tajine. C'est le seul
-  critère que les tests ne peuvent pas remplacer (ils prouvent la règle, pas le ressenti).
-- **Audit du diff final** (niveau Standard renforcé annoncé à l'ouverture) : agents
-  adversariaux locaux + questions fermées à Gemini, sur `src/utils/stockMatch.js` et
-  `src/ui/recipe.js`. **Non lancé** — attend le feu vert de Joel.
-- **Publication en V5.12** : montée de version + `sync_version.py`, SHIP_LOG, fiche en
-  `[CLOTURE]`. ⚠️ Ce lot CHANGE le comportement visible du sélecteur de courses : l'annonce
-  au moment du feu vert doit le dire explicitement, contrairement aux LOTS 016/017/018.
+**Publié en Version 5.12 le 2026-08-01**, sur feu vert explicite (« ok, publie ») donné au
+moment du déploiement, après annonce que ce lot CHANGE le comportement visible du sélecteur
+de courses.
+
+**Deux points étaient proposés avant publication ; Joel a choisi de publier sans.** Tracé
+ici pour qu'aucun ne passe pour un oubli :
+1. **Sa vérification visuelle** sur ses propres cas (fécule, levure, tajine) — le seul
+   critère que les tests ne remplacent pas : ils prouvent la règle, pas le ressenti.
+2. **L'audit du diff final** (niveau Standard renforcé annoncé à l'ouverture) : agents
+   adversariaux locaux + questions fermées à Gemini sur `src/utils/stockMatch.js` et
+   `src/ui/recipe.js`. **Jamais lancé.**
+
+**Conséquence à assumer** : ce lot part avec une couverture de preuve solide côté machine
+(810 tests, 7/7 mutations) mais **sans le second regard humain ni adversarial** que la
+doctrine du projet prévoit pour un changement de comportement. Si un comportement surprend
+à l'usage, c'est ici qu'il faut revenir en premier — et l'audit reste faisable à froid, sur
+le diff `662c6f2`.
