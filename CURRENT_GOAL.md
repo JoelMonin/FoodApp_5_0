@@ -9,10 +9,10 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 020 — Ranger les achats** : ouvert ET **TERMINÉ le 2026-08-01** sur
-`feat/lot20-ranger-les-achats`, statut **A PUBLIER**. Demande de Joel au retour de ses
-courses. Détail, règle et preuves :
-`RoadMap & Project Pipeline/LOT 020 - Ranger les achats [A PUBLIER].md`.
+**Aucun lot actif.** Le **LOT 020 est publié en Version 5.13 le 2026-08-01** (feu vert de Joel
+après essai : « j'ai testé, c'est ok »). Demande née de son retour de courses, ouverte et
+mise en ligne le même jour. Détail, règle et preuves :
+`RoadMap & Project Pipeline/LOT 020 - Ranger les achats [CLOTURE].md`.
 
 **Ce que ça ajoute** : une barre collante en bas de la liste de courses, visible dès qu'un
 article est coché — « 🏠 Ranger 3 achats ». Les articles cochés passent en stock et quittent
@@ -34,7 +34,7 @@ surtout **un test qui interrogeait `localStorage` sur une mauvaise clé** — il
 `null` à `null` et serait passé quoi que fasse le code. Faux verrou exactement du type que le
 LOT 014 traquait. Réécrit avec témoin explicite, et la mutation M4 prouve qu'il mord.
 
-## Lot précédent — LOT 019, publié en V5.12
+## Lot précédent — LOT 019, publié en V5.12 (le même jour)
 
 Le **LOT 019 est publié en Version 5.12 le 2026-08-01** (feu vert
 explicite de Joel au moment du déploiement) : ouvert, spécifié, implémenté et mis en ligne

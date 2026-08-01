@@ -1,6 +1,7 @@
 # LOT 020 — Ranger les achats — SPÉCIFICATION
 
-> **Statut :** 🟡 A PUBLIER — ouvert ET terminé le 2026-08-01 (attend le feu vert de Joel)
+> **Statut :** ✅ CLOTURE — publié en **Version 5.13** le 2026-08-01, après essai de Joel
+> (« j'ai testé, c'est ok »). Ouvert, spécifié, implémenté, prouvé et publié le même jour.
 > **Branche :** `feat/lot20-ranger-les-achats` (depuis `main`, V5.12 publiée)
 > **Niveau d'audit : Standard** — ajout de fonctionnalité + correction d'un défaut existant,
 > dans une zone déjà couverte par des tests (`shopping-list-render`, `actions-data` §F7)
