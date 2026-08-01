@@ -6,10 +6,12 @@ import {
   resetCart,
   resetAllData,
   toggleCart,
-  deleteIngredient
+  toggleStock,
+  deleteIngredient,
+  rangerLesAchats
 } from '../src/actions.js';
 import { state, shoppingChecked, sanitizeGlobalState, applyExternalState, registerSyncScheduler } from '../src/state.js';
-import { FB_URL } from '../src/constants.js';
+import { FB_URL, LOCAL_STORAGE_KEY } from '../src/constants.js';
 import { DEFAULT_DB } from '../src/data.js';
 
 function makeIngredient(overrides = {}) {
@@ -480,6 +482,36 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       expect(shoppingChecked.has('ing_1')).toBe(false);
     });
 
+    // LOT 020 — LE QUATRIÈME CHEMIN, oublié depuis le LOT 008. `toggleCart`,
+    // `removeFromCart` et `resetCart` nettoient tous la coche en sortant du panier ;
+    // `toggleStock` ne le faisait pas. Symptôme réel : on coche « Carotte » dans la liste,
+    // on la marque en stock depuis l'inventaire, elle quitte la liste — mais son id reste
+    // dans le Set, persisté ET synchronisé. Le jour où elle revient dans la liste, elle y
+    // est DÉJÀ cochée sans qu'on ait rien fait.
+    it('toggleStock (passage en stock) retire l\'id du Set', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true, inStock: false })];
+      shoppingChecked.add('ing_1');
+
+      toggleStock('ing_1'); // bascule inStock à true → sortie du panier
+
+      expect(state.ingredients[0].inStock).toBe(true);
+      expect(state.ingredients[0].inCart).toBe(false);
+      expect(shoppingChecked.has('ing_1')).toBe(false);
+    });
+
+    // Le sens INVERSE ne doit rien nettoyer : repasser un article en rupture ne le remet pas
+    // dans la liste de courses, donc n'a aucune coche à toucher. Verrou anti-surcorrection.
+    it('toggleStock (retour en rupture) ne touche NI au panier NI aux coches', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true, inStock: true })];
+      shoppingChecked.add('ing_1');
+
+      toggleStock('ing_1'); // bascule inStock à false
+
+      expect(state.ingredients[0].inStock).toBe(false);
+      expect(state.ingredients[0].inCart).toBe(true);
+      expect(shoppingChecked.has('ing_1')).toBe(true);
+    });
+
     it('deleteIngredient retire l\'id du Set', () => {
       state.ingredients = [makeIngredient({ id: 'ing_1' })];
       shoppingChecked.add('ing_1');
@@ -490,4 +522,88 @@ describe('Actions — LOT 008 Données en sécurité', () => {
       expect(state.ingredients.length).toBe(0);
     });
   });
+
+  // ═══════════ LOT 020 — RANGER LES ACHATS ═══════════
+  // Demande de Joel au retour de ses courses. Fonctionnalite NEUVE (verifie : l'oracle ne
+  // connait que « Vider », qui balaie tout sans jamais toucher au stock).
+  describe('LOT 020 — rangerLesAchats', () => {
+    it('range les articles COCHES et ne touche pas aux autres', () => {
+      state.ingredients = [
+        makeIngredient({ id: 'ing_1', inCart: true, inStock: false, shoppingSource: 'Tarte' }),
+        makeIngredient({ id: 'ing_2', inCart: true, inStock: false, shoppingSource: 'Tarte' }),
+        makeIngredient({ id: 'ing_3', inCart: true, inStock: false, shoppingSource: 'Soupe' })
+      ];
+      shoppingChecked.add('ing_1');
+      shoppingChecked.add('ing_3');
+
+      rangerLesAchats();
+
+      const [a, b, c] = state.ingredients;
+      // Les deux coches sont rangees...
+      expect([a.inStock, a.inCart, a.shoppingSource]).toEqual([true, false, null]);
+      expect([c.inStock, c.inCart, c.shoppingSource]).toEqual([true, false, null]);
+      // ...et celui qui n'etait PAS coche n'a pas bouge d'un poil.
+      expect([b.inStock, b.inCart, b.shoppingSource]).toEqual([false, true, 'Tarte']);
+    });
+
+    // Le point que Joel a explicitement demande de surveiller. Sans quantites dans le
+    // modele, racheter ce qu'on avait deja est une operation neutre — mais il faut le
+    // prouver, pas l'affirmer.
+    it('un article DEJA en stock et coche reste en stock et quitte la liste', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true, inStock: true })];
+      shoppingChecked.add('ing_1');
+
+      rangerLesAchats();
+
+      expect(state.ingredients[0].inStock).toBe(true);
+      expect(state.ingredients[0].inCart).toBe(false);
+    });
+
+    it('efface la coche de chaque article range (pas d\'id fantome)', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true })];
+      shoppingChecked.add('ing_1');
+
+      rangerLesAchats();
+
+      expect(shoppingChecked.has('ing_1')).toBe(false);
+    });
+
+    // Une coche peut survivre a la disparition de son article du panier (id residuel venu
+    // du cloud, ou etat ancien). Elle ne doit surtout pas remettre en stock un article que
+    // Joel n'a jamais mis dans sa liste.
+    it('ignore une coche dont l\'article n\'est PLUS dans le panier', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: false, inStock: false })];
+      shoppingChecked.add('ing_1');
+
+      rangerLesAchats();
+
+      expect(state.ingredients[0].inStock).toBe(false);
+    });
+
+    it('rend le nombre d\'articles ranges, et 0 quand rien n\'est coche', () => {
+      state.ingredients = [
+        makeIngredient({ id: 'ing_1', inCart: true }),
+        makeIngredient({ id: 'ing_2', inCart: true })
+      ];
+      expect(rangerLesAchats()).toBe(0);
+
+      shoppingChecked.add('ing_1');
+      shoppingChecked.add('ing_2');
+      expect(rangerLesAchats()).toBe(2);
+    });
+
+    // Sonde par TEMOIN plutot que par comparaison avant/apres : un `getItem` sur une cle
+    // inexistante rend `null` des deux cotes, et le test passerait pour une mauvaise raison
+    // (et sur la mauvaise cle, il passerait TOUJOURS). Le temoin ne survit que si
+    // `saveState` n'a pas ecrase la cle reelle.
+    it('ne sauvegarde RIEN quand aucun article n\'est coche', () => {
+      state.ingredients = [makeIngredient({ id: 'ing_1', inCart: true })];
+      localStorage.setItem(LOCAL_STORAGE_KEY, 'TEMOIN_NON_ECRASE');
+
+      rangerLesAchats();
+
+      expect(localStorage.getItem(LOCAL_STORAGE_KEY)).toBe('TEMOIN_NON_ECRASE');
+    });
+  });
+
 });

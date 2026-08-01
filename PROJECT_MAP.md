@@ -8,7 +8,7 @@
 ## 1. COMPOSANTS ET MODULES CORE (`src/`)
 
 - `src/state.js` : Moteur d'état réactif global (SSoT de l'application).
-- `src/actions.js` : Handlers et actions utilisateur.
+- `src/actions.js` : Handlers et actions utilisateur. **SSOT du passage en stock** : `_passerEnStock` (LOT 020) regroupe les 4 effets d'un article qui redevient disponible (en stock, hors panier, source de recette oubliée, **coche effacée**) et sert `toggleStock` comme `rangerLesAchats` — ne jamais recopier ces règles ailleurs. `rangerLesAchats` (LOT 020, fonctionnalité NEUVE absente de l'oracle) range les articles à la fois DANS le panier ET cochés ; l'intersection est volontaire, une coche fantôme ne doit jamais remettre en stock un article absent de la liste.
 - `src/constants.js` : Constantes et verrous d'application.
 - `src/data.js` : Données de recettes et listes d'ingrédients par défaut.
 - `src/services/firebase.js` : Service d'intégration Firebase (Auth & Firestore).
@@ -27,7 +27,7 @@
 - `src/ui/components.js` : Composants UI réutilisables.
 - `src/ui/pantry.js` : UI et gestion du garde-manger.
 - `src/ui/recipe.js` : UI et affichage des recettes.
-- `src/ui/shopping.js` : UI et liste de courses.
+- `src/ui/shopping.js` : UI et liste de courses. `renderShoppingDoneBar` (LOT 020) rend la barre collante « 🏠 Ranger N achats », **en dernier dans `#shopping-scroll`** et seulement à partir d'une coche — d'où l'absence de toute modification d'`index.html`. Son compte réutilise `checkedCount`, déjà filtré sur les articles présents : une coche fantôme ne doit pas gonfler la promesse du bouton.
 - `src/utils/dom.js` : Utilitaires de manipulation du DOM.
 - `src/utils/helpers.js` : Helpers algorithmiques et formatage.
 - `src/services/sync.js` : Moteur de synchro bidirectionnelle (LOT 007) — file d'opérations, barrière de quiescence, garde-fous entrant/sortant, temporisation et retry. Extrait de `js/app.js` au LOT 014. Ses DEUX dépendances d'interface sont injectées par `registerSyncUi` (pas d'import circulaire) ; `js/app.js` republie ses noms à l'identique.

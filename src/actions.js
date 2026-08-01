@@ -15,16 +15,34 @@ export function switchView(view) {
   window.dispatchEvent(new CustomEvent('viewChanged', { detail: view }));
 }
 
+/**
+ * SSOT du PASSAGE EN STOCK d'un article (LOT 020). Un article qui redevient disponible n'a
+ * plus rien a faire dans la liste de courses : il en sort, oublie la recette qui l'y avait
+ * mis (LOT 012, zone C — oracle l.4719), et sa coche disparait.
+ *
+ * LA COCHE, C'EST LE CORRECTIF DU LOT 020. Trois chemins sortent un article du panier et
+ * nettoient sa coche (`toggleCart`, `removeFromCart`, `resetCart`) ; `toggleStock` etait le
+ * QUATRIEME et l'oubliait depuis le LOT 008. L'id restait dans le Set, persiste ET
+ * synchronise : le jour ou l'article revenait dans la liste, il y etait deja coche tout seul.
+ * C'est exactement le symptome contre lequel le commentaire de `toggleCart` met en garde.
+ *
+ * Ne PAS y appeler `saveState()` : les appelants decident quand sauvegarder — `toggleStock`
+ * a chaque bascule, `rangerLesAchats` une seule fois pour tout le lot d'articles.
+ */
+function _passerEnStock(ing) {
+  ing.inStock = true;
+  ing.inCart = false;
+  ing.shoppingSource = null;
+  shoppingChecked.delete(ing.id);
+}
+
 export function toggleStock(id) {
   const ing = state.ingredients.find(i => i.id === id);
   if (ing) {
-    ing.inStock = !ing.inStock;
-    if (ing.inStock) {
-      ing.inCart = false;
-      // LOT 012, zone C (oracle l.4719) : un article qui redevient en stock n'a plus
-      // besoin d'etre achete, donc plus de trace de "pour quelle recette".
-      ing.shoppingSource = null;
-    }
+    // Le sens « retour en rupture » ne touche NI au panier NI aux coches : un article qui
+    // s'epuise ne repart pas en courses tout seul (verrou anti-surcorrection du LOT 020).
+    if (ing.inStock) ing.inStock = false;
+    else _passerEnStock(ing);
     saveState();
   }
 }
@@ -101,6 +119,38 @@ export function removeFromCart(id) {
   }
   shoppingChecked.delete(id);
   saveState();
+}
+
+/**
+ * RANGER LES ACHATS (LOT 020) — demande de Joel au retour de ses courses.
+ *
+ * Fonctionnalite NEUVE, pas une restauration : l'oracle ne connait que « Vider »
+ * (`resetCart`, ci-dessous), qui balaie toute la liste sans jamais toucher au stock.
+ *
+ * Chaque article a la fois DANS LE PANIER et COCHE rejoint l'inventaire ; les autres ne
+ * bougent pas d'un poil. L'intersection des deux conditions n'est pas un exces de prudence :
+ * une coche peut survivre a la disparition de son article du panier (etat ancien, ou id
+ * venu du cloud), et elle ne doit surtout pas remettre en stock un article que Joel n'a
+ * jamais mis dans sa liste.
+ *
+ * Le point que Joel a demande de surveiller — « attention au cas ou j'avais encore du
+ * stock » — est sans danger, et pour une raison precise : le modele ne connait pas les
+ * quantites, seulement un oui/non. Racheter ce qu'on avait deja est donc une operation
+ * neutre. C'est verifie par un test dedie, pas seulement affirme ici.
+ *
+ * Pas de rendu declenche a la main : `saveState()` emet `stateUpdated`, que `js/app.js`
+ * ecoute pour relancer le rendu de la vue courante et les pastilles de comptage.
+ *
+ * @returns {number} Nombre d'articles ranges — sert au message et aux tests.
+ */
+export function rangerLesAchats() {
+  const achetes = state.ingredients.filter(i => i.inCart && shoppingChecked.has(i.id));
+  if (achetes.length === 0) return 0;
+
+  achetes.forEach(_passerEnStock);
+  saveState();
+  toast(`${achetes.length} article${achetes.length > 1 ? 's rangés' : ' rangé'} dans l'inventaire`);
+  return achetes.length;
 }
 
 export function resetCart() {

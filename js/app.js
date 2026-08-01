@@ -371,7 +371,9 @@ function renderShopping() {
         document.getElementById('shopping-scroll'),
         state.ingredients.filter(i => i.inCart),
         shoppingChecked,
-        { toggleShoppingCheck, removeFromCart }
+        // LOT 020 — `rangerLesAchats` s'importe comme les deux autres : c'est une action de
+        // donnees, elle n'a pas a passer par un crochet.
+        { toggleShoppingCheck, removeFromCart, rangerLesAchats }
     );
 }
 
@@ -481,6 +483,7 @@ const toggleCart = Actions.toggleCart;
 const deleteIngredient = Actions.deleteIngredient;
 const toggleShoppingCheck = Actions.toggleShoppingCheck;
 const removeFromCart = Actions.removeFromCart;
+const rangerLesAchats = Actions.rangerLesAchats;
 
 
 function initKeyboardShortcuts() {

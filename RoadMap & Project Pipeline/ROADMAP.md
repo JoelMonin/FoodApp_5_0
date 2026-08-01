@@ -60,6 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [020](LOT%20020%20-%20Ranger%20les%20achats%20%5BCLOTURE%5D.md) | Ranger les achats — une barre collante « 🏠 Ranger N achats » apparaît dès qu'un article est coché : les cochés passent en stock et quittent la liste, les autres ne bougent pas. Fonctionnalité NEUVE (l'oracle ne connaît que « Vider »). **+ un défaut existant corrigé en commit séparé** : `toggleStock` était le seul des 4 chemins de sortie du panier à ne pas effacer la coche, d'où des articles qui revenaient « déjà cochés ». Preuve par retrait 6/6 | **CLOTURE** — publié en V5.13 le 2026-08-01, après essai de Joel | `feat/lot20-ranger-les-achats` |
 | [019](LOT%20019%20-%20Correspondance%20stock-recette%20%5BCLOTURE%5D.md) | La correspondance stock ↔ recette ne se trompe plus dans les cas clairs — l'inventaire a le dernier mot quand il parle clairement (exact ou générique), l'IA n'arbitre que la zone du doute. Corrige aussi le « premier voisin » au lieu du « meilleur » et restaure les mots vides/pluriels perdus au portage. **Premier lot depuis 3 lots à changer le comportement visible.** 10 critères issus des captures de Joel, preuve par retrait 7/7 | **CLOTURE** — publié en V5.12 le 2026-08-01, sans vérification visuelle ni audit du diff (décision de Joel, tracée dans la fiche §7) | `feat/lot19-correspondance-stock` |
 | [018](LOT%20018%20-%20Ecran%20inventaire%20dans%20son%20module%20%5BCLOTURE%5D.md) | L'écran inventaire dans son module — **625 → 568 lignes**, et surtout la **première baisse réelle du couplage** de la série (10 points → 9). Sort « sec » : zéro cycle, zéro crochet créé. Trois pièges évités par la découverte, dont un faux ami parfait | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot18-ecran-inventaire` |
 | [017](LOT%20017%20-%20Second%20rangement%20de%20app.js%20%5BCLOTURE%5D.md) | Second rangement de `js/app.js` — **1527 → 625 lignes (−59 %)**, six modules extraits (couplages stables : 5 crochets avant comme après — l'annonce d'une baisse à 4 était fausse, rectifiée dans la fiche). A trouvé un défaut que 798 tests verts ne voyaient pas : la construction de production était cassée depuis le premier volet. Validation unifiée portée de 2 à 3 étapes | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot17-second-rangement-app-js` |
@@ -104,6 +105,15 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-01 — LOT 020 publié en V5.13, le jour même de son ouverture** : demande de Joel
+  au retour de ses courses. Une barre collante range d'un geste les articles cochés dans
+  l'inventaire. **Fonctionnalité neuve** (l'oracle ne connaît que « Vider »), donc décision
+  produit et non portage. La découverte a exhumé au passage un **défaut réel** : `toggleStock`
+  était le seul des quatre chemins de sortie du panier à ne pas effacer la coche, d'où des
+  articles qui revenaient « déjà cochés » — corrigé en commit séparé et en premier, sur
+  demande explicite de Joel. Preuve par retrait 6/6, dont une mutation qui fait rougir deux
+  tests de deux lots à la fois (preuve que la règle est bien unique). Testé par Joel avant
+  publication.
 - **2026-08-01 — LOT 019 publié en V5.12, le jour même de son ouverture** : la liste de
   courses cesse de se tromper dans les cas clairs. Trois défauts corrigés, dont deux
   invisibles jusqu'ici : « l'IA fait autorité » était une **invention de la version

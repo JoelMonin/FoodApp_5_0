@@ -1,12 +1,42 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.12.0
+- **Version actuelle** : 5.13.0
 - **Dernière mise à jour** : 01/08/2026
-- **Statut** : Version 5.12 publiée (LOT 019) — la liste de courses cesse de se tromper dans
-  les cas clairs. **Premier lot depuis la 5.9 à changer le comportement visible.**
+- **Statut** : Version 5.13 publiée (LOT 020) — ranger ses achats d'un geste au retour des
+  courses, plus la correction d'un défaut de coche fantôme.
 
 ## Historique des modifications
+- [x] [VERSION 5.13 - OnLine] 01/08/2026 : Publication du lot 020
+    - Lot 020 — Ranger les achats : une barre collante « 🏠 Ranger N achats » apparaît en bas
+      de la liste dès qu'un article est coché. Les cochés passent en stock et quittent la
+      liste, **les non cochés ne bougent pas** — c'est toute la différence avec « 🗑️ Vider »,
+      inchangé à côté
+    - **Fonctionnalité NEUVE, pas une restauration** : vérifié, l'oracle ne connaît que
+      « Vider », qui balaie tout sans jamais toucher au stock. Décision produit de Joel,
+      pas un portage
+    - Le point qu'il demandait de surveiller (« attention au cas où j'avais encore du
+      stock ») est sans danger : le modèle ne connaît pas les quantités, seulement un
+      oui/non — racheter ce qu'on avait déjà est neutre. Prouvé par un test dédié
+    - L'action ne range que l'**intersection** « dans le panier ET coché » : une coche peut
+      survivre à la disparition de son article, elle ne doit jamais remettre en stock un
+      article absent de la liste
+    - **+ un défaut existant corrigé, en commit séparé et EN PREMIER** (`be124cb`) :
+      `toggleStock` était le seul des quatre chemins de sortie du panier à ne pas effacer la
+      coche. L'id restait dans le jeu de coches, persisté ET synchronisé — l'article revenait
+      plus tard dans la liste **déjà coché tout seul**. La règle du passage en stock vit
+      désormais dans un helper unique, `_passerEnStock`
+    - **Preuve par retrait 6/6, 0 nulle.** La plus parlante rejoue le défaut corrigé et fait
+      rougir deux tests de deux lots différents — la preuve que les deux chemins partagent
+      bien une règle unique
+    - Deux erreurs rattrapées avant commit : un libellé « mon 1 achat » qui ne se dit pas, et
+      **un test interrogeant `localStorage` sur une mauvaise clé** (il aurait comparé `null` à
+      `null` et serait passé quoi que fasse le code — faux verrou du type que le LOT 014
+      traquait). Réécrit avec témoin ; la mutation M4 prouve qu'il mord
+    - Aucune modification d'`index.html` : la barre est rendue dans le conteneur existant,
+      en dernier, collante par CSS — l'audit reste au niveau Standard
+    - **Testé par Joel avant publication**, verdict « c'est ok »
+    - Métriques : 825/825 Vitest + 16/16 Pytest verts, build OK — Tests: 841 passed
 - [x] [VERSION 5.12 - OnLine] 01/08/2026 : Publication du lot 019
     - Lot 019 — La correspondance stock ↔ recette : l'inventaire a le dernier mot dès qu'il
       parle clairement, l'IA n'arbitre plus que la zone du doute
