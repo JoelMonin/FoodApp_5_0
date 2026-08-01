@@ -62,23 +62,37 @@ describe('LOT 014 §A — matchIngredientToStock (caractérisation avant déplac
         expect(r.inStock).toBe(true); // le stock suit la correspondance approchante
     });
 
-    describe('le statut annoncé par l\'IA (`s`) fait autorité sur l\'inventaire', () => {
-        it('`s: "stock"` force « en stock », même si l\'inventaire dit épuisé', () => {
+    // ⚠️ BLOC REMPLACÉ AU LOT 019, en connaissance de cause — pas « réparé ».
+    //
+    // Il s'intitulait « le statut annoncé par l'IA (`s`) fait autorité sur l'inventaire » et
+    // gravait, en trois tests, qu'un `s` reçu de l'IA écrasait l'inventaire dans les DEUX
+    // sens. Ces tests ne se trompaient pas sur le code : ils décrivaient fidèlement ce que
+    // `matchIngredientToStock` faisait au LOT 014. Ils n'ont simplement jamais été confrontés
+    // à l'oracle — qui, lui, ne consulte `ing.s` NULLE PART dans ce calcul
+    // (`foodapp-v5-Joel.html`, une seule occurrence l.5308, pour afficher un bouton).
+    // « L'IA fait autorité » était donc une invention de la version modulaire, jamais une
+    // règle du produit. Elle faisait racheter à Joel de la levure qu'il avait.
+    //
+    // La règle qui la remplace vit dans `tests/stock-match-arbitrage.test.js` (10 critères
+    // issus de captures réelles). Ce bloc-ci n'en garde que la charnière : où passe
+    // exactement la frontière entre « l'inventaire tranche » et « l'IA arbitre ».
+    describe('l\'inventaire a le dernier mot quand il parle clairement (LOT 019)', () => {
+        it('`s: "stock"` ne ressuscite PAS un article exact mais épuisé', () => {
             state.ingredients = [ing('Carotte', { inStock: false })];
             const r = matchIngredientToStock({ n: 'Carotte', s: 'stock' });
-            expect(r.inStock).toBe(true);
+            expect(r.inStock).toBe(false);
             expect(r.matchedName).toBe('Carotte'); // on affiche quand même la correspondance
         });
 
-        it('`s: "pinned"` force lui aussi « en stock »', () => {
+        it('`s: "pinned"` ne le ressuscite pas davantage', () => {
             state.ingredients = [ing('Carotte', { inStock: false })];
-            expect(matchIngredientToStock({ n: 'Carotte', s: 'pinned' }).inStock).toBe(true);
+            expect(matchIngredientToStock({ n: 'Carotte', s: 'pinned' }).inStock).toBe(false);
         });
 
-        it('`s: "missing"` force « manquant », même si l\'inventaire dit en stock', () => {
+        it('`s: "missing"` ne fait PAS racheter un article exact qui est en stock', () => {
             state.ingredients = [ing('Carotte', { inStock: true })];
             const r = matchIngredientToStock({ n: 'Carotte', s: 'missing' });
-            expect(r.inStock).toBe(false);
+            expect(r.inStock).toBe(true);
             expect(r.matchedName).toBe('Carotte');
         });
 
@@ -87,6 +101,18 @@ describe('LOT 014 §A — matchIngredientToStock (caractérisation avant déplac
             expect(matchIngredientToStock({ n: 'Carotte', s: 'nimportequoi' }).inStock).toBe(true);
             state.ingredients = [ing('Carotte', { inStock: false })];
             expect(matchIngredientToStock({ n: 'Carotte', s: 'nimportequoi' }).inStock).toBe(false);
+        });
+
+        // La frontière elle-même : même inventaire, même avis de l'IA — seule la CLASSE de
+        // correspondance change, et elle seule décide qui a le dernier mot.
+        it('la frontière : sur un GÉNÉRIQUE l\'IA est ignorée, sur une FRATRIE elle décide', () => {
+            state.ingredients = [ing('Poivre', { inStock: true })];
+            // « Poivre » (rayon) ⊂ « Poivre noir moulu » (demande) → l'inventaire tranche.
+            expect(matchIngredientToStock({ n: 'Poivre noir moulu', s: 'missing' }).inStock).toBe(true);
+
+            state.ingredients = [ing('Poivre blanc', { inStock: true })];
+            // « Poivre blanc » et « Poivre noir » : deux cousins → l'IA tranche.
+            expect(matchIngredientToStock({ n: 'Poivre noir', s: 'missing' }).inStock).toBe(false);
         });
     });
 

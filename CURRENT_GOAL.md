@@ -10,11 +10,30 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 ## Lot actif
 
 **LOT 019 — La correspondance stock ↔ recette ne se trompe plus dans les cas clairs** :
-ouvert le 2026-08-01 sur `feat/lot19-correspondance-stock`, **spec validée par Joel AVANT
-implémentation** (détail complet, règle contractuelle et critères :
-`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [EN COURS].md`).
-**Implémentation prévue : Sonnet.** La fiche est le contrat — la règle du §2 ne se
-réinterprète pas.
+ouvert ET **TERMINÉ le 2026-08-01** sur `feat/lot19-correspondance-stock`, statut
+**A PUBLIER**. Spec validée par Joel AVANT la première ligne de code. Détail, règle
+contractuelle et preuves :
+`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [A PUBLIER].md`.
+
+**⚠️ PREMIER LOT DEPUIS LONGTEMPS QUI CHANGE LE COMPORTEMENT VISIBLE** (les 016/017/018
+étaient invisibles). L'annonce du feu vert doit le dire explicitement.
+
+**Validation : 810/810 Vitest · 16/16 Pytest · build OK · preuve par retrait 7/7, 0 nulle.**
+
+**Deux choses que la preuve par retrait a trouvées et que 810 tests verts ne disaient pas :**
+1. **Un trou du filet** : rien ne couvrait le retrait du terme `|| i.s === 'missing'` de
+   `src/ui/recipe.js`. J'avais écrit un commentaire affirmant un comportement que rien ne
+   vérifiait. Test ajouté dans `tests/ai-cards-rich.test.js`.
+2. **Un défaut de conception dans mon propre moteur** : `_classer` portait une tolérance
+   « une faute de frappe » qui faisait DOUBLON avec la dépluralisation — les deux se
+   couvraient mutuellement, donc aucune n'était prouvable. La tolérance a été retirée : elle
+   était aussi la plus risquée (elle classait « Farine » et « Marine » comme le même
+   ingrédient, donnant le dernier mot à l'inventaire sur une paire que seule l'IA peut
+   départager). **Deux mécanismes qui se couvrent l'un l'autre ne sont pas une sécurité,
+   c'est un angle mort** — et seule la mutation le montre.
+
+**Reste avant publication** : vérification visuelle par Joel sur ses cas + audit du diff
+final (niveau Standard renforcé, **non lancé**, attend son feu vert).
 
 **La règle en une phrase** : l'inventaire a le dernier mot dès qu'il parle clairement
 (correspondance exacte ou article générique en stock), l'IA n'arbitre que la zone du doute

@@ -1,6 +1,7 @@
 # LOT 019 — La correspondance stock ↔ recette ne se trompe plus dans les cas clairs — SPÉCIFICATION
 
-> **Statut :** 🔵 EN COURS — ouvert le 2026-08-01 (cap validé par Joel, spec validée avant implémentation)
+> **Statut :** 🟡 A PUBLIER — ouvert ET terminé le 2026-08-01 (cap et spec validés par Joel
+> avant la première ligne de code)
 > **Branche :** `feat/lot19-correspondance-stock` (depuis `main`, V5.11 publiée)
 > **Niveau d'audit : Standard renforcé** — changement de COMPORTEMENT dans le module le plus
 > sensible du découpage (`stockMatch.js` décide ce que Joel achète) : audit du diff final +
@@ -65,7 +66,7 @@ Le résultat est un **ensemble de mots**. « Fécule de tapioca » → `{fecule,
 
 | Classe | Définition (sur les ensembles de mots comparables) | Exemple |
 |---|---|---|
-| **EXACTE** | ensembles identiques, OU distance de frappe ≤ 1 sur les formes jointes (les deux > 3 caractères) | « Fécule de tapioca » ↔ « Fécule (tapioca) » ; « Tomates » ↔ « Tomate » |
+| **EXACTE** | ensembles de mots identiques | « Fécule de tapioca » ↔ « Fécule (tapioca) » ; « Tomates » ↔ « Tomate » |
 | **GÉNÉRIQUE en rayon** | les mots de l'ARTICLE D'INVENTAIRE sont tous dans la demande (inventaire ⊆ recette) | « levure » ↔ demande « Levure boulangère sèche » |
 | **SPÉCIFIQUE en rayon** | les mots de la DEMANDE sont tous dans l'article (recette ⊆ inventaire) | demande « Lait » ↔ « Lait de coco » en stock |
 | **FRATRIE** | tout le reste accepté par `areSimilar` | « Épices tajine » ↔ « Épices couscous » ; « Porc (haché) » ↔ « Porc (côtes) » |
@@ -75,8 +76,24 @@ Le résultat est un **ensemble de mots**. « Fécule de tapioca » → `{fecule,
 | Situation | Qui tranche | Résultat |
 |---|---|---|
 | Au moins un candidat **EXACTE ou GÉNÉRIQUE** | **L'inventaire, seul. L'avis IA est IGNORÉ.** | `inStock` = l'un de ces candidats a `inStock: true`. Un exact épuisé → manquant, même si l'IA dit « stock ». |
-| Seulement des candidats **SPÉCIFIQUE ou FRATRIE** | **L'IA arbitre** (décisions Joel 2026-08-01, D2 et D3) | `s: 'stock'`/`'pinned'` → en stock ; `s: 'missing'` → manquant ; **`s` absent/inconnu → manquant** (l'erreur la moins chère : racheter, pas manquer en cuisinant). |
+| Seulement des candidats **SPÉCIFIQUE ou FRATRIE**, et l'IA se prononce | **L'IA arbitre** (décisions Joel 2026-08-01, D2 et D3) | `s: 'stock'`/`'pinned'` → en stock ; `s: 'missing'` → manquant. |
+| Idem, mais **l'IA se tait** (`s` absent ou inconnu) | Repli, **affiné à l'implémentation** (cf. encadré) | **SPÉCIFIQUE en stock → en stock** (comportement de l'oracle) ; **FRATRIE seule → manquant** (D3 : l'erreur la moins chère). |
 | **Aucun candidat** | **L'IA arbitre l'absence** | `s: 'stock'`/`'pinned'` → en stock (elle seule connaît les synonymes : « Maïzena » ↔ « Fécule (maïs) ») ; sinon manquant. |
+
+> **⚠️ ÉCART À LA SPEC INITIALE, trouvé en écrivant le code — et assumé.**
+> Cette fiche prévoyait d'abord un repli unique quand l'IA se tait : « manquant » pour
+> SPÉCIFIQUE comme pour FRATRIE. Elle affirmait aussi que les 11 tests de caractérisation
+> resteraient verts. **Les deux affirmations étaient incompatibles**, et c'est le code qui l'a
+> montré : ce repli fait rougir `tests/stock-match.test.js:57` (« Tomate » demandée,
+> « Tomate cerise » en stock → en stock) ET le test LOT 011 du tag orange + 📌
+> (`tests/ai-cards-rich.test.js`) — un ingrédient **épinglé par Joel et en stock** aurait été
+> annoncé manquant.
+> **Arbitrage retenu** : la question D3 posée à Joel portait littéralement sur des **cousins**
+> (« Épices tajine » / « Épices couscous ») — c'est-à-dire la FRATRIE. Le repli « dans le
+> doute, achète » s'applique donc à cette classe-là. Pour un article **plus précis** que la
+> demande, en l'absence d'arbitre, on retombe sur le comportement de l'oracle, que le LOT 011
+> avait délibérément restauré. Décision D2 intacte : dès que l'IA se prononce, elle départage.
+> Verrouillé par le **CAS 10** des critères d'acceptation.
 
 ### 2.4 Autres champs du résultat (forme à 5 champs conservée — aucun consommateur ne casse)
 
@@ -139,6 +156,50 @@ la découverte.
 
 ---
 
+## 4bis. Résultat — ce que l'implémentation a donné
+
+**Attendu écrit AVANT exécution, et vérifié** : sur le code d'avant, les 10 critères devaient
+se répartir en 5 rouges (1, 2, 4, 8, 9) et 5 verts (3, 5, 6, 7, 10). **Répartition observée :
+exactement celle-là.** Puis, après le moteur : 10/10 verts, et **seuls les 3 tests qui
+gravaient « l'IA fait autorité » sont tombés** — précisément ceux que le volet C remplace.
+
+### Preuve par retrait : **7/7 mutations valides, 0 nulle** (après correction des 2 échecs)
+
+| Mutation | Résultat |
+|---|---|
+| M1 — l'IA reprend autorité sur les cas clairs | ✅ **13 tests nommés rouges** |
+| M2 — les mots vides ne sont plus retirés | ✅ 1 rouge (CAS 1, la fécule) |
+| M4 — retour au « premier voisin » au lieu du meilleur | ✅ 1 rouge (CAS 1, `matchedName`) |
+| M5 — la classe GÉNÉRIQUE disparaît | ✅ 2 rouges (CAS 2 levure + frontière) |
+| M6 — un SPÉCIFIQUE sans avis IA bascule vers l'achat | ✅ 3 rouges, dont le tag orange + 📌 du LOT 011 |
+| M7 — le bouton « hors stock » réécoute un `s` périmé | ❌ **0 rouge → trou du filet COMBLÉ**, puis ✅ 1 rouge nommé |
+| M3 — la dépluralisation est débranchée | ❌ 0 rouge → **défaut de CONCEPTION corrigé**, puis ✅ 1 rouge nommé (CAS 9) |
+
+**M7 — un vrai trou, comblé.** Aucun test ne couvrait le retrait du terme `|| i.s ===
+'missing'` : les fixtures existantes n'avaient aucun ingrédient que l'IA croit manquant et
+que l'inventaire dit en stock. J'avais donc écrit un commentaire affirmant un comportement
+que rien ne vérifiait. Test ajouté (`tests/ai-cards-rich.test.js`), mutation rejouée : 1 test
+nommé rouge, les 12 autres du fichier verts.
+
+**M3 — la mutation n'a pas révélé un trou du filet, mais un défaut de CONCEPTION dans mon
+propre code.** Débrancher la dépluralisation ne cassait rien parce que `_classer` portait
+**une seconde règle qui faisait le même travail** : une tolérance « une faute de frappe » sur
+les noms entiers. Les deux se couvraient mutuellement, donc aucune des deux n'était prouvable.
+
+La tolérance a été **retirée**, et c'est un gain à double titre :
+- **Elle était la plus risquée des deux.** Avec elle, « Farine » et « Marine » (une lettre
+  d'écart, toutes deux acceptées par `areSimilar`) étaient classées comme le MÊME ingrédient
+  — donc l'inventaire aurait eu le dernier mot sur une paire que seule l'IA peut départager.
+  Sans elle, ce cas retombe en FRATRIE, c'est-à-dire dans la zone d'arbitrage. Plus sûr.
+- **La dépluralisation devient prouvable** : la débrancher fait désormais rougir le CAS 9,
+  nommément. 810 tests verts sans la tolérance.
+
+**Leçon consignée dans le code** : deux mécanismes qui se couvrent l'un l'autre ne sont pas
+une sécurité, c'est un angle mort — et seule la preuve par retrait le montre. Une suite verte
+ne l'aurait jamais dit.
+
+---
+
 ## 5. Ce qu'on ne touche PAS (périmètre fermé)
 
 - **`areSimilar` / `normalizeString` globaux** (`src/utils/helpers.js`) — 9 appelants de
@@ -162,3 +223,17 @@ la découverte.
 - Limite assumée et annoncée : dans la zone du doute, l'IA peut avoir un avis discutable sur
   un cas limite — la promesse est « plus jamais d'erreur dans les cas clairs », pas
   l'infaillibilité.
+
+---
+
+## 7. Reste à faire avant publication
+
+- **Vérification visuelle par Joel sur ses propres cas** : ouvrir une recette IA et le
+  sélecteur de courses, contrôler la fécule, la levure et les épices tajine. C'est le seul
+  critère que les tests ne peuvent pas remplacer (ils prouvent la règle, pas le ressenti).
+- **Audit du diff final** (niveau Standard renforcé annoncé à l'ouverture) : agents
+  adversariaux locaux + questions fermées à Gemini, sur `src/utils/stockMatch.js` et
+  `src/ui/recipe.js`. **Non lancé** — attend le feu vert de Joel.
+- **Publication en V5.12** : montée de version + `sync_version.py`, SHIP_LOG, fiche en
+  `[CLOTURE]`. ⚠️ Ce lot CHANGE le comportement visible du sélecteur de courses : l'annonce
+  au moment du feu vert doit le dire explicitement, contrairement aux LOTS 016/017/018.
