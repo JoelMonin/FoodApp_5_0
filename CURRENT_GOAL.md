@@ -9,6 +9,20 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
+**LOT 018 — L'écran inventaire dans son module** : ouvert le 2026-08-01 sur
+`feat/lot18-ecran-inventaire`, chaînée depuis `feat/lot17` (elle-même chaînée sur
+`feat/lot16`) — **trois lots non publiés s'empilent donc**, à signaler à Joel. Niveau
+d'audit **Standard**. Achève le rangement : l'inventaire est le dernier écran encore logé
+dans le point d'entrée.
+
+**Le vrai enjeu n'est pas le nombre de lignes, c'est le couplage.** Le LOT 017 n'a pas fait
+baisser les crochets (5 avant, 5 après — cf. rectification ci-dessous) ; celui-ci le peut,
+parce que `renderPantry` appelle `renderPantryFilters`, aujourd'hui logée dans `topbar.js`.
+Sortir l'inventaire SANS emporter les puces de filtre créerait un aller-retour entre les
+deux modules : on déplacerait le problème au lieu de le résoudre.
+
+## Lot précédent — LOT 017, en attente de publication
+
 **LOT 017 — Second rangement de `js/app.js`** : ouvert ET **TERMINÉ le 2026-07-31** sur
 `feat/lot17-second-rangement-app-js`, statut **A PUBLIER**. Chaînée depuis `feat/lot16`
 (également `[A PUBLIER]`) : les deux lots partiront ensemble, comme les LOTS 007+008,
@@ -158,6 +172,7 @@ fiche LOT 007 (§6.2) sert de grille de diagnostic.
 - **016** Étiquettes de recette au propre — 🟡 **A PUBLIER** (terminé le 2026-07-31)
 - **017** Second rangement de `js/app.js` — 🟡 **A PUBLIER** (terminé le 2026-07-31) — part
   avec le 016, en V5.11
+- **018** L'écran inventaire dans son module — 🔵 **EN COURS** (ouvert le 2026-08-01)
 
 ## Vérités à ne pas perdre
 
