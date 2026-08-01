@@ -9,22 +9,30 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** La **Version 5.11 est publiée le 2026-08-01** (feu vert explicite de Joel) : les
-LOTS 016 + 017 + 018 sont fusionnés dans `main` et en ligne.
+**LOT 019 — La correspondance stock ↔ recette ne se trompe plus dans les cas clairs** :
+ouvert le 2026-08-01 sur `feat/lot19-correspondance-stock`, **spec validée par Joel AVANT
+implémentation** (détail complet, règle contractuelle et critères :
+`RoadMap & Project Pipeline/LOT 019 - Correspondance stock-recette [EN COURS].md`).
+**Implémentation prévue : Sonnet.** La fiche est le contrat — la règle du §2 ne se
+réinterprète pas.
 
-**Prochain chantier décidé par Joel (2026-08-01, cap validé, lot pas encore ouvert)** : la
-règle de correspondance stock ↔ recette du sélecteur de courses. Deux volets arrêtés :
-1. **Correction pure** : `matchIngredientToStock` prend le PREMIER article au nom voisin au
-   lieu du MEILLEUR (l'oracle prenait exact > en stock > n'importe lequel) — cas prouvé en
-   usage réel : « Fécule de tapioca » déclarée absente alors qu'elle est dans l'inventaire.
-2. **Nouvelle règle d'arbitrage** (décision produit, PAS un retour à l'oracle) :
-   l'inventaire a le dernier mot quand il parle clairement (correspondance exacte → en stock ;
-   aucune correspondance → manquant) ; l'IA n'arbitre QUE la zone du doute (correspondance
-   approchante non exacte — ex. « Épices tajine » vs « Épices couscous », où elle seule sait
-   que ce n'est pas pareil). Critères d'acceptation = les captures de Joel du 2026-08-01 :
-   fécule reconnue, levure plus jamais rachetée, épices tajine toujours proposées.
-   ⚠️ Les tests de `tests/stock-match.test.js` qui gravent « l'IA fait autorité » seront
-   RÉÉCRITS en connaissance de cause, pas « réparés ».
+**La règle en une phrase** : l'inventaire a le dernier mot dès qu'il parle clairement
+(correspondance exacte ou article générique en stock), l'IA n'arbitre que la zone du doute
+(variantes cousines, stock plus spécifique que la demande, synonymes). Trois causes racines
+prouvées par la découverte : le « premier voisin » au lieu du « meilleur » (`stockMatch.js:30`
+vs oracle l.5339), « l'IA fait autorité » qui est une INVENTION de la v2 (l'oracle ne lit
+jamais `ing.s` dans ce calcul), et les mots vides + dépluralisation de l'oracle (l.6354-6381)
+perdus au portage — cause directe du cas « Fécule de tapioca ».
+
+**Décisions prises par Joel le 2026-08-01 (ne pas re-demander)** : D2 cas « lait »/« lait de
+coco » → l'IA départage ; D3 doute sans avis IA → proposer d'acheter. Critères
+d'acceptation = les 9 cas du §3 de la fiche, issus des captures réelles (fécule reconnue,
+levure plus jamais rachetée, épices tajine toujours proposées).
+
+⚠️ Les 4 tests de `tests/stock-match.test.js:65-91` qui gravent « l'IA fait autorité » seront
+RÉÉCRITS en connaissance de cause, pas « réparés ». Les 11 autres restent verts tels quels.
+`areSimilar`/`normalizeString` globaux : INTERDIT d'y toucher (9 appelants de production
+hors zone).
 
 ## Lot précédent — LOT 018, publié en V5.11
 

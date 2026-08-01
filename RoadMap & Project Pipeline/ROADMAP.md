@@ -60,6 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [019](LOT%20019%20-%20Correspondance%20stock-recette%20%5BEN%20COURS%5D.md) | La correspondance stock ↔ recette ne se trompe plus dans les cas clairs — l'inventaire a le dernier mot quand il parle clairement (exact ou générique), l'IA n'arbitre que la zone du doute. Corrige aussi le « premier voisin » au lieu du « meilleur » et restaure les mots vides/pluriels perdus au portage. Critères = les captures de Joel (fécule, levure, tajine) | **EN COURS** — spec validée, implémentation Sonnet | `feat/lot19-correspondance-stock` |
 | [018](LOT%20018%20-%20Ecran%20inventaire%20dans%20son%20module%20%5BCLOTURE%5D.md) | L'écran inventaire dans son module — **625 → 568 lignes**, et surtout la **première baisse réelle du couplage** de la série (10 points → 9). Sort « sec » : zéro cycle, zéro crochet créé. Trois pièges évités par la découverte, dont un faux ami parfait | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot18-ecran-inventaire` |
 | [017](LOT%20017%20-%20Second%20rangement%20de%20app.js%20%5BCLOTURE%5D.md) | Second rangement de `js/app.js` — **1527 → 625 lignes (−59 %)**, six modules extraits (couplages stables : 5 crochets avant comme après — l'annonce d'une baisse à 4 était fausse, rectifiée dans la fiche). A trouvé un défaut que 798 tests verts ne voyaient pas : la construction de production était cassée depuis le premier volet. Validation unifiée portée de 2 à 3 étapes | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot17-second-rangement-app-js` |
 | [016](LOT%20016%20-%20Etiquettes%20de%20recette%20au%20propre%20%5BCLOTURE%5D.md) | Étiquettes de recette au propre — solde le point de sortie `.r-tag` laissé ouvert par le LOT 014 : les variantes rouge et verte n'ont plus qu'une définition, apparence prouvée identique, +6 tests de verrou (4 mutations, 4 rouges) | **CLOTURE** — publié en V5.11 le 2026-08-01 | `feat/lot16-etiquettes-recette-css` |
@@ -103,6 +104,14 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-01 — V5.11 publiée (LOTS 016+017+018 d'un bloc) puis LOT 019 ouvert** : le grand
+  rangement est en ligne (`js/app.js` 2823 → 568 lignes, aucun changement visible). Dans la
+  foulée, Joel valide le cap du LOT 019 : réinvestigation du sélecteur de courses sur ses
+  captures réelles — trois défauts trouvés (premier voisin au lieu du meilleur, « l'IA fait
+  autorité » qui est une invention de la v2 jamais présente dans l'oracle, mots
+  vides/pluriels perdus au portage). Nouvelle règle : l'inventaire tranche les cas clairs,
+  l'IA arbitre le doute. Décisions D2/D3 prises par AskUserQuestion, spec détaillée rédigée
+  AVANT implémentation.
 - **2026-08-01 — LOT 018 ouvert et terminé (A PUBLIER)** : l'écran inventaire sort dans
   `src/ui/pantryView.js`, en rapatriant au passage les puces de filtre que le LOT 017 avait
   logées dans la barre du haut. **Première baisse réelle du couplage de toute la série**
