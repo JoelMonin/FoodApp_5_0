@@ -209,6 +209,24 @@ export function scaleQty(qtyStr, scale) {
  *   alors que la phrase juste à côté mentionnait déjà le `.cancel()`. La PROSE savait, pas
  *   l'ANNOTATION — et le vérificateur ne lit que l'annotation.
  */
+/**
+ * Classe une créativité (0-100) dans l'un des trois paliers du curseur IA (LOT 023).
+ *
+ * SSOT du seuillage : jusqu'ici DUPLIQUÉ implicitement entre la consigne envoyée à l'IA
+ * (`creativityInstruction`, `src/services/gemini.js`) et les libellés affichés sous le
+ * curseur (`index.html`, jamais mis en évidence). Extrait ici pour que les deux se
+ * réfèrent à UNE seule frontière — sans changer où elle passe : `<=33` / `<=66` / le reste,
+ * exactement les seuils d'origine du LOT 011.
+ *
+ * @param {number} creativity
+ * @returns {'classique'|'equilibre'|'creatif'}
+ */
+export function creativityLevel(creativity) {
+  if (creativity <= 33) return 'classique';
+  if (creativity <= 66) return 'equilibre';
+  return 'creatif';
+}
+
 export function debounce(fn, delay = 200) {
   let timer = null;
   // LOT 021 — l'annotation dit ce que le code fait depuis toujours : la fonction rendue

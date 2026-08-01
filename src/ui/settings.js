@@ -3,6 +3,8 @@ import { h, toast } from '../utils/dom.js';
 import { FB_USER, LOCAL_STORAGE_KEY } from '../constants.js';
 import { SYNC_LAST_KEY, updateNetworkInfo } from '../services/sync.js';
 import { closeModal } from './modals.js';
+import { creativityLevel } from '../utils/helpers.js';
+import { updateCreativityLabels } from './aiPanel.js';
 
 /**
  * REGLAGES — extrait de `js/app.js` au LOT 017.
@@ -142,5 +144,8 @@ export function saveAiConfigFromUI() {
     state.aiConfig.exceptions = document.getElementById('ai-exceptions')?.value || '';
     state.aiConfig.exclusions = document.getElementById('ai-exclusions')?.value || '';
     state.aiConfig.creativity = parseInt(document.getElementById('creativity-slider')?.value || '50');
+    // LOT 023 — appelée à CHAQUE geste sur le curseur (oninput) : le libellé actif se met
+    // en évidence en direct pendant le glisser, pas seulement à la réouverture du panneau.
+    updateCreativityLabels(creativityLevel(state.aiConfig.creativity));
     saveState(false);
 }

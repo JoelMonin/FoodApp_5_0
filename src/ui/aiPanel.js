@@ -1,6 +1,6 @@
 import { state, saveState, defaultAiConfig } from '../state.js';
 import { h, toast } from '../utils/dom.js';
-import { generateId, areSimilar, autoEmoji } from '../utils/helpers.js';
+import { generateId, areSimilar, autoEmoji, creativityLevel } from '../utils/helpers.js';
 import { DEFAULT_DB } from '../data.js';
 import { MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { generateRecipes } from '../services/gemini.js';
@@ -126,6 +126,26 @@ export function renderAIResults(recipes) {
     document.getElementById('ai-results-list')?.classList.remove('hidden');
 }
 
+const CREATIVITY_LABEL_IDS = {
+    classique: 'cr-label-classique',
+    equilibre: 'cr-label-equilibre',
+    creatif: 'cr-label-creatif'
+};
+
+/**
+ * Met en évidence le libellé du palier de créativité actif (LOT 023). Seul geste visuel
+ * qui manquait depuis toujours : les trois mots sous le curseur (Classique / Équilibrée /
+ * Très créatif) étaient statiques, sans jamais indiquer lequel des trois résultats réels
+ * était en vigueur — appelée à la fois à la restauration (`restoreAIConfig`) et à chaque
+ * geste de l'utilisateur (`saveAiConfigFromUI`, `src/ui/settings.js`).
+ * @param {'classique'|'equilibre'|'creatif'} niveau
+ */
+export function updateCreativityLabels(niveau) {
+    Object.entries(CREATIVITY_LABEL_IDS).forEach(([cle, id]) => {
+        document.getElementById(id)?.classList.toggle('active', cle === niveau);
+    });
+}
+
 export function restoreAIConfig() {
     const cfg = state.aiConfig;
     const apiKeyInput = document.getElementById('api-key-input');
@@ -136,8 +156,17 @@ export function restoreAIConfig() {
 
     // Slider de créativité (LOT 008, chantier 6) : ?? plutôt que || pour ne pas
     // écraser une créativité volontairement réglée à 0 (minimum légitime du slider).
+    //
+    // LOT 023 — le curseur n'a plus que 3 arrêts fermes (0/50/100, `index.html step="50"`).
+    // On affiche donc le CRAN du palier, pas la valeur brute : une ancienne sauvegarde
+    // (ou le tirage 80-100 du bouton 🎲) peut contenir une valeur intermédiaire — le
+    // pouce du curseur doit malgré tout se poser sur l'un des trois arrêts, jamais entre
+    // deux. `state.aiConfig.creativity` lui-même n'est PAS modifié ici : seul l'affichage
+    // est arrondi au palier, la donnée garde sa précision d'origine.
+    const niveau = creativityLevel(cfg.creativity ?? 50);
     const creativitySlider = document.getElementById('creativity-slider');
-    if (creativitySlider) creativitySlider.value = String(cfg.creativity ?? 50);
+    if (creativitySlider) creativitySlider.value = String({ classique: 0, equilibre: 50, creatif: 100 }[niveau]);
+    updateCreativityLabels(niveau);
 
     // Restore chips active state
     document.querySelectorAll('.ai-settings .chip').forEach(chip => {

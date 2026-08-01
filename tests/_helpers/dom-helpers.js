@@ -94,6 +94,11 @@ const ZONES = {
                 <div class="chip" data-val="four"></div>
             </div>
             <input type="range" id="creativity-slider">
+            <div class="creativity-labels">
+                <span id="cr-label-classique"></span>
+                <span id="cr-label-equilibre"></span>
+                <span id="cr-label-creatif"></span>
+            </div>
             <textarea id="ai-exclusions"></textarea>
         </div>
         <div id="ai-cta-summary"></div>
