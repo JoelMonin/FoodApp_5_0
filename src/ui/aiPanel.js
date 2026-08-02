@@ -1,6 +1,6 @@
 import { state, saveState } from '../state.js';
 import { h, toast } from '../utils/dom.js';
-import { generateId, areSimilar, autoEmoji, creativityLevel } from '../utils/helpers.js';
+import { generateId, areSimilar, autoEmoji, creativityLevel, envieActive } from '../utils/helpers.js';
 import { DEFAULT_DB } from '../data.js';
 import { MAX_PINNED_INGREDIENTS, MAX_EXTRA_INGREDIENTS, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { generateRecipes } from '../services/gemini.js';
@@ -183,6 +183,10 @@ export function restoreAIConfig() {
     const apiKeyInput = document.getElementById('api-key-input');
     if (apiKeyInput) apiKeyInput.value = cfg.apiKey || '';
 
+    // LOT 028 — rien n'est generique pour les champs TEXTE : sans cette ligne, la consigne
+    // resterait ACTIVE dans l'etat (donc dans le message envoye a l'IA) tout en disparaissant
+    // de l'ecran au rechargement. Le pire des deux mondes : une exigence invisible.
+    document.getElementById('ai-envie') && (document.getElementById('ai-envie').value = cfg.envie || '');
     document.getElementById('ai-exceptions') && (document.getElementById('ai-exceptions').value = cfg.exceptions || '');
     document.getElementById('ai-exclusions') && (document.getElementById('ai-exclusions').value = cfg.exclusions || '');
 
@@ -216,11 +220,35 @@ export function restoreAIConfig() {
     updateAiCtaSummary();
 }
 
-function updateAiCtaSummary() {
+/**
+ * Rappel des reglages actifs, juste au-dessus du bouton « Obtenir 5 suggestions ».
+ *
+ * LOT 028 — EXPORTEE (elle etait privee) pour que `saveAiConfigFromUI` (`src/ui/settings.js`)
+ * puisse la rafraichir a la frappe. Meme voie que `updateCreativityLabels` : `settings.js`
+ * importe `aiPanel.js`, jamais l'inverse — pas de cycle.
+ *
+ * LA CONSIGNE LIBRE S'Y AFFICHE, et ce n'est pas de la decoration : une envie tapee un mardi
+ * puis oubliee continuerait sinon de filtrer toutes les generations des jours suivants sans
+ * que rien ne le dise. Le rappel la remet sous les yeux AU MOMENT de generer.
+ *
+ * Consigne vide → texte strictement inchange (`Plat · 2 pers.`) : la non-regression est
+ * verifiee par le test du LOT 022 (`tests/restore-ai-config.test.js`), laisse tel quel.
+ */
+export function updateAiCtaSummary() {
     const summaryEl = document.getElementById('ai-cta-summary');
-    if (summaryEl) {
-        summaryEl.textContent = `${state.aiConfig.meal || 'Plat'} · ${state.aiConfig.ppl || '2'} pers.`;
+    if (!summaryEl) return;
+
+    const base = `${state.aiConfig.meal || 'Plat'} · ${state.aiConfig.ppl || '2'} pers.`;
+    const envie = envieActive(state.aiConfig);
+    if (!envie) {
+        summaryEl.textContent = base;
+        return;
     }
+    // `h()` et non `innerHTML` : le texte vient de Joel, mais la regle de campagne ne fait
+    // pas d'exception (aucun `innerHTML` sur du contenu non fige). Le `<span>` reprend le
+    // vert deja prevu par la feuille de style (`.ai-cta-summary span`, jamais utilise
+    // jusqu'ici) et porte la troncature — sans elle, une longue consigne casserait la barre.
+    summaryEl.replaceChildren(`${base} · `, h('span', {}, `« ${envie} »`));
 }
 
 export function toggleAiSingle(field, el) {

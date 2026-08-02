@@ -7,7 +7,41 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : AUCUN — la Version 5.15 est en ligne (2026-08-02)
+## Lot actif : LOT 028 — Envie du moment (ouvert le 2026-08-02)
+
+**Branche `feat/lot28-envie-du-moment`** (depuis `main`, V5.15). Niveau d'audit : **Standard**
+(le lot touche le prompt de génération — `src/services/gemini.js` est zone sensible).
+Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [EN COURS].md`.
+
+**Demande de Joel** : « pouvoir imposer un type de plat ou une contrainte particulière à la
+génération, via un champ d'entrée libre ». Trois décisions prises par question fermée le
+2026-08-02 : (1) champ « Envie du moment » **en tête des réglages IA**, avec rappel de la
+consigne active dans le résumé sous le bouton Générer ; (2) en cas de contradiction avec les
+puces, **la consigne libre gagne** (les ingrédients imposés restent au-dessus de tout, règle
+d'or inchangée) ; (3) le champ « Exceptions autorisées » — découvert **jamais branché depuis
+l'origine** (enregistré, synchronisé, restauré… jamais envoyé à l'IA, pas même dans l'oracle)
+— **sera enfin branché** dans le même lot.
+
+**La découverte a exhumé un défaut dormant depuis le premier jour** : `aiConfig.exceptions`
+(« Exceptions autorisées ») était saisi, enregistré, synchronisé au cloud, sauvegardé et
+restauré — mais **lu par aucun des 6 prompts du dépôt**, ni même par le monolithe d'origine.
+Joel s'en était déjà servi (« Riz » dans sa sauvegarde du 2026-07-29) en croyant que l'IA en
+tenait compte. Branché dans ce lot (décision 3).
+
+| Étape | État |
+|---|---|
+| Branche + fiche + suivi | ✅ 2026-08-02 |
+| Phase découverte | ✅ 2026-08-02 — 14 ressources, 12 gaps |
+| Spécification | ✅ 2026-08-02 (fiche §6) |
+| Implémentation + tests | ✅ 2026-08-02 — 14 tests neufs + 1 test de synchro |
+| Preuve par retrait | ✅ 2026-08-02 — **9 mutations / 9 rouges nommées, 0 nulle** |
+| Validation unifiée | ✅ 2026-08-02 — **types OK · 948/948 Vitest · 16/16 Pytest · build OK** |
+| Vérification visuelle | ✅ 2026-08-02 (app lancée en local) |
+| Audit du diff final | 🔄 agent adversarial local |
+| Essai réel de Joel | ⏳ |
+| Publication | ⏳ |
+
+## Version en ligne : V5.15 (2026-08-02)
 
 **Les LOTS 025 + 026 + 027 sont publiés en V5.15 le 2026-08-02** (feu vert explicite de
 Joel : « ok, publie tout en V5.15 »). Trois branches chaînées (`lot25` ← `lot26` ← `lot27`),

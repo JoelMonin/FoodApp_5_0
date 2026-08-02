@@ -75,9 +75,15 @@ const ZONES = {
     `,
     // Réglages IA (restoreAIConfig, js/app.js:979) — piège P5 : `.closest('.chips-row')`
     // exige que chaque `.chip` ait bien un ANCÊTRE `.chips-row[id]`, pas un frère.
+    // LOT 028 — les deux champs libres etaient declares ici en `<textarea>` alors que la vraie
+    // page (`index.html`) porte des `<input class="ai-input" maxlength=...>` depuis toujours.
+    // Le garde-fou de fraicheur ne compare QUE les `id` : l'ecart etait indetectable, et un
+    // test qui aurait exerce `maxlength` (ou un comportement propre a `<input>`) serait passe
+    // au vert sur un artefact. Aligne le jour ou un TROISIEME champ libre est arrive.
     aiSettings: `
         <input id="api-key-input">
         <div class="ai-settings">
+            <input class="ai-input" id="ai-envie" maxlength="100">
             <div class="chips-row" id="ai-meal-chips">
                 <div class="chip" data-val="rapide"></div>
                 <div class="chip" data-val="mijote"></div>
@@ -85,7 +91,7 @@ const ZONES = {
             <div class="chips-row" id="ai-diet-chips">
                 <div class="chip" data-val="vegetarien"></div>
             </div>
-            <textarea id="ai-exceptions"></textarea>
+            <input class="ai-input" id="ai-exceptions" maxlength="80">
             <div class="chips-row" id="ai-cuisines-chips">
                 <div class="chip" data-val="italienne"></div>
                 <div class="chip" data-val="japonaise"></div>
@@ -99,7 +105,7 @@ const ZONES = {
                 <span id="cr-label-equilibre"></span>
                 <span id="cr-label-creatif"></span>
             </div>
-            <textarea id="ai-exclusions"></textarea>
+            <input class="ai-input" id="ai-exclusions" maxlength="80">
         </div>
         <div id="ai-cta-summary"></div>
     `,

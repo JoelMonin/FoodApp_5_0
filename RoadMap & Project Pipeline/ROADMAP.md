@@ -60,6 +60,7 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 | Lot | Sujet | Statut | Branche |
 |---|---|---|---|
+| [028](LOT%20028%20-%20Envie%20du%20moment%20%5BEN%20COURS%5D.md) | Envie du moment — un champ texte libre en tête des réglages IA pour imposer un type de plat ou une contrainte à la génération (« une quiche », « un plat à réchauffer »…), avec rappel de la consigne active sous le bouton Générer. La consigne libre gagne sur les puces en cas de conflit (ingrédients imposés toujours au-dessus). + branchement du champ « Exceptions autorisées », découvert décoratif depuis l'origine (jamais envoyé à l'IA, pas même dans l'oracle) | **EN COURS** | `feat/lot28-envie-du-moment` |
 | [027](LOT%20027%20-%20Option%20Keto%20%5BCLOTURE%5D.md) | Option Keto — une 6ᵉ puce « Keto » dans les options diététiques du panneau IA, pour générer des recettes cétogènes (très pauvres en glucides). 1 ligne d'HTML, zéro JS de production, 6 tests neufs (première couverture de la ligne « RÉGIMES & EXCLUSIONS » du prompt), 3 mutations/3 rouges | **CLOTURE** — publié en V5.15 le 2026-08-02 | `feat/lot27-option-keto` (chaînée sur lot26) |
 | [026](LOT%20026%20-%20Prompts%20de%20generation%20%5BCLOTURE%5D.md) | Prompts de génération — 5 chantiers décidés par Joel après audit des prompts (2026-08-02) : liste des catégories enfin donnée à l'IA, suppression du bouton 🎲 (jugé « du théâtre » : équivalent au curseur à fond), anti-répétition sur 60 minutes, règles de qualité des étapes partagées par les deux prompts, SSOT des consignes communes. + correctif post-essai réel (plafond de sortie 16384, message d'erreur en français, erreurs affichées 6 s). Audit final Codex : **GO** (2 findings, tous deux contre-vérifiés par mutation puis corrigés). 928 tests, 12 mutations/12 rouges | **CLOTURE** — publié en V5.15 le 2026-08-02 | `feat/lot26-prompts-generation` (chaînée sur lot25) |
 | [025](LOT%20025%20-%20Amelioration%20IA%20%5BCLOTURE%5D.md) | Amélioration IA — l'aperçu montre enfin la recette transformée EN ENTIER, la page importée est nettoyée avant l'envoi à l'IA, et surtout **l'import lit la fiche officielle que les sites publient pour les machines** (10 sites sur 13 mesurés, ~25× moins de texte payé). + P2 : l'IA cesse de manger les apostrophes. 2 audits Codex (spec : GO avec réserves, 6 findings traités · diff final : **GO**). 914 tests, 18 mutations/18 rouges | **CLOTURE** — publié en V5.15 le 2026-08-02 | `feat/lot25-amelioration-ia` |
@@ -121,6 +122,12 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-02 — ouverture du LOT 028 (Envie du moment)** : demande de Joel le jour même de
+  la publication de la V5.15 — un champ libre pour imposer un type de plat ou une contrainte
+  à la génération. La préparation du lot a exhumé un défaut dormant : le champ « Exceptions
+  autorisées » n'a **jamais** été branché au prompt, ni dans l'app modulaire ni dans l'oracle
+  — il enregistre, synchronise et restaure une valeur que l'IA n'a jamais vue. Décision de
+  Joel (question fermée) : le brancher enfin, dans le même lot.
 - **2026-08-02 — V5.15 publiée (LOTS 025+026+027 d'un bloc)** : l'import de recette lit la
   fiche officielle `schema.org/Recipe` des sites (fin du « tout balancer à l'IA »), l'aperçu
   montre la recette entière, les prompts de génération refaits sur 5 chantiers décidés par

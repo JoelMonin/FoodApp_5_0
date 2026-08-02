@@ -288,6 +288,18 @@
                   <div class="ai-box-title">Paramètres rapides</div>
                   <div class="ai-box-sub" id="ai-context-sub">Vos préférences pour cette recette</div>
 
+                  <!-- LOT 028 — la consigne libre passe AVANT les puces : c'est elle qui gagne
+                       en cas de contradiction (decision de Joel), et elle vit hors de
+                       l'accordeon « Filtres avances » pour rester visible sans le deplier. -->
+                  <div class="ai-field-group">
+                    <span class="ai-field-label">Envie du moment <span
+                        style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(prioritaire,
+                        max 100 car.)</span></span>
+                    <input class="ai-input" id="ai-envie" maxlength="100"
+                      placeholder="ex : chili con carne, un plat à réchauffer demain."
+                      oninput="saveAiConfigFromUI()">
+                  </div>
+
                   <div class="two-col-settings">
                     <div>
                       <span class="ai-field-label">Type de plat</span>
@@ -383,7 +395,11 @@
 
                     <div class="ai-field-group">
                       <span class="ai-field-label">Exceptions autorisées</span>
-                      <input class="ai-input" id="ai-exceptions" placeholder="Ex : parmesan autorisé…"
+                      <!-- LOT 028 — `maxlength` ajoute le jour ou ce champ a ENFIN ete branche au
+                           message envoye a l'IA : borner une valeur qui part dans un prompt est
+                           le garde-fou deja pratique ici (cf. les 80 car. des exclusions). -->
+                      <input class="ai-input" id="ai-exceptions" maxlength="80"
+                        placeholder="Ex : parmesan autorisé…"
                         oninput="saveAiConfigFromUI()">
                     </div>
 

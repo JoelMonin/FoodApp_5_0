@@ -1,7 +1,7 @@
 import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
-import { creativityLevel } from '../utils/helpers.js';
+import { creativityLevel, envieActive } from '../utils/helpers.js';
 
 /**
  * SSOT DES CONSIGNES COMMUNES AUX DEUX PROMPTS (LOT 026, chantier E).
@@ -234,15 +234,49 @@ export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredien
     ? `\n9. DÉJÀ PROPOSÉES RÉCEMMENT (moins d'une heure) : ${recentNames.join(', ')}. N'en repropose AUCUNE, ni de variante quasi identique.`
     : '';
 
-  const prompt = `Tu es une IA culinaire experte. TA MISSION : générer EXACTEMENT 5 recettes différentes.
+  // LOT 028 — CONSIGNE LIBRE (« Envie du moment »), demande de Joel : « je veux pouvoir dire
+  // "chili con carne" et n'avoir QUE des propositions de chili con carne ». C'est donc une
+  // EXIGENCE, pas une inspiration — d'où la formulation « les 5 recettes doivent TOUTES y
+  // répondre », qui ferme la lecture « 5 plats variés dont un chili ».
+  //
+  // Même patron que `antiRepetePrompt` ci-dessus : vide → chaîne vide → le message reste
+  // IDENTIQUE À CELUI D'AVANT CE LOT, octet pour octet (verrouillé par un test de
+  // non-régression), et pas un jeton n'est dépensé pour une consigne absente.
+  //
+  // Placée AVANT la liste des contraintes, et non en fin de liste : c'est le geste le plus
+  // précis et le plus récent de l'utilisateur, il se lit en premier. LA HIÉRARCHIE EST
+  // ÉCRITE ICI — plutôt que dans la RÈGLE D'OR de la contrainte 6, qui n'a aucune raison de
+  // bouger et que `tests/gemini.test.js` fige au mot près.
+  const envie = envieActive(aiConfig);
+  const enviePrompt = envie
+    ? `\n🎯 DEMANDE EXPRESSE DE L'UTILISATEUR : « ${envie} »
+   Les 5 recettes doivent TOUTES y répondre : 5 variantes de cette demande, JAMAIS 5 plats différents dont un seul correspondrait.
+   Cette demande PRIME sur les contraintes 1 (TYPE DE PLAT) et 2 (CUISINE) si elles la contredisent.
+   Elle ne prime JAMAIS sur la contrainte 3 (INGRÉDIENTS IMPOSÉS), qui reste au-dessus de tout.\n`
+    : '';
 
+  // LOT 028 — « Exceptions autorisées » (`aiConfig.exceptions`) ENFIN BRANCHÉ. Ce champ était
+  // saisi, enregistré, synchronisé au cloud et restauré depuis l'origine du projet, mais
+  // n'était lu par AUCUN prompt — pas même dans le monolithe d'origine
+  // (`foodapp-v5-Joel.html:5207-5228`, vérifié). Joel s'en était déjà servi (« Riz » dans sa
+  // sauvegarde du 2026-07-29) en croyant que l'IA en tenait compte.
+  //
+  // Sous-ligne de la contrainte 6, car une exception ne se comprend que par rapport au régime
+  // qu'elle assouplit. Le libellé « 6. RÉGIMES & EXCLUSIONS : … » lui-même n'est pas touché.
+  const exceptionsStr = (aiConfig.exceptions || '').trim();
+  const exceptionsPrompt = exceptionsStr
+    ? `\n   ✅ EXCEPTIONS AUTORISÉES malgré les régimes ci-dessus : ${exceptionsStr}.`
+    : '';
+
+  const prompt = `Tu es une IA culinaire experte. TA MISSION : générer EXACTEMENT 5 recettes différentes.
+${enviePrompt}
 🚨 CONTRAINTES (à appliquer sur chaque recette) :
 1. TYPE DE PLAT : Obligatoire -> ${mealStr}.
 2. CUISINE : ${cuisineStr}${hasCuisineFilter ? ' — respect STRICT de ce choix, aucune autre origine culinaire.' : ' (aucune contrainte, choisis librement).'}
 ${imposedPrompt}
 4. NOMBRE DE PERSONNES : Exactement ${aiConfig.ppl} personnes. Aligne les quantités en conséquence.
 5. MATÉRIEL PRIORITAIRE : ${equipStr}.
-6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${aiConfig.exclusions || 'rien'}.
+6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${aiConfig.exclusions || 'rien'}.${exceptionsPrompt}
    ⚠️ RÈGLE D'OR : Si un ingrédient est "IMPOSÉ" (ex: Riz), il A PRIORITÉ et annule toute contrainte de régime qui l'interdirait (ex: Sans Céréales).
 7. TEMPS & DIFFICULTÉ : Max ${timeStr}, niveau ${diffStr}.
 8. CRÉATIVITÉ : ${creativityInstruction(creativity)}${antiRepetePrompt}

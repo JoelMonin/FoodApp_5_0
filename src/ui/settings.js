@@ -4,7 +4,7 @@ import { FB_USER, LOCAL_STORAGE_KEY } from '../constants.js';
 import { SYNC_LAST_KEY, updateNetworkInfo } from '../services/sync.js';
 import { closeModal } from './modals.js';
 import { creativityLevel } from '../utils/helpers.js';
-import { updateCreativityLabels } from './aiPanel.js';
+import { updateCreativityLabels, updateAiCtaSummary } from './aiPanel.js';
 
 /**
  * REGLAGES — extrait de `js/app.js` au LOT 017.
@@ -130,8 +130,8 @@ export function saveApiKey() {
 }
 
 /**
- * Enregistre les trois reglages libres de l'ecran IA. Cablee en `oninput` sur les trois
- * champs (`index.html:386`, `:430`, `:443`), donc appelee A CHAQUE FRAPPE — d'ou le
+ * Enregistre les reglages libres de l'ecran IA (LOT 028 : quatre, et non plus trois).
+ * Cablee en `oninput` sur chacun des champs, donc appelee A CHAQUE FRAPPE — d'ou le
  * `saveState(false)` : redeclencher un rendu complet a chaque lettre ferait perdre le focus
  * du champ en cours de saisie.
  *
@@ -141,11 +141,17 @@ export function saveApiKey() {
  * silence — exactement le defaut corrige au LOT 008, dans l'autre sens.
  */
 export function saveAiConfigFromUI() {
+    state.aiConfig.envie = document.getElementById('ai-envie')?.value || '';
     state.aiConfig.exceptions = document.getElementById('ai-exceptions')?.value || '';
     state.aiConfig.exclusions = document.getElementById('ai-exclusions')?.value || '';
     state.aiConfig.creativity = parseInt(document.getElementById('creativity-slider')?.value || '50');
     // LOT 023 — appelée à CHAQUE geste sur le curseur (oninput) : le libellé actif se met
     // en évidence en direct pendant le glisser, pas seulement à la réouverture du panneau.
     updateCreativityLabels(creativityLevel(state.aiConfig.creativity));
+    // LOT 028 — le rappel sous le bouton Generer suivait les puces mais IGNORAIT les champs
+    // texte : il ne bougeait pas d'un pixel pendant qu'on tapait une consigne. C'est ce
+    // rappel qui empeche une envie tapee un jour de filtrer en silence les generations des
+    // jours suivants — il doit donc se mettre a jour a la frappe, comme les libelles ci-dessus.
+    updateAiCtaSummary();
     saveState(false);
 }

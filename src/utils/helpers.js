@@ -227,6 +227,26 @@ export function creativityLevel(creativity) {
   return 'creatif';
 }
 
+/**
+ * SSOT de la CONSIGNE LIBRE « Envie du moment » (LOT 028).
+ *
+ * Deux lecteurs très éloignés décident sur cette valeur : le message envoyé à l'IA
+ * (`src/services/gemini.js`) et le rappel affiché sous le bouton Générer
+ * (`src/ui/aiPanel.js`). Ils doivent répondre la MÊME chose à « y a-t-il une consigne ? »,
+ * sans quoi l'écran annoncerait une exigence que l'IA ne reçoit pas — exactement le
+ * mensonge d'interface que ce lot est venu réparer sur « Exceptions autorisées ».
+ *
+ * Une saisie faite d'espaces ne compte pas : elle n'exprime aucune envie, et elle
+ * déclencherait pourtant le bloc prioritaire du prompt.
+ *
+ * @param {{envie?: string}} [aiConfig]
+ * @returns {string} La consigne nettoyée, ou '' s'il n'y en a pas.
+ */
+export function envieActive(aiConfig) {
+  const brut = aiConfig?.envie;
+  return typeof brut === 'string' ? brut.trim() : '';
+}
+
 export function debounce(fn, delay = 200) {
   let timer = null;
   // LOT 021 — l'annotation dit ce que le code fait depuis toujours : la fonction rendue

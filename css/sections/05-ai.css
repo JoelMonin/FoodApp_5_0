@@ -64,8 +64,18 @@
       text-transform: uppercase;
     }
 
+    /* LOT 028 — ce selecteur existait depuis l'origine SANS jamais servir : il attendait
+       une mise en evidence dans le rappel. La consigne libre l'occupe enfin. La troncature
+       porte sur le SPAN SEUL, jamais sur la ligne entiere : une envie longue s'abrege,
+       « 2 pers. » reste toujours lisible a cote. */
     .ai-cta-summary span {
       color: var(--green);
+      display: inline-block;
+      max-width: 60%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
     }
 
     .ai-results {

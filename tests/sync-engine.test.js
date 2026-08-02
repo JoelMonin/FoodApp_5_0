@@ -319,6 +319,46 @@ describe('Moteur de synchro — LOT 007', () => {
       expect(document.getElementById('ai-exclusions').value).toBe('ce que Joel est en train de taper');
     });
 
+    // LOT 028 — LE MÊME ACQUIS, POUR LE CHAMP NEUF. Le test FV-3 ci-dessus est écrit EN DUR
+    // sur `ai-exclusions` : il resterait vert si « Envie du moment » était oublié de
+    // `AI_FORM_FIELD_IDS` (`src/services/sync.js`), et une consigne à peine tapée serait
+    // écrasée par le retour d'un pull. Un verrou écrit champ par champ ne protège que les
+    // champs qu'il nomme — il en faut donc un par champ, ou aucun ne vaut.
+    it('LOT 028 : la consigne « Envie du moment » en cours de frappe survit à un pull', async () => {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="ai-settings">
+          <input id="api-key-input" value="">
+          <input id="ai-envie" value="">
+          <input id="ai-exceptions" value="">
+          <input id="ai-exclusions" value="">
+        </div>
+      `);
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ inStock: true })],
+        favorites: [], extraIngredients: [],
+        shoppingChecked: [],
+        aiConfig: { ...defaultAiConfig(), envie: 'valeur venue du cloud' }
+      });
+
+      let resoudreGet;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') { cloudStore = options.body; return { ok: true, status: 200, statusText: 'OK' }; }
+        await new Promise(r => { resoudreGet = r; });
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      const enVol = performSyncPull({ manual: false });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Joel tape son envie pendant que la requête est en vol.
+      document.getElementById('ai-envie').value = 'chili con carne';
+
+      resoudreGet();
+      await enVol;
+
+      expect(document.getElementById('ai-envie').value).toBe('chili con carne');
+    });
+
     // FV-8 / mutation M10 — js/app.js:337. La même expression `_syncDirtyGen === genAtBuild`
     // existe deux fois : :325 (branche anti-boucle, sans réseau) et :337 (après un envoi
     // réseau réussi). Seule la première était effleurée. Sans la seconde, une modification
