@@ -28,7 +28,11 @@ export function defaultAiConfig() {
     models: defaultAiModels(),
     diet: [], exceptions: '', cuisines: [], equip: [],
     meal: 'indifferent', time: 'libre', diff: 'indifferent', ppl: '2',
-    creativity: 50, exclusions: ''
+    // LOT 028 — consigne libre « Envie du moment ». UNE clé ici suffit : tous les chemins
+    // d'entrée comblent les clés absentes par ce défaut (`sanitizeGlobalState` l.257, pull
+    // cloud `firebase.js:91`, restauration de fichier `actions.js:349`, remise à zéro
+    // `actions.js:192`), et tous les chemins de sortie recopient `aiConfig` en entier.
+    creativity: 50, exclusions: '', envie: ''
   };
 }
 

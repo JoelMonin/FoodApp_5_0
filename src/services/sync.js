@@ -95,7 +95,12 @@ function clearSyncPending() {
 
 // Champs libres du formulaire IA : enregistres seulement au clic « Sauvegarder ».
 // Une saisie en cours ne doit jamais etre reecrite par le retour d'un pull (LOT 005).
-const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-exceptions', 'ai-exclusions'];
+// LOT 028 — `ai-envie` ajoute ICI, et pas ailleurs : un champ absent de cette liste sort de
+// l'empreinte, donc une saisie en cours y devient invisible. Un pull qui arrive pendant que
+// Joel tape sa consigne conclurait « rien n'a bouge » et la REECRIRAIT avec la valeur du
+// cloud. Le verrou existant (`tests/sync-engine.test.js`) est ecrit en dur sur un autre
+// champ : il ne couvre jamais un champ neuf, d'ou le test dedie du LOT 028.
+const AI_FORM_FIELD_IDS = ['api-key-input', 'ai-envie', 'ai-exceptions', 'ai-exclusions'];
 const aiFormFingerprint = () => JSON.stringify(
     AI_FORM_FIELD_IDS.map(id => document.getElementById(id)?.value ?? null)
 );

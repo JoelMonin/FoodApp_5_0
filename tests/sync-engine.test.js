@@ -319,6 +319,55 @@ describe('Moteur de synchro — LOT 007', () => {
       expect(document.getElementById('ai-exclusions').value).toBe('ce que Joel est en train de taper');
     });
 
+    // LOT 028 — LE MÊME ACQUIS, POUR LE CHAMP NEUF. Le test FV-3 ci-dessus est écrit EN DUR
+    // sur `ai-exclusions` : il resterait vert si « Envie du moment » était oublié de
+    // `AI_FORM_FIELD_IDS` (`src/services/sync.js`). Un verrou écrit champ par champ ne protège
+    // que les champs qu'il nomme — il en faut donc un par champ, ou aucun ne vaut.
+    //
+    // ⚠️ CE QUE CE TEST PROUVE EXACTEMENT (rectifié après le finding F3 de l'audit Codex du
+    // 2026-08-02, qui avait raison) : il écrit dans le champ SANS déclencher `input`, donc
+    // sans passer par `saveAiConfigFromUI`. Ce n'est PAS une frappe ordinaire de Joel — une
+    // vraie frappe écrit aussi dans l'état, et l'empreinte du DOCUMENT suffirait alors à
+    // écarter la photo cloud. Ce test couvre donc le FILET SECONDAIRE : une valeur posée dans
+    // le champ sans que l'état ait suivi (remplissage automatique du navigateur, collage
+    // intercepté, écriture programmatique). Ce filet est le seul qui protège ce cas-là.
+    it('LOT 028 : une valeur posée dans le champ « Envie du moment » sans passer par l\'état '
+       + 'survit à un pull (filet DOM, second rideau de l\'empreinte du document)', async () => {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div class="ai-settings">
+          <input id="api-key-input" value="">
+          <input id="ai-envie" value="">
+          <input id="ai-exceptions" value="">
+          <input id="ai-exclusions" value="">
+        </div>
+      `);
+      cloudStore = JSON.stringify({
+        ingredients: [makeIngredient({ inStock: true })],
+        favorites: [], extraIngredients: [],
+        shoppingChecked: [],
+        aiConfig: { ...defaultAiConfig(), envie: 'valeur venue du cloud' }
+      });
+
+      let resoudreGet;
+      fetch.mockImplementation(async (url, options = {}) => {
+        if (options.method === 'PUT') { cloudStore = options.body; return { ok: true, status: 200, statusText: 'OK' }; }
+        await new Promise(r => { resoudreGet = r; });
+        return { ok: true, status: 200, statusText: 'OK', json: async () => JSON.parse(cloudStore) };
+      });
+
+      const enVol = performSyncPull({ manual: false });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Valeur posée dans le champ pendant que la requête est en vol, SANS événement `input`
+      // (cf. l'avertissement ci-dessus : l'état n'a donc pas suivi).
+      document.getElementById('ai-envie').value = 'chili con carne';
+
+      resoudreGet();
+      await enVol;
+
+      expect(document.getElementById('ai-envie').value).toBe('chili con carne');
+    });
+
     // FV-8 / mutation M10 — js/app.js:337. La même expression `_syncDirtyGen === genAtBuild`
     // existe deux fois : :325 (branche anti-boucle, sans réseau) et :337 (après un envoi
     // réseau réussi). Seule la première était effleurée. Sans la seconde, une modification

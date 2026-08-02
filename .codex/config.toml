@@ -1,3 +1,21 @@
 # Configuration Codex - FoodApp
+#
+# ATTENTION (retour d'experience du projet jumeau, 2026-08-02) : ce fichier est une CEINTURE
+# DOCUMENTAIRE, il ne garantit RIEN a lui seul. Codex charge `~/.codex/config.toml`, et le
+# global de cette machine porte `sandbox = "unelevated"` — donc PLUS PERMISSIF que la lecture
+# seule. Les drapeaux de securite doivent etre repasses A CHAQUE APPEL par le pont d'audit :
+#   `--sandbox read-only` (nouveau fil) / `-c sandbox_mode="read-only"` (reprise de fil),
+#   `-c approval_policy="never"`, et `--strict-config`.
+# Ne jamais compter sur les deux lignes ci-dessous pour tenir le verrou.
 default_permissions = ":read-only"
 approval_policy = "never"
+
+# Le mandat d'auditeur vit dans AGENTS.md (FICHIER GENERE, cf. CLAUDE.md §1), lu
+# automatiquement par Codex a la racine du depot. Le repli sur CLAUDE.md couvre le cas ou
+# AGENTS.md n'aurait pas ete regenere.
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+# PLAFOND DUR : au-dela, le mandat est TRONQUE EN SILENCE — le projet jumeau a deja perdu
+# 4 regles de gouvernance de cette facon, sans qu'aucun test ne rougisse.
+# Mesure du 2026-08-02 : AGENTS.md = 19 693 octets sur 65 536 autorises (30 % du plafond).
+project_doc_max_bytes = 65536

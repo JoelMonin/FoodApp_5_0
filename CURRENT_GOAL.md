@@ -7,7 +7,51 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : AUCUN — la Version 5.15 est en ligne (2026-08-02)
+## Lot actif : AUCUN — la Version 5.16 est en ligne (2026-08-02)
+
+**LOT 028 publié en V5.16 le 2026-08-02** (feu vert direct de Joel : « publie », sans essai
+préalable — même procédé qu'aux LOTS 019 et 027, tracé dans la fiche §7).
+Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [CLOTURE].md`.
+Niveau d'audit **relevé de Standard à Dur par Codex lui-même** (zone sensible
+`src/services/gemini.js` + valeurs traversant des frontières externes persistées).
+
+**Demande de Joel** : « pouvoir imposer un type de plat ou une contrainte particulière à la
+génération, via un champ d'entrée libre ». Trois décisions prises par question fermée le
+2026-08-02 : (1) champ « Envie du moment » **en tête des réglages IA**, avec rappel de la
+consigne active dans le résumé sous le bouton Générer ; (2) en cas de contradiction avec les
+puces, **la consigne libre gagne** (les ingrédients imposés restent au-dessus de tout, règle
+d'or inchangée) ; (3) le champ « Exceptions autorisées » — découvert **jamais branché depuis
+l'origine** (enregistré, synchronisé, restauré… jamais envoyé à l'IA, pas même dans l'oracle)
+— **sera enfin branché** dans le même lot.
+
+**La découverte a exhumé un défaut dormant depuis le premier jour** : `aiConfig.exceptions`
+(« Exceptions autorisées ») était saisi, enregistré, synchronisé au cloud, sauvegardé et
+restauré — mais **lu par aucun des 6 prompts du dépôt**, ni même par le monolithe d'origine.
+Joel s'en était déjà servi (« Riz » dans sa sauvegarde du 2026-07-29) en croyant que l'IA en
+tenait compte. Branché dans ce lot (décision 3).
+
+| Étape | État |
+|---|---|
+| Branche + fiche + suivi | ✅ 2026-08-02 |
+| Phase découverte | ✅ 2026-08-02 — 14 ressources, 12 gaps |
+| Spécification | ✅ 2026-08-02 (fiche §6) |
+| Implémentation + tests | ✅ 2026-08-02 — 17 tests neufs + 1 test de synchro |
+| **Audit du diff final** | ✅ 2026-08-02 — **Codex 5.6 Sol : GO AVEC RÉSERVES**, 4 findings, **4 confirmés sur pièce, 4 corrigés** |
+| Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle** |
+| Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
+| Vérification visuelle | ✅ 2026-08-02 (app lancée en local) |
+| Essai réel de Joel | ⏳ **seul point restant** |
+| Publication | ⏳ |
+
+**PREMIER AUDIT LANCÉ PAR CLAUDE LUI-MÊME** (2026-08-02) : le pont `scripts/audit_bridge.py`,
+arrivé du projet jumeau le jour même, supprime le copier-coller manuel de Joel dans la boucle
+d'audit. Codex a relevé le niveau de Standard à **Dur** de sa propre initiative. **Le meilleur
+finding est un défaut que j'avais créé** : en branchant « Exceptions autorisées » au message
+envoyé à l'IA, je lui ai donné une exposition qu'il n'avait pas — une valeur non textuelle
+venue d'une sauvegarde corrompue plantait la génération. J'avais protégé le champ NEUF et
+oublié le champ que je venais de rendre vivant.
+
+## Version en ligne : V5.15 (2026-08-02)
 
 **Les LOTS 025 + 026 + 027 sont publiés en V5.15 le 2026-08-02** (feu vert explicite de
 Joel : « ok, publie tout en V5.15 »). Trois branches chaînées (`lot25` ← `lot26` ← `lot27`),

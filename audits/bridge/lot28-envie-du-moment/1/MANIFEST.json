@@ -1,0 +1,51 @@
+{
+  "nn": 1,
+  "chantier": "lot28-envie-du-moment",
+  "model_requested": "gpt-5.6-sol",
+  "requested_effort": "high",
+  "mode": "new",
+  "thread_id_requested": null,
+  "base_sha": "fe9f89c93476607f8ada30af0dc6015fdf06eb9b",
+  "target_sha": "797fe952fbf501befa0d4c7f83dbfcd27566cac9",
+  "cli_version": "codex-cli 0.145.0",
+  "argv": [
+    "codex",
+    "exec",
+    "-C",
+    "C:\\VIBE_CODING\\Projet_FoodApp",
+    "--model",
+    "gpt-5.6-sol",
+    "-c",
+    "model_reasoning_effort=\"high\"",
+    "--sandbox",
+    "read-only",
+    "--strict-config",
+    "--json",
+    "-o",
+    "C:\\VIBE_CODING\\Projet_FoodApp\\audits\\bridge\\lot28-envie-du-moment\\.tmp_1\\RESPONSE.md",
+    "-"
+  ],
+  "identity_injected": "Tu es Codex 5.6 Sol, désigné via le routage validé par Joel pour ce chantier. Applique ton mandat d'auditeur (AGENTS.md).",
+  "binding": {
+    "agents_md": "6ef381ad72702227c453776834b165554f17bd850e9b500d9104f32920f97eeb",
+    "codex_config": "2bdbe14f9e8c58948b8fd7c9ac4aac271ea7ab97dff4fe00ed6c3446de45d036",
+    "wrapper": "15eca155fde0ab6490fbacbdaf82ef50f1283ed1ea8ffa84ecc69023185401a1",
+    "cli_version": "codex-cli 0.145.0"
+  },
+  "status": "VALID",
+  "status_hors_quarantaine": "VALID",
+  "reasons": [],
+  "model_observed": null,
+  "observed_effort": null,
+  "thread_id_observed": "019fc2fa-1fc8-7163-9349-cd0331894512",
+  "clean_before": true,
+  "clean_after": true,
+  "exit_code": 0,
+  "artifact_sha256": {
+    "EVENTS.jsonl": "00626688025e245d66c293741a299bc589d5d130bc5d92efd450dfae5d652e59",
+    "REQUEST.md": "2e57c615e3758b13fed44515647bfcca1d4578a2c6407d580216cb7972f9abbd",
+    "RESPONSE.md": "0e25acc7ae33fde2a72d43b154f0827e3b3596c13d2c2b7e0134c407d5721a5d",
+    "STDERR.txt": "bd17249d0b814287745cc2513ad3101da73d92ed357020793cf222d238d53c91"
+  },
+  "created_ts": 1785683306.5746918
+}

@@ -1,0 +1,16 @@
+{
+  "chantier": "lot28-envie-du-moment",
+  "model": "gpt-5.6-sol",
+  "effort": "high",
+  "repo": "C:\\VIBE_CODING\\Projet_FoodApp",
+  "branch": "feat/lot28-envie-du-moment",
+  "base_sha": "fe9f89c93476607f8ada30af0dc6015fdf06eb9b",
+  "binding": {
+    "agents_md": "6ef381ad72702227c453776834b165554f17bd850e9b500d9104f32920f97eeb",
+    "codex_config": "2bdbe14f9e8c58948b8fd7c9ac4aac271ea7ab97dff4fe00ed6c3446de45d036",
+    "wrapper": "15eca155fde0ab6490fbacbdaf82ef50f1283ed1ea8ffa84ecc69023185401a1",
+    "cli_version": "codex-cli 0.145.0"
+  },
+  "thread_id": "019fc2fa-1fc8-7163-9349-cd0331894512",
+  "created_ts": 1785682598.716949
+}
