@@ -102,6 +102,7 @@ d'accroche existants `resetPasteModal`/`setPasteSaveButtonsEnabled`.
 | A — aperçu complet | ✅ | `src/utils/recipeText.js` + `tests/recipe-text-preview.test.js` (16 tests) · mutation **M1** rouge |
 | B — nettoyage de page | ✅ | `src/utils/webClean.js` + `tests/web-clean.test.js` (18 tests) + 2 tests d'intégration · mutations **M2/M3/M4/M5/M7** rouges |
 | C — rapport de fidélité | ✅ | §6 ci-dessous — **analyse seule, aucun prompt modifié** |
+| D — fiche structurée | 📋 **Spec posée (§10), audit Codex EN COURS** — zéro ligne de code tant que l'audit n'est pas rendu | |
 
 **Validation : 879/879 Vitest · 16/16 Pytest · vérificateur de types OK · build OK.**
 
@@ -318,3 +319,99 @@ Le rapport coût/bénéfice ne passe pas sur une app de cuisine utilisée au té
 | Entités HTML non décodées (`&#039;`, `&frac12;`) | ✅ **750g** |
 | Lignes parasites dans `recipeIngredient` | ✅ **750g** (un ingrédient nommé « Ingrédients: ») |
 | `recipeYield` jamais un entier propre (`"4 personnes"`, `["2","2 personnes"]`, `"4"`) | ✅ **4 formes différentes sur 5 sites** |
+
+---
+
+## 10. SPEC DU VOLET D — LECTURE DE LA FICHE STRUCTURÉE (à auditer AVANT implémentation)
+
+**Validé par Joel le 2026-08-02** (« oui, on fera le numéro 5 bien sûr »), après évaluation
+comparée des alternatives (URL directe à l'IA, construction sans IA, Readability — toutes
+trois écartées, motifs au §9 et dans l'échange du 2026-08-02). **Audit de spec demandé par
+Joel à Codex AVANT la première ligne de code.**
+
+### 10.1 Objectif en une phrase
+
+Quand le site importé publie sa recette en fiche structurée (schema.org `Recipe`), c'est
+CETTE fiche — normalisée — qui remplit le champ, à la place du texte de page nettoyé ;
+sinon, rien ne change par rapport à aujourd'hui, et Joel est prévenu dans les deux cas.
+
+### 10.2 Parcours utilisateur (AUCUN changement d'interface)
+
+1. Joel colle l'URL → « 🌍 Lire la page » (bouton existant, inchangé).
+2. Lecture de la page en HTML via le lecteur ACTUEL (`r.jina.ai`, en-tête
+   `x-return-format: html`). **Même service qu'aujourd'hui, autre format de sortie** —
+   l'arbitrage LOT 011 §9 Q2 (« un seul lecteur, aucun repli sur un AUTRE service ») est
+   respecté : Jina reste l'unique lecteur.
+3. Fiche trouvée ET exploitable → le champ reçoit le TEXTE lisible composé depuis la fiche,
+   le titre reçoit `recipe.name`, toast « ✅ Fiche officielle du site trouvée ».
+4. Sinon → SECONDE lecture, en Markdown (chemin actuel inchangé : `nettoyerPageWeb` +
+   `extraireTitrePage`), toast « ⚠️ Pas de fiche officielle — texte brut récupéré,
+   relisez-le avant de transformer ». Deux lectures séquentielles UNIQUEMENT dans ce cas.
+5. La suite est STRICTEMENT inchangée : « Transformer avec l'IA » → aperçu complet (volet A)
+   → sauvegarde. L'IA reste l'unique fabricant de la recette finale.
+
+Délai d'expiration : 10 s PAR lecture (acquis LOT 011 §10-D, inchangé). Un échec réseau de
+la lecture HTML bascule sur le chemin Markdown avant de déclarer l'échec.
+
+### 10.3 Découpage technique
+
+**NOUVEAU MODULE `src/utils/recipeSchema.js`** — pur, zéro dépendance, comme `webClean.js` :
+- `extraireFicheRecette(html)` : trouve les blocs `<script type="application/ld+json">`
+  (via `DOMParser`, PAS de regex sur le HTML), cherche un nœud `@type: Recipe` (tolère le
+  tableau de types, la récursion `@graph`, les tableaux racine), rend `null` sinon.
+- `normaliserFiche(nœud)` : rend `{ name, description, people, time, ingredients[], steps[] }`
+  ou `null`, en traitant les 4 pièges documentés (§9) :
+  - `recipeIngredient` : tableau OU chaîne unique à retours ligne (Marie Claire) → liste ;
+    puces retirées ; entités HTML décodées (`&#039;`, `&frac12;`…) ; lignes parasites
+    éliminées (vides, se terminant par `:` comme « Ingrédients: » — cas 750g).
+  - `recipeInstructions` : aplatissement RÉCURSIF (chaînes, `HowToStep.text`,
+    `HowToSection.itemListElement`) ; entités décodées ; préfixes parasites
+    (« Préparation: ») retirés.
+  - `recipeYield` : chaîne, tableau ou nombre → premier entier trouvé, sinon absent.
+  - Durées ISO 8601 (`PT2H15M`, `PT0H15M`) → « 2 h 15 », « 15 min » ; forme illisible → champ
+    simplement absent (jamais d'erreur).
+- `ficheExploitable(fiche)` : `name` non vide + ≥ 1 ingrédient + ≥ 1 étape (**cas Chef
+  Simon** : fiche présente avec 0 étape → INEXPLOITABLE → repli). Décodage des entités par
+  `DOMParser` sur du texte, JamAIS par `innerHTML` sur le DOM vivant.
+
+**MODIFIÉ `src/ui/pasteRecipe.js`** — `fetchRecipeFromUrl` orchestre : lecture HTML → fiche →
+composition du texte ; repli Markdown sinon. La composition RÉUTILISE `recetteEnTexte`
+(SSOT du volet A) via le mapping `{ name, description, people, time, ingredients: [{n: ligne}],
+steps }` — pas de second composeur.
+
+**AUCUN changement à** : `index.html` (zéro élément, zéro `onclick`), `gemini.js`,
+`recipeText.js`, `webClean.js`, aux réglages, à `window` (verrou de parité non concerné).
+
+### 10.4 Critères d'acceptation (tous vérifiables par test automatisé, données réelles figées)
+
+1. **Blanquette Marmiton** (fiche réelle recopiée en test) : champ = 13 ingrédients avec
+   quantités + 7 étapes ; titre = le `name` de la fiche.
+2. **750g** : la ligne parasite « Ingrédients: » n'apparaît pas ; `&#039;` devient `'`.
+3. **Chef Simon** (fiche à 0 étape) : repli sur le nettoyeur + toast « pas de fiche ».
+4. **Page sans fiche** : comportement d'aujourd'hui à l'identique + toast honnête.
+5. **`recipeYield`** : les 4 formes relevées (`"4 personnes"`, `["2","2 personnes"]`, `"4"`,
+   `3`) donnent toutes un entier.
+6. **Durées** : `PT2H15M` → « 2 h 15 » ; `PT25M` → « 25 min » ; `PT0H15M` → « 15 min » ;
+   forme invalide → champ absent, jamais de plantage.
+7. **`HowToSection` imbriquées** (cas synthétique, pas encore rencontré) : étapes aplaties
+   dans l'ordre.
+8. **Acquis intacts** : délai 10 s, réponse IA invalide → texte intact (LOT 014 §C), aperçu
+   complet (volet A), remise à zéro à la réouverture (LOT 006) — les tests existants restent
+   verts SANS modification, hors extensions volontaires d'`ai-url-fetch.test.js`.
+
+### 10.5 Tests et preuves prévus
+
+- `tests/recipe-schema.test.js` (NOUVEAU) : caractérisation du normaliseur sur les formes
+  réelles des 5 sites + `HowToSection` synthétique + entrées dégradées (`null`, HTML sans
+  script, JSON invalide, fiche vide).
+- `tests/ai-url-fetch.test.js` (ÉTENDU) : les 3 chemins de `fetchRecipeFromUrl`
+  (fiche exploitable / fiche inexploitable / pas de fiche), toasts compris.
+- Preuve par retrait prévue : ≥ 6 mutations nommées (détection fiche, exploitabilité,
+  chaque normalisation, ordre du repli).
+- `PROJECT_MAP.md` : entrées `recipeSchema.js` + test, dans le même commit.
+
+### 10.6 Limites assumées (déjà actées par Joel)
+
+- Page HTML plus lourde à télécharger (300-750 Ko vs 25 Ko) — sensible en 4G, prix du gain.
+- Pages sans fiche : deux lectures séquentielles, donc plus lentes qu'aujourd'hui.
+- P2 (apostrophes dans le prompt) : décision SÉPARÉE, hors de cette spec.
