@@ -146,3 +146,25 @@ C'est l'essai réel qui l'a vu, à la première génération.
 
 **Validation après correctif : 927/927 Vitest · 16/16 Pytest · types OK · build OK.**
 **Preuve par retrait cumulée du lot : 11 mutations, 11 rouges, 0 nulle.**
+
+## 7. AUDIT DU DIFF FINAL — CODEX, 2026-08-02 : **GO AVEC RÉSERVES → réserves levées**
+
+Objet audité : `git diff feat/lot25-amelioration-ia...feat/lot26-prompts-generation`. Aucun
+défaut bloquant. Vérifiés dans le code : retrait du 🎲 complet ET chirurgical
+(`.picker-magic-btn` intact), conformité aux 6 décisions de Joel (3 phrases de créativité
+INTACTES au mot près), mémoire strictement de session, correctif post-essai sans effet de
+bord, aucun acquis antérieur régressé.
+
+**2 findings, chacun contre-vérifié sur pièce puis corrigé :**
+
+| # | Finding Codex | Contre-vérification | Correction |
+|---|---|---|---|
+| 1 (majeur) | Les 3 tests d'identité SSOT comparent les MESSAGES : une copie locale IDENTIQUE d'une règle dans un prompt les laisserait verts — contenu commun prouvé, SSOT non prouvée | ✅ **CONFIRMÉ, et démontré par mutation** : la copie identique injectée → les 3 anciens tests restent verts | **Verrou de SOURCE ajouté** (modèle `api-key-message-ssot`, LOT 014) : chaque règle partagée ne s'écrit qu'UNE fois dans le code de production, `toBe(1)` = garde anti-vide incluse. La même mutation le fait rougir — réserve levée sur preuve |
+| 2 (mineur) | Commentaire périmé : « seules les deux fonctions de generation l'ecrivent » alors qu'un seul écrivain reste | ✅ **CONFIRMÉ** | Commentaire rectifié, avec mention du finding |
+
+**Leçon** : un test d'identité de CONTENU ne prouve pas une SSOT de CODE — le dépôt avait
+déjà le bon outil (verrou de source du LOT 014), il fallait l'appliquer ici aussi.
+
+**Validation finale : 928/928 Vitest · 16/16 Pytest · types OK · build OK.**
+**Preuve par retrait totale du lot : 12 mutations, 12 rouges, 0 nulle** (7 chantiers +
+4 correctif post-essai + 1 scénario Codex).

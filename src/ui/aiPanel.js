@@ -37,7 +37,8 @@ import { togglePin } from '../actions.js';
  */
 
 // Une generation IA est-elle en cours ? Etat PRIVE : seule `generationDejaEnCours` le lit,
-// seules les deux fonctions de generation l'ecrivent.
+// seule `generateSuggestions` l'ecrit (l'autre ecrivain, le mode 🎲, est parti au LOT 026 —
+// commentaire rectifie sur finding de l'audit du diff final).
 let _generationInFlight = false;
 
 // Textes d'attente animés pendant la génération (LOT 011, chantier 5 ; oracle

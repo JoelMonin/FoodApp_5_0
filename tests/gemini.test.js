@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { callAI, generateRecipes, transformRecipeFromText } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { CATEGORIES } from '../src/data.js';
@@ -548,6 +550,38 @@ describe('Gemini Service', () => {
       const canon = 'Chaque étape est AUTOSUFFISANTE : indique les durées, les températures et le niveau de feu';
       expect(gen).toContain(canon);
       expect(transfo).toContain(canon);
+    });
+
+    // FINDING 1 DE L'AUDIT CODEX DU DIFF FINAL (2026-08-02), contre-vérifié et CONFIRMÉ :
+    // les trois tests ci-dessus comparent les MESSAGES envoyés — si un prompt recopiait
+    // LOCALEMENT une règle à l'identique, ils resteraient verts. Contenu commun prouvé,
+    // SSOT non prouvée. Ce verrou-ci regarde donc le CODE SOURCE, sur le modèle du verrou
+    // `api-key-message-ssot` (LOT 014) : chaque règle partagée ne s'écrit qu'UNE fois dans
+    // le code de production (sa constante), et une copie — même parfaitement identique —
+    // fait rougir ce test. Le `toBe(1)` sert aussi de garde anti-vide : une constante
+    // renommée ou supprimée ferait tomber le compte à 0.
+    it('verrou de SOURCE — chaque règle partagée ne s\'écrit qu\'UNE fois dans le code de production', () => {
+      const RACINE = process.cwd();
+      const fichiers = [];
+      (function collecter(dossier) {
+        for (const entree of readdirSync(dossier, { withFileTypes: true })) {
+          const chemin = join(dossier, entree.name);
+          if (entree.isDirectory()) collecter(chemin);
+          else if (entree.name.endsWith('.js')) fichiers.push(chemin);
+        }
+      })(resolve(RACINE, 'src'));
+      fichiers.push(resolve(RACINE, 'js', 'app.js'));
+      const sources = fichiers.map(f => readFileSync(f, 'utf8')).join('\n');
+
+      const fragments = [
+        "apostrophe À L'INTÉRIEUR DES MOTS",       // REGLE_GUILLEMETS (partie P2)
+        'Chaque étape est AUTOSUFFISANTE',          // REGLE_QUALITE_ETAPES
+        'Utilise uniquement ${CATEGORIES.join('    // REGLE_CATEGORIES (texte SOURCE, avant interpolation)
+      ];
+      for (const fragment of fragments) {
+        const occurrences = sources.split(fragment).length - 1;
+        expect(occurrences, `« ${fragment} » doit exister en UN exemplaire (sa constante SSOT) — trouvé ${occurrences} fois`).toBe(1);
+      }
     });
   });
 
