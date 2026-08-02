@@ -94,11 +94,16 @@ Backlog/BACKLOG - Nom court.md         ← pas encore un lot, pas encore de num�
 
 ## 📚 Backlog — pas encore des lots
 
-| Sujet | Priorité | Effort |
+**Nettoyage intégral du 2026-08-02** : les quatre fiches ont été relues et **re-vérifiées dans
+le code**, point par point. Deux sont fermées, deux restent ouvertes — dont une seule qui
+vaut un lot.
+
+| Sujet | Priorité | État au 2026-08-02 |
 |---|---|---|
-| [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | — | **Check-list de campagne**, ventilée dans les LOTS 007-012 (voir son en-tête) |
-| [Durcissements import et panier](Backlog/BACKLOG%20-%20Durcissements%20import%20et%20panier.md) | Basse | Réserves non bloquantes de l'audit LOT 008 — à absorber par LOTS 012/013/014 |
-| [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | 1-2 j — après la campagne |
+| [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | 🟠 **OUVERT — le seul vrai chantier restant.** Les 6 findings re-mesurés et tous confirmés : 47 `<div>` cliquables, 0 attribut d'accessibilité, 0 règle « réduire les animations », cibles tactiles à 32 et 22 px pour un standard de 44. Effort 1-2 j |
+| [Durcissements import et panier](Backlog/BACKLOG%20-%20Durcissements%20import%20et%20panier.md) | Basse | 🟡 **4 points ouverts sur 9** — import par nom ambigu, restauration hors ligne jamais testée, 2 boutons inatteignables, 5 temporisations sans test. Les 5 autres sont soldés (articles libres, modale morte, `sanitize()`, catégorisation) |
+| [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | — | ✅ **FERMÉE** — zéro case non cochée. Conservée pour son **§5 « faux morts »**, garde-fou permanent : à relire avant de déclarer un comportement « perdu à la migration » |
+| [Second rangement de `app.js`](Backlog/BACKLOG%20-%20Second%20rangement%20de%20app.js.md) | — | ✅ **FERMÉE** — absorbée par les LOTS 017 et 018 (publiés en 5.11). Cible « sous 700 lignes » dépassée : `js/app.js` est à **568** |
 
 Fiches promues le 2026-07-29 (absorbées, traçées dans les fiches de lot) : Filet de tests UI
 → LOT 013 · Découpage app.js/style.css + Alias state + Validation données externes → LOT 014.
@@ -109,6 +114,16 @@ imports ESM → LOT 014 (§F).
 
 ## 📌 Historique de cette roadmap
 
+- **2026-08-02 — nettoyage intégral du backlog** : les quatre fiches relues et **vérifiées
+  dans le code**, pas seulement recopiées. Constat : elles avaient vieilli en silence.
+  **Toutes les références de ligne de la fiche « Durcissements » étaient fausses** — elle
+  citait `js/app.js:2135` et `:2781` alors que ce fichier ne fait plus que 568 lignes depuis
+  le LOT 018, et la fiche « Accessibilité » visait `css/style.css`, découpé en 13 sections
+  depuis le LOT 014. **Cinq points étaient déjà réglés** sans que personne ne l'ait noté
+  (articles libres supprimés, modale morte retirée, `sanitize()` supprimée, deux défauts de
+  catégorisation corrigés). Deux fiches fermées, deux allégées. Le compte des temporisations
+  sans test a été **re-mesuré** : 5 et non 9, sur 16 sites et non 20. **Leçon consignée :
+  une fiche de backlog qui cite des numéros de ligne se périme au premier rangement.**
 - **2026-08-01 — LOTS 023 et 024 terminés, en file pour la V5.14** : la jauge de créativité
   (ressenti de Joel : « on a bricolé un truc ») retrouve un curseur à 3 arrêts fermes, avec
   le palier actif visible — sans toucher un mot de ce que l'IA reçoit, vérifié par mutation.

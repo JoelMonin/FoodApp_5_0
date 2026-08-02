@@ -1,4 +1,19 @@
-# BACKLOG — Second rangement de `js/app.js`
+# BACKLOG — Second rangement de `js/app.js` — ✅ ABSORBÉE, PLUS UN CHANTIER
+
+> **⚑ FICHE FERMÉE LE 2026-08-02 — RÉALISÉE ET DÉPASSÉE.** Promue en **LOT 017**
+> (`js/app.js` 1 527 → 625 lignes) puis achevée par le **LOT 018** (625 → **568 lignes**),
+> les deux publiés en **V5.11 le 2026-08-01**. La cible « sous 700 lignes » écrite ci-dessous
+> est donc atteinte, et le total depuis le LOT 014 est de **2 823 → 568 lignes (−80 %)**.
+>
+> **Conservée pour la trace uniquement** (règle « rien ne se supprime ») : elle porte
+> l'inventaire mesuré qui a servi à ouvrir le LOT 017. Ne rien y prendre comme un travail
+> à faire ; le détail vivant est dans `LOT 017 - Second rangement de app.js [CLOTURE].md`
+> et `LOT 018 - Ecran inventaire dans son module [CLOTURE].md`.
+>
+> ⚠️ **Toutes les mesures ci-dessous sont périmées** : elles décrivent l'état d'avant le
+> LOT 017.
+
+---
 
 **Origine : critère d'acceptation NON ATTEINT du LOT 014.** La fiche visait `js/app.js`
 **sous 700 lignes** ; le lot l'a amené de **2 823 à 1 523 lignes (−46 %)** et s'est arrêté là

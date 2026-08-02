@@ -1,4 +1,16 @@
-# BACKLOG — Régressions de la migration monolithe → modules
+# BACKLOG — Régressions de la migration monolithe → modules — ✅ CAMPAGNE ACHEVÉE
+
+> **⚑ FICHE FERMÉE LE 2026-08-02 — PLUS AUCUN POINT OUVERT.** Vérifié en la relisant :
+> **zéro case non cochée** sur les 142 lignes. Les §1 à §4 sont soldés par les LOTS 007 à
+> 012 (publiés en 5.5 à 5.7) et la dernière ligne restante — la duplication `.generate-btn`
+> — l'a été par le LOT 014 (publié en 5.10).
+>
+> **Elle reste ici pour UNE raison, et une seule : son §5.** C'est la liste des « faux
+> morts » — du code qui ressemble à une régression mais n'en est pas, et qu'il ne faut
+> **jamais** restaurer. Ce garde-fou n'expire pas : avant de déclarer un comportement
+> « perdu à la migration », relire ce §5.
+
+---
 
 > **⚑ CHECK-LIST DE LA CAMPAGNE « Restauration & Refonte » (2026-07-29).** Cet inventaire
 > est ventilé dans les lots ; chaque lot coche ses points ici à sa clôture. Fin du LOT 012 :
