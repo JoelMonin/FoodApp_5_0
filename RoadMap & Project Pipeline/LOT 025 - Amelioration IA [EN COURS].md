@@ -110,6 +110,24 @@ d'accroche existants `resetPasteModal`/`setPasteSaveButtonsEnabled`.
 **Preuve par retrait cumulée : 18 mutations, 18 rouges, 0 nulle** (7 volets 0/A/B + 9 volet D
 + 2 P2), chacune avec un test NOMMÉ, plus un témoin non muté resté vert.
 
+### AUDIT DU DIFF FINAL — CODEX, 2026-08-02 : **GO**
+
+Objet audité : diff complet `main...feat/lot25-amelioration-ia`, niveau Standard, scope étendu
+aux contrats des LOTS 006, 011, 014, 019 et 020.
+
+**Aucun défaut bloquant.** Vérifiés dans le CODE et non seulement dans la spec : les décisions
+D1 et D2, les 6 findings de l'audit de spec, l'absence de test tautologique, l'innocuité de P2
+sur la lecture du JSON, et la non-régression des acquis antérieurs.
+
+**1 finding mineur, CONTRE-VÉRIFIÉ SUR PIÈCE puis corrigé** : l'en-tête de
+`src/utils/recipeSchema.js` annonçait « 9 fiches exploitables sur 12 » alors que le bilan du
+lot en établit **10 sur 13**. Vérifié : le chiffre datait d'avant l'ajout du 13ᵉ site (le
+tajine aux pruneaux de Joel, testé après la rédaction du commentaire). **Codex a raison.**
+C'est le motif « un chiffre recopié sans être remesuré » déjà attrapé aux LOTS 017 et 018 —
+un audit final le trouve encore. Corrigé, et le second chiffre du même en-tête (« 1 page sur
+10 » pour les fiches multiples) est désormais explicitement signalé comme un ÉCHANTILLON
+DISTINCT, pour que la coexistence de 10, 12 et 13 dans le même fichier ne piège personne.
+
 ### P2 — APPLIQUÉ LE 2026-08-02, sur preuve visuelle de Joel
 
 **Déclencheur** : capture de l'écran de recette après import du tajine aux pruneaux. Le défaut

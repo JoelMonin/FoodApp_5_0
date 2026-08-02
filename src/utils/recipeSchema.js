@@ -6,8 +6,10 @@
  * qui avait servi de modèle, mais −15 % sur un blog et un mur de cookies envoyé à l'IA sur
  * 750g. La bibliothèque de référence du domaine (`hhursev/recipe-scrapers`, 649 sites) ne
  * procède JAMAIS ainsi : elle lit la fiche que le site publie déjà pour les machines
- * (schema.org `Recipe`, celle que Google affiche dans ses résultats). Mesuré sur 12 pages
- * réelles : **9 en publient une exploitable**.
+ * (schema.org `Recipe`, celle que Google affiche dans ses résultats). Mesuré sur 13 pages
+ * réelles : **10 en publient une exploitable**, 3 partent au repli. (Chiffre remesuré à la
+ * clôture du lot, finding d'audit Codex : il annonçait 9 sur 12, mesure d'avant l'ajout du
+ * 13ᵉ site. Un nombre se remesure à chaque étape — leçon LOT 017.)
  *
  * CE QUE ÇA CHANGE. Sur la blanquette de Marmiton, cette fiche donne 13 ingrédients avec
  * leurs quantités et 7 étapes au mot près, en ~1 000 caractères au lieu de 25 000. L'IA
@@ -20,7 +22,8 @@
  *
  * ⚠️ TROIS RÈGLES ISSUES DE L'AUDIT DE SPEC (Codex, 2026-08-02), chacune contre-vérifiée :
  *  - **La fiche retenue est la PLUS COMPLÈTE, jamais « la première trouvée »** : une page
- *    peut porter plusieurs nœuds `Recipe` (mesuré : 1 page sur 10, trois copies de la même).
+ *    peut porter plusieurs nœuds `Recipe` (échantillon DISTINCT de celui du bilan ci-dessus :
+ *    sur les 10 pages examinées pour ce point, 1 en portait trois, toutes identiques).
  *    Prendre la première, c'est dépendre de l'ordre de parcours du document.
  *  - **Les intitulés de section sont retirés AVANT de juger la fiche exploitable** : sans ça
  *    une fiche ne contenant que « Ingrédients » et « Préparation » passerait pour bonne et
