@@ -9,8 +9,22 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 025 — Amélioration IA**, ouvert le **2026-08-02** sur `feat/lot25-amelioration-ia`.
-Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [EN COURS].md`.
+**LOT 026 — Prompts de génération**, ouvert le **2026-08-02** sur
+`feat/lot26-prompts-generation` (chaînée sur la branche du 025). Fiche :
+`RoadMap & Project Pipeline/LOT 026 - Prompts de generation [EN COURS].md`.
+5 chantiers décidés par Joel après un audit des prompts : catégories injectées, **suppression
+du bouton 🎲** (décision produit, confirmée par question fermée), anti-répétition sur 60 min,
+règles de qualité des étapes partagées, SSOT des consignes communes. **Refusé par Joel, à ne
+pas re-proposer** : muscler la phrase « TRÈS CRÉATIF » (« je n'ai pas envie de disqualifier
+les associations classiques »).
+
+## Lot précédent — LOT 025, `[A PUBLIER]`
+
+**LOT 025 — Amélioration IA**, ouvert et terminé le **2026-08-02** sur
+`feat/lot25-amelioration-ia`. **Audit final Codex : GO** (1 finding mineur, contre-vérifié
+puis corrigé). 914/914 Vitest · 18 mutations/18 rouges. **Attend le feu vert de publication**
+— partira seul ou avec le 026, au choix de Joel.
+Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [A PUBLIER].md`.
 
 **Né d'un constat de Joel** : après import d'une recette Marmiton et transformation IA, il
 croyait que l'application avait perdu sa recette. **Diagnostic : la transformation avait

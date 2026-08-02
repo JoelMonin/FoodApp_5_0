@@ -1,6 +1,13 @@
-# LOT 025 — Amélioration IA `[EN COURS]`
+# LOT 025 — Amélioration IA `[A PUBLIER]`
 
-**Ouvert le 2026-08-02** · Branche `feat/lot25-amelioration-ia` · Niveau d'audit : **Standard**
+**Ouvert le 2026-08-02** · **Terminé le 2026-08-02** (audit final Codex : GO) · Branche
+`feat/lot25-amelioration-ia` · Niveau d'audit : **Standard**
+
+**Passé `[A PUBLIER]` le 2026-08-02** : audit du diff final rendu (GO, 1 finding mineur
+corrigé), validation verte, en attente du feu vert de publication de Joel. Le LOT 026
+(améliorations des prompts, décidées par Joel après un audit des prompts le même jour) est
+**chaîné sur cette branche** — même procédé que les LOTS 016/017/018, publication ensemble ou
+séparée selon la décision de Joel.
 
 ---
 
