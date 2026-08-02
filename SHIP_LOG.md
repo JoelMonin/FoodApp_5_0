@@ -9,6 +9,40 @@
   aujourd'hui, vraiment utilisable dans la vraie vie. »
 
 ## Historique des modifications
+- [x] [GOUVERNANCE - non publié] 02/08/2026 : Nettoyage du backlog et registre des dettes
+    - **Aucun code applicatif touché** — uniquement des documents de suivi. La construction
+      produit des fichiers identiques ; rien ne change à l'écran
+    - **Nettoyage des 4 fiches de backlog**, relues et re-vérifiées dans le code point par
+      point. Elles avaient vieilli en silence : **toutes les références de ligne de la fiche
+      « Durcissements » étaient fausses** (elle citait `js/app.js:2135` et `:2781`, alors que
+      ce fichier ne fait plus que 568 lignes depuis le LOT 018) et la fiche « Accessibilité »
+      visait `css/style.css`, découpé en 13 sections depuis le LOT 014 — y écrire une règle
+      est même devenu interdit par un verrou
+    - **Cinq points étaient déjà réglés** sans que personne ne l'ait noté : articles libres
+      supprimés, modale morte retirée, `sanitize()` supprimée, deux défauts de catégorisation
+      corrigés. Ils dormaient dans la liste comme du travail restant
+    - **Un chiffre corrigé** : les temporisations sans test étaient annoncées « 9 sur 20 »,
+      elles sont **5 sur 16** — recomptées sur le code d'aujourd'hui
+    - **2 fiches fermées** (Régressions de la migration : zéro case non cochée, conservée
+      pour son §5 « faux morts », garde-fou permanent · Second rangement de `app.js` :
+      absorbée par les LOTS 017/018, cible « sous 700 lignes » dépassée à 568)
+    - **Création de `audits/BACKLOG_TECHNIQUE.md`**, le registre des dettes techniques. Il
+      était réclamé par l'étape 5bis du démarrage de session depuis sa création mais
+      **n'avait jamais existé** — vérifié, aucune trace dans tout l'historique git. Les
+      10 findings y sont **déplacés, pas copiés** (F-001 à F-010) : un finding n'a qu'un seul
+      domicile, sinon les deux versions divergent
+    - **La dette la plus risquée, désormais tracée (F-002)** : restaurer une sauvegarde hors
+      ligne puis se reconnecter n'est couvert par **aucun test** — rien ne garantit que c'est
+      l'état restauré qui part, et non l'ancien contenu du cloud qui revient l'écraser
+    - **Frontière posée** pour ne plus se reposer la question : un CHANTIER reste au backlog
+      produit, un FINDING va au registre. L'accessibilité reste donc un chantier — et le seul
+      encore ouvert (6 findings re-mesurés et tous confirmés : 47 `<div>` cliquables,
+      0 attribut d'accessibilité, cibles tactiles à 32 et 22 px pour 44 attendus)
+    - **Leçon consignée** : une fiche qui cite des numéros de ligne se périme au premier
+      rangement — aucune citation ne vaut sans re-vérification
+    - **Fusionné dans `main` en local le 02/08/2026, sciemment NON publié** (décision de
+      Joel) : l'envoi vers GitHub attendra d'être groupé avec un prochain lot
+    - Métriques : types OK + 842/842 Vitest + 16/16 Pytest verts, build OK
 - [x] [VERSION 5.14 - OnLine] 01/08/2026 : Publication des lots 021 à 024
     - Quatre lots chaînés, nés de l'évaluation de la qualité du code demandée par Joel —
       publiés d'un bloc, comportement quasi entièrement inchangé

@@ -120,6 +120,7 @@
 - `CLAUDE.md` : Fichier maître de gouvernance (source de vérité).
 - `AGENTS.md` : Fichier généré pour les auditeurs.
 - `DOCTRINE_PRODUIT.md` : Règles métier, seuils et style de collaboration.
+- `audits/BACKLOG_TECHNIQUE.md` : REGISTRE DES DETTES TECHNIQUES (créé au nettoyage du 2026-08-02) — domicile UNIQUE de tout finding d'audit ou angle mort de test, numéroté `F-NNN` avec sa date d'origine, relu à chaque démarrage de session (`/init` étape 5bis). ⚠️ **Ne pas confondre avec `RoadMap & Project Pipeline/Backlog/`** : là-bas vivent les CHANTIERS (plusieurs jours, un plan, une valeur produit), ici les FINDINGS (défaut ponctuel, dette assumée). Un finding recopié aux deux endroits finit par diverger — c'est ce qui a périmé l'ancienne fiche « Durcissements », dont les 10 findings ont été déplacés ici.
 - `.agents/01_auditor_role.md` : Mandat de l'auditeur.
 - `.codex/config.toml` : Configuration des permissions Codex (:read-only).
 - `scripts/sync_agents_md.py` : Générateur automatique d'AGENTS.md.

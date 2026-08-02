@@ -1,9 +1,36 @@
-# ♿ CHANTIER — A11Y_AND_MOTION
+# ♿ CHANTIER — Accessibilité et animations
 
 > **Priorité :** Basse (long terme)
 > **Effort estimé :** 1-2 jours
 > **Source :** ULTRA_AUDIT_REPORT.md (2026-05-01) §"Vérifications Visuelles Recommandées"
-> **Statut :** À démarrer en dernier
+> **Statut :** OUVERT — **seul vrai chantier restant au backlog** (2026-08-02)
+
+## ⚑ RE-VÉRIFIÉ LE 2026-08-02 — les 6 findings sont tous encore vivants
+
+Les findings étaient marqués « HYPOTHESIS, confiance 65-80/100 ». Ils ont été **re-mesurés
+dans le code** : ce ne sont plus des hypothèses, ce sont des faits. Les références ont été
+corrigées au passage — celles d'origine visaient `css/style.css`, qui n'est plus qu'un
+sommaire d'imports depuis le découpage du LOT 014.
+
+| Mesure | Valeur constatée |
+|---|---|
+| Balises `<div ... onclick>` dans `index.html` | **47** (sur 83 éléments cliquables au total) |
+| Attributs `aria-*` dans `index.html` | **0** |
+| Attributs `role=` dans `index.html` | **0** |
+| Animations déclarées | **11 déclarations, 10 noms** (`spin` est déclarée deux fois, cf. `10-spinner.css`) |
+| Règles `prefers-reduced-motion` | **0** |
+| Boutons d'en-tête de modale (`.mh-btn`) | **32 × 32 px** (`css/sections/09-modals.css:407`) |
+| Cases à cocher de la liste de courses (`.si-check`) | **22 × 22 px** (`css/sections/04-shopping.css:67`) |
+
+**Le point qui touche Joel tous les jours** : les cibles tactiles. Les boutons imprimer et
+plein écran d'une recette font 32 px et les cases de la liste de courses 22 px, là où le
+standard tactile est 44 px — au pouce, en faisant ses courses, c'est le clic raté.
+
+⚠️ **Une correction à porter dans le plan ci-dessous** : il dit « ajouter dans
+`css/style.css` ». **C'est désormais interdit** — ce fichier ne contient plus que les
+13 `@import` de `css/sections/`, et le verrou `tests/css-sections.test.js` casse si une
+règle y est écrite (elle passerait avant tout le reste). Toute règle neuve va dans la
+section concernée, ou dans une section dédiée déclarée dans le sommaire.
 
 ---
 
@@ -18,8 +45,8 @@ L'application est destinée à un usage personnel mais l'usage mobile (cibles ta
 ## 📋 Findings concernés
 
 ### F1 — `<div>` cliquables au lieu de `<button>`
-- **Fichier** : `index.html:204-375`
-- **Statut** : HYPOTHESIS — Confiance 75-80/100
+- **Fichier** : `index.html` (numéros de ligne d'origine périmés — chercher `<div` + `onclick`)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — 47 balises concernées**
 - **Problème** : `.sb-item`, `.bn-item`, `.chip` sont des `<div>` avec `onclick`. Lecteurs d'écran ne les annoncent pas comme interactifs.
 - **Concerné** :
   - Sidebar items (`.sb-item`)
@@ -29,29 +56,36 @@ L'application est destinée à un usage personnel mais l'usage mobile (cibles ta
   - Accordéons "filtres avancés"
 
 ### F2 — Chips simulant des boutons radio sans ARIA
-- **Fichier** : `index.html:338-375` (chips meal/time/diff/ppl)
-- **Statut** : HYPOTHESIS — Confiance 75/100
+- **Fichier** : `index.html` (chips meal/time/diff/ppl ; lignes d'origine périmées)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — 0 attribut `role=` et 0 `aria-*` dans tout le fichier**
 - **Problème** : Sélection unique simulée mais pas de `role="radio"` ni `aria-checked`. Navigation clavier dégradée.
 
 ### F3 — Bottom nav sans `aria-current`
-- **Fichier** : `index.html:714-733`
-- **Statut** : HYPOTHESIS — Confiance 72/100
+- **Fichier** : `index.html` (barre de navigation du bas, 5 `.bn-item`)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — aucun `aria-current` nulle part**
 - **Problème** : Onglet actif identifié uniquement par `class="active"`. Pas annoncé aux ATs.
 
 ### F4 — Accordéon sans `aria-expanded`
-- **Fichier** : `index.html:384`
-- **Statut** : HYPOTHESIS — Confiance 72/100
+- **Fichier** : `index.html` (en-tête « filtres avancés » du panneau IA)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — aucun `aria-expanded`**
 - **Problème** : `onclick="this.parentElement.classList.toggle('open')"` sans gestion ARIA.
 
-### F5 — 11 keyframes sans `prefers-reduced-motion`
-- **Fichier** : `css/style.css:416-426 + 672-697 + 2661-2683 + 2695-2699`
-- **Statut** : HYPOTHESIS — Confiance 68-72/100
-- **Problème** : Animations `fadeUp`, `sync-spin`, `shake`, `spin`, `toastIn/Out`, etc. ne respectent pas le préf utilisateur (motion sickness, vestibulaire).
+### F5 — 11 déclarations d'animation sans `prefers-reduced-motion`
+- **Fichiers (re-localisés le 2026-08-02, le CSS a été découpé au LOT 014)** :
+  `css/sections/02-layout.css` (`fadeUp`, `sync-spin`, `shake`, `pulse`) ·
+  `css/sections/09-modals.css` (`fadeIn`, `slideUp`, `toastIn`, `toastOut`) ·
+  `css/sections/10-spinner.css` (`spin`) · `css/sections/12-utilities.css` (`spin` — seconde
+  déclaration, connue et documentée — et `pulseText`)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — 11 déclarations pour 10 noms, 0 règle `prefers-reduced-motion` dans tout le CSS**
+- **Problème** : ces animations ne respectent pas la préférence système « réduire les animations » (sensibilité au mouvement, troubles vestibulaires).
 
 ### F6 — Cibles tactiles < 44px
-- **Fichier** : `css/style.css:3038-3062 (modale btns 32×32) + 1057-1079 (checkbox shopping 22×22)`
-- **Statut** : HYPOTHESIS — Confiance 65-68/100
-- **Problème** : Boutons modale (imprimer, fullscreen) à 32×32. Checkbox shopping à 22×22. Risque misclick mobile.
+- **Fichiers (re-localisés le 2026-08-02)** : `css/sections/09-modals.css:407` (`.mh-btn`,
+  32 × 32) · `css/sections/04-shopping.css:67` (`.si-check`, 22 × 22)
+- **Statut** : ✅ **CONFIRMÉ le 2026-08-02 — tailles relues sur pièce**
+- **Problème** : boutons imprimer / plein écran d'une recette à 32 px, cases à cocher de la
+  liste de courses à 22 px, pour un standard tactile à 44 px. **C'est le point le plus
+  concret de la fiche** : il se paie en clics ratés au pouce, en pleine course.
 
 ---
 
@@ -61,7 +95,8 @@ L'application est destinée à un usage personnel mais l'usage mobile (cibles ta
 
 **Stratégie** : remplacer les `<div onclick=...>` par `<button onclick=...>` avec reset CSS pour conserver l'apparence.
 
-**Ajouter dans `style.css`** :
+**Ajouter dans la section CSS concernée** — ⚠️ **PAS dans `css/style.css`**, qui n'est plus
+qu'un sommaire d'imports (verrou `tests/css-sections.test.js`) :
 ```css
 /* Reset bouton pour éléments interactifs */
 button.sb-item, button.bn-item, button.chip,
@@ -105,7 +140,8 @@ Pour les chips meal/time/diff/ppl (sélection unique), ajouter `role="radio"` + 
 </div>
 ```
 
-Modifier `toggleAiSingle` dans `app.js` pour mettre à jour `aria-checked` :
+Modifier `toggleAiSingle` (**aujourd'hui dans `src/ui/aiPanel.js:193`**, plus dans `app.js`)
+pour mettre à jour `aria-checked` :
 ```javascript
 function toggleAiSingle(field, el) {
   el.closest('.chips-row').querySelectorAll('.chip').forEach(c => {
@@ -160,7 +196,8 @@ window.toggleAccordion = function(headerEl) {
 
 ### Étape 5 — `prefers-reduced-motion` (45 min)
 
-Ajouter à la fin de `css/style.css` :
+Ajouter dans une section dédiée de `css/sections/` (déclarée dans le sommaire), ⚠️ **jamais
+dans `css/style.css`** :
 ```css
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -243,4 +280,10 @@ Identifier les éléments < 44px et ajouter padding ou `min-width/min-height` :
 ## 🔗 Liens
 
 - Rapport d'audit source : `ULTRA_AUDIT_REPORT.md` §"Vérifications Visuelles Recommandées"
-- Fichiers concernés : `index.html`, `css/style.css`, `js/app.js` (toggleAiSingle, toggleAiChip, renderCurrentView), `src/ui/pantry.js`, `src/ui/shopping.js`, `src/ui/recipe.js`
+- **Fichiers concernés, re-localisés le 2026-08-02** (le grand rangement des LOTS 014-018 a
+  tout déplacé) : `index.html` · `css/sections/` (02-layout, 04-shopping, 09-modals,
+  10-spinner, 12-utilities) · `src/ui/aiPanel.js` (`toggleAiSingle:193`,
+  `toggleAiChip:202`) · `js/app.js` (`renderCurrentView:328`) · `src/ui/pantry.js` ·
+  `src/ui/pantryView.js` · `src/ui/shopping.js` · `src/ui/recipe.js`
+- 4 sites de `src/` génèrent des puces en JavaScript : elles devront basculer en `<button>`
+  au même titre que celles écrites en dur dans `index.html`.
