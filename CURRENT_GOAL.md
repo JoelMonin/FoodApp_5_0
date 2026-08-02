@@ -9,12 +9,34 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**LOT 026 — Prompts de génération**, ouvert le **2026-08-02** sur
-`feat/lot26-prompts-generation` (chaînée sur la branche du 025). Fiche :
-`RoadMap & Project Pipeline/LOT 026 - Prompts de generation [EN COURS].md`.
+**LOT 027 — Option Keto**, ouvert le **2026-08-02** sur `feat/lot27-option-keto`
+(chaînée sur la branche du 026 — décision de Joel : « on ne push pas encore », les trois
+lots partiront ensemble). Fiche :
+`RoadMap & Project Pipeline/LOT 027 - Option Keto [EN COURS].md`.
+Demande de Joel : ajouter une puce **« Keto »** (régime cétogène : très pauvre en glucides,
+riche en graisses) aux options diététiques du panneau IA. Niveau d'audit : **Léger**.
+
+| Étape | État |
+|---|---|
+| Phase découverte (agent Explore) | ✅ 8 ressources, 6 points d'attention, F-011 consigné |
+| Spécification dans la fiche | ✅ |
+| Implémentation + tests | ✅ 1 ligne d'HTML, zéro JS de production, 6 tests neufs |
+| Validation unifiée + preuve par retrait | ✅ 934/934 Vitest · 16/16 Pytest · build OK · 3 mutations/3 rouges |
+| Essai réel de Joel | ⏳ |
+
+## Lot précédent — LOT 026, `[A PUBLIER]`
+
+**LOT 026 — Prompts de génération**, ouvert et terminé le **2026-08-02** sur
+`feat/lot26-prompts-generation` (chaînée sur la branche du 025). **Audit final Codex : GO**
+(2 findings, contre-vérifiés par mutation puis corrigés — dont un majeur : mes tests SSOT
+prouvaient le message, pas le code ; verrou de SOURCE ajouté). 928/928 Vitest ·
+12 mutations/12 rouges. **Attend le feu vert de publication, avec le 025 et le 027.**
+Fiche : `RoadMap & Project Pipeline/LOT 026 - Prompts de generation [A PUBLIER].md`.
 5 chantiers décidés par Joel après un audit des prompts : catégories injectées, **suppression
-du bouton 🎲** (décision produit, confirmée par question fermée), anti-répétition sur 60 min,
-règles de qualité des étapes partagées, SSOT des consignes communes. **Refusé par Joel, à ne
+du bouton 🎲** (décision produit, confirmée par question fermée), anti-répétition sur 60 min
+(mémoire de session uniquement), règles de qualité des étapes partagées, SSOT des consignes
+communes. + correctif post-essai réel de Joel : plafond de sortie doublé (16384), message
+d'erreur en français, erreurs affichées 6 s. **Refusé par Joel, à ne
 pas re-proposer** : muscler la phrase « TRÈS CRÉATIF » (« je n'ai pas envie de disqualifier
 les associations classiques »).
 

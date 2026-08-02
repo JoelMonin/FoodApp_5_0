@@ -120,6 +120,20 @@ un finding — elle reste dans
   bord réels (réseau, minuteries, écouteurs) qu'il faudrait neutraliser une à une.
 - **À trancher un jour** : le faire, ou l'assumer définitivement. En l'état : assumé.
 
+### [F-011] `aiConfig.diet` n'a pas la garde de type que `cuisines` possède
+
+- **Origine** : découverte du LOT 027 (agent Explore), 2026-08-02.
+- **Gravité** : basse — conditionnel, exige une donnée déjà corrompue (cloud ou fichier).
+- **Où** : `src/state.js:284` force `cuisines` en tableau (`if (!Array.isArray(...)) = []`) ;
+  **aucune ligne équivalente pour `diet`** — vérifié sur pièce le 2026-08-02.
+- **Le défaut** : un `diet` corrompu en chaîne (sauvegarde bricolée, document cloud abîmé)
+  traverse tout le circuit sans être rejeté et plante au `.join(', ')` de
+  `src/services/gemini.js:209` — la génération d'idées afficherait une erreur technique.
+- **Piste** : aligner `diet` (et les autres champs tableau de `aiConfig`) sur la garde de
+  `cuisines`, avec un test par champ.
+- ⚠️ **Pare-feu A/B** : durcissement défensif, pas un portage — hors périmètre du LOT 027
+  (qui ne touche aucun JS de production), à faire valider comme changement dédié.
+
 ---
 
 # Findings traités / écartés
