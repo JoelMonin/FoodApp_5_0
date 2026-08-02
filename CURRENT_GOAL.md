@@ -9,8 +9,9 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif : AUCUN — la Version 5.16 est en ligne (2026-08-02)
 
-**LOT 028 publié en V5.16 le 2026-08-02** (feu vert direct de Joel : « publie », sans essai
-préalable — même procédé qu'aux LOTS 019 et 027, tracé dans la fiche §7).
+**LOT 028 publié en V5.16 le 2026-08-02** (feu vert de Joel : « publie »), **puis confirmé par
+son essai réel : « ça marche »**. La fonctionnalité est validée à l'usage, pas seulement par
+les tests.
 Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [CLOTURE].md`.
 Niveau d'audit **relevé de Standard à Dur par Codex lui-même** (zone sensible
 `src/services/gemini.js` + valeurs traversant des frontières externes persistées).
@@ -40,8 +41,8 @@ tenait compte. Branché dans ce lot (décision 3).
 | Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle** |
 | Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
 | Vérification visuelle | ✅ 2026-08-02 (app lancée en local) |
-| Essai réel de Joel | ⏳ **seul point restant** |
-| Publication | ⏳ |
+| Essai réel de Joel | ✅ 2026-08-02 — **essayé et concluant** |
+| Publication | ✅ **V5.16 le 2026-08-02** |
 
 **PREMIER AUDIT LANCÉ PAR CLAUDE LUI-MÊME** (2026-08-02) : le pont `scripts/audit_bridge.py`,
 arrivé du projet jumeau le jour même, supprime le copier-coller manuel de Joel dans la boucle

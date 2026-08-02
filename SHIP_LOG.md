@@ -37,8 +37,9 @@
       leur ai donné une exposition sans leur donner la garde de type que le champ NEUF
       portait déjà (une donnée corrompue plantait la génération). Trace versionnée dans
       `audits/bridge/lot28-envie-du-moment/`
-    - Publié **sans essai préalable de Joel** (feu vert direct « publie »), comme aux
-      LOTS 019 et 027 — tracé fiche §7
+    - Feu vert de publication donné sans attendre l'essai (« publie »), mais **Joel avait en
+      fait essayé et confirme : « ça marche »**. La fonctionnalité est donc validée à l'usage,
+      et non seulement par les tests — contrairement aux LOTS 019 et 027
     - Métriques : types OK + **952/952 Vitest** + **216/216 Pytest** (16 verrous + 200 du
       pont d'audit), build OK · **13 mutations rouges nommées, 0 nulle**
 - [x] [VERSION 5.15 - OnLine] 02/08/2026 : Publication des lots 025 à 027
