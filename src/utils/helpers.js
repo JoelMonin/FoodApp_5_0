@@ -1,3 +1,5 @@
+import { MAX_ENVIE_CHARS } from '../constants.js';
+
 /**
  * Date au format français — SSOT (LOT 014, volet D). `toLocaleDateString('fr-FR')` était
  * écrit à 4 endroits : 3 chemins d'enregistrement de favori et l'en-tête des textes copiés.
@@ -228,23 +230,42 @@ export function creativityLevel(creativity) {
 }
 
 /**
+ * SSOT DE LA MISE EN FORME D'UNE CONSIGNE LIBRE ENVOYÉE À L'IA (LOT 028).
+ *
+ * Trois règles, en un seul endroit, pour les DEUX champs libres branchés par ce lot :
+ *  1. ce qui n'est pas du texte ne compte pas — une donnée corrompue venue du cloud ou d'une
+ *     sauvegarde (`{nom:'Riz'}`) ne doit jamais atteindre `.trim()`. Finding **F1** de l'audit
+ *     Codex du 2026-08-02 : `exceptions` avait bien ce défaut, parce que ce lot l'a branché
+ *     au prompt sans lui donner la garde que `envie` avait déjà ;
+ *  2. les espaces seuls n'expriment aucune consigne — ils déclencheraient pourtant le bloc
+ *     prioritaire du prompt ;
+ *  3. **la longueur est bornée ICI, pas dans `index.html`.** Le `maxlength` de la page ne
+ *     protège que le clavier ; le cloud et la restauration de fichier ne connaissent aucune
+ *     borne (finding **F2**).
+ *
+ * @param {unknown} valeur - Ce que l'état contient, sans hypothèse de type.
+ * @param {number} maxCaracteres - Borne dure, depuis `src/constants.js`.
+ * @returns {string} La consigne exploitable, ou '' s'il n'y en a pas.
+ */
+export function consigneLibre(valeur, maxCaracteres) {
+  if (typeof valeur !== 'string') return '';
+  return valeur.trim().slice(0, maxCaracteres);
+}
+
+/**
  * SSOT de la CONSIGNE LIBRE « Envie du moment » (LOT 028).
  *
  * Deux lecteurs très éloignés décident sur cette valeur : le message envoyé à l'IA
  * (`src/services/gemini.js`) et le rappel affiché sous le bouton Générer
- * (`src/ui/aiPanel.js`). Ils doivent répondre la MÊME chose à « y a-t-il une consigne ? »,
- * sans quoi l'écran annoncerait une exigence que l'IA ne reçoit pas — exactement le
- * mensonge d'interface que ce lot est venu réparer sur « Exceptions autorisées ».
+ * (`src/ui/aiPanel.js`). Ils doivent répondre la MÊME chose à « y a-t-il une consigne, et
+ * laquelle ? », sans quoi l'écran annoncerait une exigence que l'IA ne reçoit pas — exactement
+ * le mensonge d'interface que ce lot est venu réparer sur « Exceptions autorisées ».
  *
- * Une saisie faite d'espaces ne compte pas : elle n'exprime aucune envie, et elle
- * déclencherait pourtant le bloc prioritaire du prompt.
- *
- * @param {{envie?: string}} [aiConfig]
- * @returns {string} La consigne nettoyée, ou '' s'il n'y en a pas.
+ * @param {{envie?: unknown}} [aiConfig]
+ * @returns {string}
  */
 export function envieActive(aiConfig) {
-  const brut = aiConfig?.envie;
-  return typeof brut === 'string' ? brut.trim() : '';
+  return consigneLibre(aiConfig?.envie, MAX_ENVIE_CHARS);
 }
 
 export function debounce(fn, delay = 200) {

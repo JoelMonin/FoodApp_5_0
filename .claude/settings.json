@@ -1,0 +1,53 @@
+{
+  "_commentaire": "Regles d'autorisation par FAMILLE de commandes (2026-08-02). Avant ce fichier, chaque autorisation etait enregistree comme une commande EXACTE : la moindre variante redemandait l'accord de Joel, des dizaines de fois par lot. Les gestes qui touchent la PRODUCTION restent volontairement sous son controle explicite (verrou production, CLAUDE.md §2).",
+  "permissions": {
+    "allow": [
+      "PowerShell(git status:*)",
+      "PowerShell(git log:*)",
+      "PowerShell(git diff:*)",
+      "PowerShell(git show:*)",
+      "PowerShell(git branch:*)",
+      "PowerShell(git add:*)",
+      "PowerShell(git commit:*)",
+      "PowerShell(git mv:*)",
+      "PowerShell(git rm:*)",
+      "PowerShell(git stash:*)",
+      "PowerShell(git checkout -b:*)",
+      "PowerShell(git rev-parse:*)",
+      "PowerShell(git merge-base:*)",
+      "PowerShell(npm run:*)",
+      "PowerShell(npx vitest:*)",
+      "PowerShell(npx tsc:*)",
+      "PowerShell(python:*)",
+      "PowerShell(node:*)",
+      "PowerShell(codex --version)",
+      "PowerShell(.\\validate.bat)",
+      "PowerShell(Get-ChildItem:*)",
+      "PowerShell(Test-Path:*)",
+      "PowerShell(Get-Command:*)",
+      "PowerShell(Get-Item:*)",
+      "PowerShell(Remove-Item:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run:*)",
+      "Bash(npx vitest:*)",
+      "Bash(python:*)",
+      "Bash(node:*)"
+    ],
+    "ask": [
+      "PowerShell(git push:*)",
+      "PowerShell(git merge:*)",
+      "PowerShell(git checkout main)",
+      "PowerShell(git reset:*)",
+      "PowerShell(git rebase:*)",
+      "PowerShell(git clean:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git reset:*)"
+    ]
+  }
+}

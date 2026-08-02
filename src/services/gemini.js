@@ -1,7 +1,7 @@
-import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
+import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE, MAX_EXCEPTIONS_CHARS } from '../constants.js';
 import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
-import { creativityLevel, envieActive } from '../utils/helpers.js';
+import { creativityLevel, envieActive, consigneLibre } from '../utils/helpers.js';
 
 /**
  * SSOT DES CONSIGNES COMMUNES AUX DEUX PROMPTS (LOT 026, chantier E).
@@ -263,7 +263,13 @@ export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredien
   //
   // Sous-ligne de la contrainte 6, car une exception ne se comprend que par rapport au régime
   // qu'elle assouplit. Le libellé « 6. RÉGIMES & EXCLUSIONS : … » lui-même n'est pas touché.
-  const exceptionsStr = (aiConfig.exceptions || '').trim();
+  // GARDE DE TYPE + BORNE (findings F1/F2, audit Codex du 2026-08-02). La version d'origine
+  // de ce lot faisait `(aiConfig.exceptions || '').trim()` : une valeur non textuelle venue
+  // d'un cloud ou d'une sauvegarde corrompue (`{nom:'Riz'}`) plantait sur `.trim`, et Joel
+  // voyait « Erreur IA » sans aucune recette. C'est MOI qui ai créé cette exposition en
+  // branchant ce champ au prompt — il n'était jamais lu auparavant. Même SSOT que la consigne
+  // « Envie du moment », qui portait déjà cette garde.
+  const exceptionsStr = consigneLibre(aiConfig.exceptions, MAX_EXCEPTIONS_CHARS);
   const exceptionsPrompt = exceptionsStr
     ? `\n   ✅ EXCEPTIONS AUTORISÉES malgré les régimes ci-dessus : ${exceptionsStr}.`
     : '';

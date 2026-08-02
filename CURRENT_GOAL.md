@@ -33,13 +33,21 @@ tenait compte. Branché dans ce lot (décision 3).
 | Branche + fiche + suivi | ✅ 2026-08-02 |
 | Phase découverte | ✅ 2026-08-02 — 14 ressources, 12 gaps |
 | Spécification | ✅ 2026-08-02 (fiche §6) |
-| Implémentation + tests | ✅ 2026-08-02 — 14 tests neufs + 1 test de synchro |
-| Preuve par retrait | ✅ 2026-08-02 — **9 mutations / 9 rouges nommées, 0 nulle** |
-| Validation unifiée | ✅ 2026-08-02 — **types OK · 948/948 Vitest · 16/16 Pytest · build OK** |
+| Implémentation + tests | ✅ 2026-08-02 — 17 tests neufs + 1 test de synchro |
+| **Audit du diff final** | ✅ 2026-08-02 — **Codex 5.6 Sol : GO AVEC RÉSERVES**, 4 findings, **4 confirmés sur pièce, 4 corrigés** |
+| Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle** |
+| Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
 | Vérification visuelle | ✅ 2026-08-02 (app lancée en local) |
-| Audit du diff final | 🔄 agent adversarial local |
-| Essai réel de Joel | ⏳ |
+| Essai réel de Joel | ⏳ **seul point restant** |
 | Publication | ⏳ |
+
+**PREMIER AUDIT LANCÉ PAR CLAUDE LUI-MÊME** (2026-08-02) : le pont `scripts/audit_bridge.py`,
+arrivé du projet jumeau le jour même, supprime le copier-coller manuel de Joel dans la boucle
+d'audit. Codex a relevé le niveau de Standard à **Dur** de sa propre initiative. **Le meilleur
+finding est un défaut que j'avais créé** : en branchant « Exceptions autorisées » au message
+envoyé à l'IA, je lui ai donné une exposition qu'il n'avait pas — une valeur non textuelle
+venue d'une sauvegarde corrompue plantait la génération. J'avais protégé le champ NEUF et
+oublié le champ que je venais de rendre vivant.
 
 ## Version en ligne : V5.15 (2026-08-02)
 

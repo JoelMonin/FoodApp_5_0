@@ -321,10 +321,18 @@ describe('Moteur de synchro — LOT 007', () => {
 
     // LOT 028 — LE MÊME ACQUIS, POUR LE CHAMP NEUF. Le test FV-3 ci-dessus est écrit EN DUR
     // sur `ai-exclusions` : il resterait vert si « Envie du moment » était oublié de
-    // `AI_FORM_FIELD_IDS` (`src/services/sync.js`), et une consigne à peine tapée serait
-    // écrasée par le retour d'un pull. Un verrou écrit champ par champ ne protège que les
-    // champs qu'il nomme — il en faut donc un par champ, ou aucun ne vaut.
-    it('LOT 028 : la consigne « Envie du moment » en cours de frappe survit à un pull', async () => {
+    // `AI_FORM_FIELD_IDS` (`src/services/sync.js`). Un verrou écrit champ par champ ne protège
+    // que les champs qu'il nomme — il en faut donc un par champ, ou aucun ne vaut.
+    //
+    // ⚠️ CE QUE CE TEST PROUVE EXACTEMENT (rectifié après le finding F3 de l'audit Codex du
+    // 2026-08-02, qui avait raison) : il écrit dans le champ SANS déclencher `input`, donc
+    // sans passer par `saveAiConfigFromUI`. Ce n'est PAS une frappe ordinaire de Joel — une
+    // vraie frappe écrit aussi dans l'état, et l'empreinte du DOCUMENT suffirait alors à
+    // écarter la photo cloud. Ce test couvre donc le FILET SECONDAIRE : une valeur posée dans
+    // le champ sans que l'état ait suivi (remplissage automatique du navigateur, collage
+    // intercepté, écriture programmatique). Ce filet est le seul qui protège ce cas-là.
+    it('LOT 028 : une valeur posée dans le champ « Envie du moment » sans passer par l\'état '
+       + 'survit à un pull (filet DOM, second rideau de l\'empreinte du document)', async () => {
       document.body.insertAdjacentHTML('beforeend', `
         <div class="ai-settings">
           <input id="api-key-input" value="">
@@ -350,7 +358,8 @@ describe('Moteur de synchro — LOT 007', () => {
       const enVol = performSyncPull({ manual: false });
       await vi.advanceTimersByTimeAsync(0);
 
-      // Joel tape son envie pendant que la requête est en vol.
+      // Valeur posée dans le champ pendant que la requête est en vol, SANS événement `input`
+      // (cf. l'avertissement ci-dessus : l'état n'a donc pas suivi).
       document.getElementById('ai-envie').value = 'chili con carne';
 
       resoudreGet();

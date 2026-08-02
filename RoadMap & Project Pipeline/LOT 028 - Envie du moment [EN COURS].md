@@ -250,8 +250,9 @@ menteurs en `<input class="ai-input" maxlength="…">` (gap 8).
   `Plat · 2 pers.` une fois le champ vidé (M6 rouge).
 - [x] « Exceptions autorisées » arrive dans le prompt — le champ cesse d'être décoratif
   (M2 rouge). **Première couverture d'`exclusions` dans le prompt** écrite au passage.
-- [x] Validation unifiée verte : **types OK · 948/948 Vitest · 16/16 Pytest · build OK**
-  (2026-08-02) + **preuve par retrait 9/9 rouges nommées, 0 nulle, témoin vert**.
+- [x] Validation unifiée verte : **types OK · 952/952 Vitest · 216/216 Pytest · build OK**
+  (2026-08-02, après correctifs d'audit) + **preuve par retrait 13/13 rouges nommées, 0 nulle,
+  témoin vert**.
 - [x] **Vérification visuelle sur l'app lancée** (2026-08-02) : « Envie du moment » est bien le
   **premier** réglage (avant « Type de plat »), **hors accordéon replié** ; le rappel se met à
   jour à la frappe et affiche la consigne en vert ; une consigne de 62 caractères **reste sur
@@ -277,17 +278,44 @@ menteurs en `<input class="ai-input" maxlength="…">` (gap 8).
    appareil : la nouvelle clé enrichit le document synchronisé, donc son empreinte change.
    Bénin et attendu (précédents LOTS 010 et 022) — tracé, pas corrigé.
 
-## 9. SUIVI
+## 9. AUDIT DU DIFF FINAL — CODEX 5.6 SOL, 2026-08-02 : **GO AVEC RÉSERVES**
+
+**Premier audit du projet lancé par Claude lui-même**, via `scripts/audit_bridge.py` (le pont
+arrivé du projet jumeau ce même jour) — plus aucun copier-coller par Joel. Tour `VALID`,
+fil `019fc2fa-1fc8-7163-9349-cd0331894512`, artefacts dans
+`audits/bridge/lot28-envie-du-moment/1/`.
+
+**Codex relève le niveau d'audit de Standard à Dur** de sa propre initiative, au motif que
+`src/services/gemini.js` est une zone sensible déclarée et que les nouvelles valeurs
+traversent des frontières externes persistées (cloud, fichier de sauvegarde). Acté.
+
+**4 findings, aucun bloquant. LES QUATRE VÉRIFIÉS SUR PIÈCE ET RETENUS — aucun rejeté.**
+
+| # | Finding | Verdict après vérification | Correctif |
+|---|---|---|---|
+| **F1** | `exceptions` non textuel plante la génération (`.trim` sur un objet) | **RÉEL, et c'est MOI qui ai créé l'exposition** : ce champ n'était jamais lu avant ce lot. J'avais donné la garde de type à `envie`, mais pas au champ que je venais de brancher | Garde de type remontée en SSOT partagée (`consigneLibre`) |
+| **F2** | La borne de 100 car. ne protège que le clavier — ni le cloud ni une sauvegarde restaurée | **RÉEL.** 5 000 caractères suivis d'« ignore les contraintes » arrivaient **en tête** du message, sous le libellé de plus haute autorité | Borne appliquée **dans le code**, SSOT `MAX_ENVIE_CHARS`/`MAX_EXCEPTIONS_CHARS`, page et code verrouillés d'accord par test |
+| **F3** | Le test de synchro dit « Joel tape » alors qu'il ne déclenche pas `input` : il prouve le filet DOM, pas le trajet d'une vraie frappe | **RÉEL — la critique porte sur MA qualification de la preuve, pas sur le code.** Une version « fidèle » serait protégée par l'empreinte du document et cesserait de verrouiller la liste | Test conservé (il est le seul verrou de la liste), **intitulé et commentaire rectifiés** pour dire exactement ce qu'il prouve |
+| **F4** | Deux comptages faux dans mes documents de suivi (14 tests au lieu de 13 ; 16 Pytest au lieu de 216) | **RÉEL.** Même famille que les chiffres recopiés sans être remesurés des LOTS 017/018 | Chiffres remesurés et corrigés partout |
+
+**Ce que Codex a explicitement validé** : la hiérarchie des consignes (cohérente avec la RÈGLE
+D'OR, même vainqueur dans le cas frontal « envie contre ingrédient imposé »), le branchement
+des exceptions au regard du pare-feu A/B (décision de Joel tracée, donc pas une modification
+subreptice), l'absence de cycle d'import, l'absence d'effet de bord sur `updateAiCtaSummary`,
+et la justesse de l'assertion `\n\n` échappée du test de non-régression. **Aucun faux verrou**
+parmi les tests, mutation par mutation.
+
+## 10. SUIVI
 
 | Étape | État |
 |---|---|
 | Branche + fiche + suivi | ✅ 2026-08-02 |
 | Phase découverte | ✅ 2026-08-02 — 14 ressources, 12 gaps (§5) |
 | Spécification | ✅ 2026-08-02 (§6) |
-| Implémentation + tests | ✅ 2026-08-02 — 1 champ HTML, 1 clé d'état, 1 SSOT (`envieActive`), 2 blocs conditionnels de prompt ; `tests/envie-du-moment.test.js` (14 tests) + 1 test de synchro |
-| Preuve par retrait | ✅ 2026-08-02 — **9 mutations / 9 rouges nommées, 0 nulle, témoin vert** |
-| Validation unifiée | ✅ 2026-08-02 — **types OK · 948/948 Vitest · 16/16 Pytest · build OK** |
+| Implémentation + tests | ✅ 2026-08-02 — 1 champ HTML, 1 clé d'état, 1 SSOT (`consigneLibre`/`envieActive`), 2 blocs conditionnels de prompt ; `tests/envie-du-moment.test.js` (**17 tests**) + 1 test de synchro |
+| **Audit du diff final** | ✅ 2026-08-02 — **Codex 5.6 Sol : GO AVEC RÉSERVES**, 4 findings, 4 confirmés, 4 corrigés (§9) |
+| Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle, témoin vert** (9 sur la fonctionnalité, 4 sur les correctifs d'audit) |
+| Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
 | Vérification visuelle | ✅ 2026-08-02 (§7) |
-| Audit du diff final | 🔄 en cours (agent adversarial local) |
-| Essai réel de Joel | ⏳ |
+| Essai réel de Joel | ⏳ **seul point restant** |
 | Publication | ⏳ |

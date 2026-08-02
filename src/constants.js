@@ -26,6 +26,18 @@ export const MESSAGE_CLE_API_MANQUANTE = 'Clé API Gemini requise';
 export const MAX_PINNED_INGREDIENTS = 6;
 export const MAX_EXTRA_INGREDIENTS = 6;
 
+// SSOT DES BORNES DES CONSIGNES LIBRES ENVOYÉES À L'IA (LOT 028, findings F1/F2 de l'audit
+// Codex du 2026-08-02).
+//
+// Le `maxlength` d'`index.html` ne protège QUE le clavier. Ces mêmes valeurs arrivent aussi
+// par le cloud et par une sauvegarde restaurée, qui ne connaissent aucune borne : une consigne
+// de 5 000 caractères y passerait, serait affichée en entier ET envoyée en tête du message à
+// l'IA, sous le libellé « demande expresse » — donc avec l'autorité la plus haute du prompt.
+// La borne applicative ci-dessous est le vrai garde-fou ; `maxlength` n'est que le confort de
+// saisie. Un test vérifie que les deux disent le même nombre.
+export const MAX_ENVIE_CHARS = 100;
+export const MAX_EXCEPTIONS_CHARS = 80;
+
 // SSOT du PÉRIMÈTRE DU FICHIER DE SAUVEGARDE (LOT 015, chantier 10a).
 // L'export sérialisait `state` en ENTIER : partaient donc dans le fichier la vue courante,
 // la recherche, les filtres et les suggestions IA. Restaurer une sauvegarde faite pendant
