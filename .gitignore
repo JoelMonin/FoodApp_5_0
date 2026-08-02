@@ -6,5 +6,13 @@ dist/
 .DS_Store
 audits/bridge/*.json
 
+# Pont d'audit (LOT 028) : on VERSIONNE la trace lisible d'un audit — le brief envoye, le
+# rapport rendu, le manifeste et la session — parce que c'est la memoire du projet et qu'elle
+# doit survivre a la machine. On ignore en revanche les flux BRUTS : `EVENTS.jsonl` pese a lui
+# seul un demi-megaoctet par tour, et `STDERR.txt` ne sert qu'a diagnostiquer un tour rate sur
+# le moment. Le manifeste conserve leurs empreintes : la trace reste verifiable sans le poids.
+audits/bridge/**/EVENTS.jsonl
+audits/bridge/**/STDERR.txt
+
 # Sauvegarde cloud faite par l'auditeur pendant les audits Dur - jamais a versionner
 cloud-backup*.json
