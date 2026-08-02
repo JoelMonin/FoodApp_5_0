@@ -275,3 +275,46 @@ recette de la page », et l'essentiel du grief du §6.
 2. **Les durées sont au format ISO** (`PT2H15M`), à traduire en « 2 h 15 ».
 3. **Il faut un repli** : une page sans fiche structurée doit retomber sur le nettoyeur
    actuel. Les deux chemins cohabitent, le nouveau ne remplace rien.
+
+## 9. ÉTAT DE L'ART — CE QUE FONT LES AUTRES (recherche du 2026-08-02)
+
+Question de Joel : « ton nettoyeur est-il au top ? on n'est pas les premiers ? ». Recherche
+faite (moi sur `recipe-scrapers`, puis un second LLM sur mandat écrit).
+
+**VERDICT SUR LE NETTOYEUR MAISON : ce n'est pas seulement qu'il est faible (§7) — ce n'est
+pas l'approche du domaine.** La bibliothèque de référence
+([hhursev/recipe-scrapers](https://github.com/hhursev/recipe-scrapers), **649 sites**) ne
+nettoie JAMAIS du texte à l'heuristique : elle lit la donnée structurée, puis applique des
+pilotes sur mesure par site. Notre §8 réinventait l'état de l'art en tâtonnant.
+
+**CE QUE LA RECHERCHE A FAIT ÉCONOMISER.** La référence lit la fiche sous TROIS formats
+(JSON-LD, Microdata, RDFa) là où nous n'en testions qu'un. Les 3 sites en échec ont donc été
+revérifiés sous les deux autres, **plus OpenGraph** : `itemtype=schema.org/Recipe` absent
+partout, RDFa absent partout, 0 attribut `itemprop` utile. **Gain nul → deux lecteurs de plus
+à NE PAS écrire.** Le score reste 9/12.
+
+**⚠️ CONTRADICTION INTERNE DU RAPPORT REÇU, À NE PAS AVALER TELLE QUELLE.** Sa conclusion
+recommande `@mozilla/readability` pour les 3 pages sans fiche — mais sa propre réponse n°3
+établit que **Mealie et Tandoor REFUSENT l'import dans ce cas** et renvoient l'utilisateur à
+une saisie manuelle, « car le taux d'échec ruinerait l'expérience utilisateur ». Les deux ne
+peuvent pas être vrais dans le même contexte.
+
+**Arbitrage retenu, et pourquoi il diffère d'eux** : Mealie doit produire une recette
+STRUCTURÉE directement depuis le texte — d'où son refus. Nous, non : notre texte part à une
+IA qui fait la structuration. **Un texte imparfait nous reste exploitable, pas à eux.** Le
+nettoyeur maison garde donc sa place en dernier recours — mais comme filet déclaré tel, pas
+comme solution.
+
+**DÉCISION SUR READABILITY : NON, mesure à l'appui.** 25 Ko compressés, pour une application
+dont tout le JavaScript pèse **31,58 Ko compressés** : l'ajouter **doublerait presque le
+téléchargement** de l'app, pour améliorer 25 % des imports que la saisie manuelle couvre déjà.
+Le rapport coût/bénéfice ne passe pas sur une app de cuisine utilisée au téléphone.
+
+**CE QUI EST REPRIS DU DOMAINE (volet D)** — les 4 pièges de normalisation documentés, dont
+**2 déjà rencontrés sur pièce chez nous** :
+| Piège | Vu chez nous ? |
+|---|---|
+| `recipeInstructions` imbriquées en `HowToSection` → aplatissement RÉCURSIF | pas encore |
+| Entités HTML non décodées (`&#039;`, `&frac12;`) | ✅ **750g** |
+| Lignes parasites dans `recipeIngredient` | ✅ **750g** (un ingrédient nommé « Ingrédients: ») |
+| `recipeYield` jamais un entier propre (`"4 personnes"`, `["2","2 personnes"]`, `"4"`) | ✅ **4 formes différentes sur 5 sites** |
