@@ -4,6 +4,9 @@ import { generateId, formatDateFr } from '../utils/helpers.js';
 import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { transformRecipeFromText } from '../services/gemini.js';
 import { isValidRecipe } from '../utils/validate.js';
+import { nettoyerPageWeb, extraireTitrePage } from '../utils/webClean.js';
+import { lireFicheRecette, ficheEnTexteSource } from '../utils/recipeSchema.js';
+import { recetteEnTexte } from '../utils/recipeText.js';
 import { openModal, closeModal } from './modals.js';
 import { openEnhancedCartPicker } from './cartPicker.js';
 import { updateBadges } from './topbar.js';
@@ -158,6 +161,12 @@ export async function fetchRecipeFromUrl() {
 
     // Delai d'expiration : sans lui, un service tiers bloque laisserait le bouton
     // en "Lecture..." indefiniment (durcissement post-audit, LOT 011 §10-D).
+    //
+    // LOT 025, volet D — BUDGET GLOBAL, décision D2 de Joel du 2026-08-02. Un SEUL
+    // `AbortController` et un SEUL minuteur couvrent les DEUX lectures possibles : ce qui
+    // est borné, c'est l'attente de Joel, pas le nombre d'appels. Un délai « par lecture »
+    // l'aurait porté à 20 s sur les pages sans fiche — contradiction relevée par l'audit
+    // de spec (finding 2), qui notait aussi que le verrou de 10 s n'avance qu'une fois.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -165,16 +174,50 @@ export async function fetchRecipeFromUrl() {
         // Jina Reader (l.5944-5974 de l'oracle) : contourne le CORS et extrait le texte
         // principal. Arbitrage Joel (LOT 011 §9 Q2) : AUCUN repli sur un autre service —
         // remplace l'ancien allorigins, ne le garde pas en secours.
-        const res = await fetch(`https://r.jina.ai/${url}`, { signal: controller.signal });
-        if (!res.ok) throw new Error('Impossible de lire la page');
-        const text = await res.text();
+        //
+        // LOT 025, volet D — PREMIÈRE lecture en HTML, pour y chercher la fiche que le site
+        // publie déjà pour les machines. Même service, autre format de sortie : le lecteur
+        // reste unique, l'arbitrage Q2 tient.
+        const resHtml = await fetch(`https://r.jina.ai/${url}`, {
+            headers: { 'x-return-format': 'html' },
+            signal: controller.signal
+        });
+        if (!resHtml.ok) throw new Error('Impossible de lire la page');
+        const html = await resHtml.text();
+        if (!html || !html.trim()) throw new Error('Page vide');
+
+        // DÉCISION D1 DE JOEL : un échec de lecture reste un échec SEC. Les deux gardes
+        // ci-dessus partent donc dans le `catch`, sans seconde tentative — « un seul chemin,
+        // un seul point de défaillance » (LOT 011 §9 Q2, relu sur pièce à l'audit de spec).
+        // La lecture en texte qui suit n'est PAS un repli après panne : c'est la suite
+        // normale d'une lecture RÉUSSIE qui n'a pas livré de fiche.
+        const fiche = lireFicheRecette(html);
+        if (fiche) {
+            document.getElementById('paste-content').value = ficheEnTexteSource(fiche);
+            document.getElementById('paste-title').value = fiche.name;
+            toast('✅ Fiche officielle du site trouvée.');
+            return;
+        }
+
+        const resTexte = await fetch(`https://r.jina.ai/${url}`, { signal: controller.signal });
+        if (!resTexte.ok) throw new Error('Impossible de lire la page');
+        const text = await resTexte.text();
         if (!text || !text.trim()) throw new Error('Page vide');
 
-        document.getElementById('paste-content').value = text;
-        const mainTitle = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+        // LOT 025, volet B — la page partait ENTIÈRE à l'IA : bandeau cookies, menus,
+        // commentaires, pied de page. Le nettoyage est fait ICI, avant l'écriture dans le
+        // champ, pour que Joel voie exactement ce qui sera envoyé et puisse le corriger.
+        // La garde « page vide » ci-dessus porte toujours sur le texte REÇU, pas sur le
+        // texte nettoyé : c'est la lecture qui a échoué, pas le nettoyage (leçon LOT 015 —
+        // un garde-fou se pose sur la source, jamais sur le résultat).
+        document.getElementById('paste-content').value = nettoyerPageWeb(text);
+        const mainTitle = extraireTitrePage(text);
         if (mainTitle) document.getElementById('paste-title').value = mainTitle;
 
-        toast('Page lue ! Cliquez sur Transformer avec l\'IA.');
+        // Message HONNÊTE : Joel doit savoir laquelle des deux lectures a servi, pour
+        // relire ce texte-là avant de le transformer — ou coller sa recette à la main
+        // sans attendre un mauvais résultat.
+        toast('⚠️ Pas de fiche officielle — texte brut récupéré, relisez-le avant de transformer.');
     } catch (e) {
         toast('Erreur de lecture. Vérifiez l\'URL ou copiez le texte manuellement.', 'error');
     } finally {
@@ -213,7 +256,12 @@ export async function transformRecipeAI() {
         // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche
         // un aperçu — après transformation, c'est la recette structurée qui sera
         // sauvegardée, plus le texte brut, qui n'a donc plus de raison d'être modifiable.
-        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + (recipe.description || '');
+        // LOT 025, volet A — l'aperçu ne montrait QUE `recipe.description`. La recette
+        // complète existait pourtant déjà dans `_lastTransformedRecipe` : on demandait à Joel
+        // de sauvegarder ce qu'il ne pouvait pas voir. Il voit désormais ce qui sera gardé —
+        // ingrédients, quantités et étapes comprises — et peut le comparer au site d'origine
+        // AVANT de sauvegarder. Le verrouillage du champ, lui, ne bouge pas (acquis LOT 011).
+        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + recetteEnTexte(recipe);
         document.getElementById('paste-content').disabled = true;
         document.getElementById('paste-ai-btn').style.display = 'none';
         document.getElementById('paste-save-btn').textContent = 'Sauvegarder en favoris';

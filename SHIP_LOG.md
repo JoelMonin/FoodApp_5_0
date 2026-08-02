@@ -1,14 +1,37 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.14.0
-- **Dernière mise à jour** : 01/08/2026
-- **Statut** : Version 5.14 publiée (LOTS 021-024) — un vérificateur de types rejoint la
-  validation, la fiche de réglages IA ne peut plus arriver à moitié vide, la jauge de
-  créativité ne ment plus, nettoyage de dette. Joel : « la meilleure version jusqu'à
-  aujourd'hui, vraiment utilisable dans la vraie vie. »
+- **Version actuelle** : 5.15.0
+- **Dernière mise à jour** : 02/08/2026
+- **Statut** : Version 5.15 publiée (LOTS 025-027) — l'import de recette lit la fiche
+  officielle que les sites publient pour les machines, l'aperçu montre la recette entière,
+  les prompts de génération sont soignés (catégories fournies, anti-répétition 60 min,
+  qualité d'étapes partagée, SSOT), et l'option Keto rejoint les régimes.
 
 ## Historique des modifications
+- [x] [VERSION 5.15 - OnLine] 02/08/2026 : Publication des lots 025 à 027
+    - **LOT 025 — Amélioration IA** : né d'un constat de Joel (recette Marmiton « perdue »
+      après transformation — elle existait, l'écran ne montrait que la phrase d'accroche).
+      L'aperçu montre désormais la recette ENTIÈRE ; et surtout **l'import lit la fiche
+      officielle `schema.org/Recipe`** que les sites publient pour les machines (10 sites
+      sur 13 mesurés, dont 6 jamais vus, choisis à l'aveugle) — pour la blanquette témoin :
+      1 257 caractères envoyés à l'IA au lieu de 290 414. Sans fiche : repli sur le nettoyeur
+      avec message honnête, puis collage manuel. + P2 : l'IA ne mange plus les apostrophes.
+      2 audits Codex (spec : 6 findings traités · diff final : **GO**)
+    - **LOT 026 — Prompts de génération** : 5 chantiers décidés par Joel après audit des
+      prompts — la liste des catégories enfin DONNÉE à l'IA, bouton 🎲 supprimé (décision
+      produit : du théâtre), anti-répétition sur 60 min en série (mémoire de session
+      uniquement), même exigence de qualité d'étapes dans les deux prompts (autosuffisantes :
+      durées, températures, repères concrets), SSOT des consignes communes. + correctif
+      post-essai réel : plafond de sortie doublé (16384), erreurs en français affichées 6 s.
+      Audit final Codex : **GO** (2 findings contre-vérifiés par mutation puis corrigés)
+    - **LOT 027 — Option Keto** : 6ᵉ puce diététique. 1 ligne d'HTML, ZÉRO JS de production
+      (toute la chaîne était générique), 6 tests neufs dont la PREMIÈRE couverture de la
+      ligne « RÉGIMES & EXCLUSIONS » du prompt. Publié sans essai préalable par décision
+      de Joel (feu vert direct, tracé fiche §5-6)
+    - Refusé par Joel, à ne pas re-proposer : muscler la phrase « TRÈS CRÉATIF »
+    - Métriques : types OK + 934/934 Vitest + 16/16 Pytest verts, build OK ·
+      33 mutations rouges cumulées sur les 3 lots (18+12+3), 0 nulle
 - [x] [GOUVERNANCE - non publié] 02/08/2026 : Nettoyage du backlog et registre des dettes
     - **Aucun code applicatif touché** — uniquement des documents de suivi. La construction
       produit des fichiers identiques ; rien ne change à l'écran

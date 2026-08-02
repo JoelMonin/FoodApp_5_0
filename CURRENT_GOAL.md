@@ -7,9 +7,123 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif
+## Lot actif : AUCUN — la Version 5.15 est en ligne (2026-08-02)
 
-**Aucun.** Le backlog a été nettoyé le **2026-08-02** (hors lot, documents uniquement) : les
+**Les LOTS 025 + 026 + 027 sont publiés en V5.15 le 2026-08-02** (feu vert explicite de
+Joel : « ok, publie tout en V5.15 »). Trois branches chaînées (`lot25` ← `lot26` ← `lot27`),
+une seule fusion `--no-ff` dans `main`. Le commit de gouvernance du matin (nettoyage du
+backlog + registre des dettes, sciemment retenu) est parti dans le même envoi.
+**Métriques finales : types OK · 934/934 Vitest · 16/16 Pytest · build OK · 33 mutations
+rouges cumulées (18+12+3), 0 nulle.**
+
+Ce que la page en ligne gagne : l'import de recette lit la **fiche officielle
+`schema.org/Recipe`** des sites (repli honnête sinon), l'aperçu montre la recette **entière**,
+les prompts de génération sont soignés (catégories fournies, anti-répétition 60 min, étapes
+autosuffisantes, SSOT), le bouton 🎲 est retiré (décision produit), et la puce **Keto**
+rejoint les régimes.
+
+## Lot tout juste publié — LOT 027 (V5.15)
+
+**LOT 027 — Option Keto**, ouvert, terminé et publié le **2026-08-02** sur
+`feat/lot27-option-keto`. Fiche :
+`RoadMap & Project Pipeline/LOT 027 - Option Keto [CLOTURE].md`.
+Une 6ᵉ puce « Keto » : **1 ligne d'HTML, zéro JS de production** (la chaîne clic → état →
+cloud → restauration → prompt était entièrement générique), 6 tests neufs dont la première
+couverture de la ligne « RÉGIMES & EXCLUSIONS » du prompt, 3 mutations/3 rouges. Publié sans
+essai préalable par décision de Joel (tracé fiche §5-6, même procédé que le LOT 019).
+Point parqué au registre technique : **F-011** (`diet` sans garde de type, contrairement à
+`cuisines`).
+
+## Lot précédent — LOT 026, publié en V5.15
+
+**LOT 026 — Prompts de génération**, ouvert et terminé le **2026-08-02** sur
+`feat/lot26-prompts-generation` (chaînée sur la branche du 025). **Audit final Codex : GO**
+(2 findings, contre-vérifiés par mutation puis corrigés — dont un majeur : mes tests SSOT
+prouvaient le message, pas le code ; verrou de SOURCE ajouté). 928/928 Vitest ·
+12 mutations/12 rouges.
+Fiche : `RoadMap & Project Pipeline/LOT 026 - Prompts de generation [CLOTURE].md`.
+5 chantiers décidés par Joel après un audit des prompts : catégories injectées, **suppression
+du bouton 🎲** (décision produit, confirmée par question fermée), anti-répétition sur 60 min
+(mémoire de session uniquement), règles de qualité des étapes partagées, SSOT des consignes
+communes. + correctif post-essai réel de Joel : plafond de sortie doublé (16384), message
+d'erreur en français, erreurs affichées 6 s. **Refusé par Joel, à ne
+pas re-proposer** : muscler la phrase « TRÈS CRÉATIF » (« je n'ai pas envie de disqualifier
+les associations classiques »).
+
+## Lot précédent — LOT 025, publié en V5.15
+
+**LOT 025 — Amélioration IA**, ouvert et terminé le **2026-08-02** sur
+`feat/lot25-amelioration-ia`. **Audit final Codex : GO** (1 finding mineur, contre-vérifié
+puis corrigé). 914/914 Vitest · 18 mutations/18 rouges.
+Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [CLOTURE].md`.
+
+**Né d'un constat de Joel** : après import d'une recette Marmiton et transformation IA, il
+croyait que l'application avait perdu sa recette. **Diagnostic : la transformation avait
+réussi** — la recette structurée existait en entier en mémoire, mais l'écran n'affichait que
+la phrase d'accroche. **On lui demandait de sauvegarder ce qu'il ne pouvait pas voir.**
+
+| Volet | Résultat |
+|---|---|
+| **0** | Angle mort comblé : **aucun test ne prouvait que le texte collé arrivait dans le message envoyé à l'IA** — on pouvait le supprimer entièrement sans faire rougir un test. Bouché AVANT de toucher au reste |
+| **A** | L'aperçu montre la recette COMPLÈTE : ingrédients, quantités, étapes numérotées (`src/utils/recipeText.js`) |
+| **B** | La page importée est nettoyée avant l'envoi à l'IA (`src/utils/webClean.js`) — **−90 % mesuré sur la vraie page Marmiton**, 25 075 → 2 551 caractères — et le titre ne porte plus le préfixe `Title:` |
+| **C** | Rapport de fidélité IA ↔ site. **Analyse seule, aucun prompt modifié** : 3 correctifs rédigés, en attente de décision de Joel (pare-feu A/B) |
+
+**Validation : 879/879 Vitest · 16/16 Pytest · types OK · build OK · preuve par retrait 7/7,
+0 nulle.**
+
+**⚠️ AUTO-CORRECTION DU 2026-08-02 — MON RAPPORT DE FIDÉLITÉ (volet C) ÉTAIT FAUX SUR DEUX
+POINTS SUR TROIS.** Joel a contesté, capture à l'appui ; vérification faite sur les données
+structurées des sites ; **il a raison**. (1) Marmiton porte bien ses quantités — la blanquette
+en donne treize ; sa capture affichait `½ kg` parce que la page était réglée sur 2 personnes,
+le site recalcule. Seule la page **aubergines** n'en porte pas, et c'est une propriété de
+cette recette-là, pas du site. (2) Mes deux griefs sur la blanquette (« viande dorée », «
+champignons trop tôt ») sont **démentis par le texte source** : l'IA avait transcrit
+fidèlement. **J'ai opposé mon opinion culinaire au texte source sans l'avoir lu** — même leçon
+qu'aux LOTS 019 et 024. Détail : fiche du lot §6.1 bis et §6.2. **Seul défaut confirmé : les
+apostrophes manquantes (P2).** P3 perd sa justification, P1 se réduit à un cas étroit.
+
+**⚠️ LE NETTOYEUR EST SUR-AJUSTÉ À MARMITON** (mesuré sur 4 sites, fiche §7) : −90 % sur
+Marmiton, mais −65 % sur Marie Claire (plafond déclenché), −43 % sur Journal des Femmes et
+**−15 % sur un blog**. Cause unique : la coupe de tête exige un titre de niveau 1, que seul
+Marmiton possède. **Jamais destructeur** (garde-fou jamais déclenché, aucune recette amputée),
+mais faible hors Marmiton.
+
+**➡️ VOLET D PROPOSÉ, NON OUVERT — la fiche recette structurée.** Les 5 sites testés publient
+déjà leur recette en données structurées (schema.org `Recipe`), et le lecteur de page sait
+rendre le HTML brut pour y accéder. Sur la blanquette : 13 ingrédients avec quantités, 7
+étapes au mot près, **1 088 caractères contre 25 000 (−96 %)**, et **plus rien à deviner pour
+l'IA**. Résout d'un coup le sur-ajustement ET l'essentiel du grief du volet C. Trois pièges
+déjà repérés (formes divergentes selon les sites, durées ISO, repli obligatoire) — fiche §8.
+
+**➡️ VOLET D LIVRÉ le 2026-08-02** — `src/utils/recipeSchema.js`. L'application lit désormais
+la fiche que le site publie déjà pour les machines. **Épreuve du réel : 10 fiches officielles
+lues sur 13 sites.** Pour la blanquette de Joel, l'IA reçoit les 13 ingrédients avec quantités
+et les 7 étapes au mot près — **1 257 caractères au lieu de 290 414**. Les 3 sites sans fiche
+retombent sur le nettoyeur, avec un message honnête à l'écran.
+
+**AUDIT DE SPEC CODEX (2026-08-02, AVANT la première ligne de code) : GO AVEC RÉSERVES,
+6 findings, tous contre-vérifiés sur pièce — 4 confirmés, 1 partiel, 1 plausible, 0 rejeté.**
+Deux ont été tranchés par Joel (D1 : un échec de lecture reste un échec sec, l'arbitrage
+LOT 011 §9 Q2 tient ; D2 : budget de 10 s GLOBAL, pas par lecture). Le meilleur finding a
+évité un piège invisible : réutiliser l'afficheur d'aperçu comme sérialiseur d'entrée IA
+aurait fait qu'un jour, **changer la présentation à l'écran aurait changé le message envoyé
+à l'IA sans que rien ne le signale**. Deux fonctions désormais séparées, frontière verrouillée
+par des tests. **Une modification de test existant était inévitable : elle est DÉCLARÉE**
+(fiche §10.1 bis), pas silencieuse.
+
+**Validation du lot : 912/912 Vitest · 16/16 Pytest · types OK · build OK · preuve par
+retrait 16/16, 0 nulle.**
+
+**Les trois attentes de l'époque sont soldées** : (1) audit du diff final Codex → **GO** ;
+(2) P2 (apostrophes) → appliqué, puis renforcé au LOT 026 (SSOT `REGLE_GUILLEMETS`) ;
+(3) feu vert de publication → donné le 2026-08-02, parti en V5.15. Reste ouvert hors lot :
+P1 version étroite (sources sans quantités), jamais tranché — au backlog des idées, pas une
+dette.
+
+---
+
+Le backlog a été nettoyé le **2026-08-02** (hors lot, documents uniquement) : les
 4 fiches re-vérifiées dans le code, 2 fermées, et création du registre des dettes techniques
 `audits/BACKLOG_TECHNIQUE.md` — qui était réclamé par le démarrage de session depuis sa
 création sans avoir jamais existé. **5 dettes actives** y sont tracées, la plus risquée étant

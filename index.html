@@ -156,7 +156,7 @@
     <nav id="sidebar">
       <div class="sb-logo">
         <div class="sb-logo-name">🥘 FoodApp</div>
-        <div class="sb-logo-sub">Version 5.14</div>
+        <div class="sb-logo-sub">Version 5.15</div>
       </div>
       <div class="sb-section-label" id="sb-label-principal">Principal</div>
       <div class="sb-item active" data-view="pantry" onclick="switchView('pantry')">
@@ -212,7 +212,7 @@
         <div class="mh-top">
           <div>
             <div class="mh-logo">🥘 FoodApp</div>
-            <div class="mh-sub" id="mh-subtitle">Version 5.14</div>
+            <div class="mh-sub" id="mh-subtitle">Version 5.15</div>
           </div>
           <div class="mh-icons">
             <div id="sync-indicator-mobile" class="sync-indicator" onclick="pullFromFirebase()"
@@ -377,6 +377,7 @@
                         </div>
                         <div class="chip" data-val="vegetarien" onclick="toggleAiChip('diet',this)">Végétarien</div>
                         <div class="chip" data-val="vegan" onclick="toggleAiChip('diet',this)">Vegan</div>
+                        <div class="chip" data-val="keto" onclick="toggleAiChip('diet',this)">Keto</div>
                       </div>
                     </div>
 
@@ -466,9 +467,6 @@
                 <div class="ai-empty-hero-title">Trouvez l'inspiration</div>
                 <div class="ai-empty-hero-desc">Sélectionnez vos ingrédients dans l'inventaire puis lancez la magie de
                   l'IA pour obtenir des idées de repas.</div>
-                <button class="magic-btn" id="magic-btn" onclick="generateRandomWithStock()">
-                  🎲 Générer une idée avec mon stock
-                </button>
               </div>
               <div id="ai-results-list" class="hidden"></div>
             </div>

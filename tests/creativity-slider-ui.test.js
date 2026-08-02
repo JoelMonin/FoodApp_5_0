@@ -60,9 +60,11 @@ describe('LOT 023 — le libellé actif du curseur de créativité', () => {
         expect(document.getElementById('creativity-slider').value).toBe('100');
     });
 
-    // Le cas du bouton 🎲 et des anciennes sauvegardes : une valeur qui n'est PAS un des
-    // 3 arrêts doit quand même retomber proprement sur l'un d'eux, jamais entre deux.
-    it('une valeur intermédiaire héritée (ex. 87, tirage 🎲) affiche le cran le plus proche', () => {
+    // Le cas des anciennes sauvegardes (dont les tirages 80-100 de l'ex-bouton 🎲, supprimé
+    // au LOT 026 — ses valeurs, elles, persistent dans les données) : une valeur qui n'est
+    // PAS un des 3 arrêts doit quand même retomber proprement sur l'un d'eux, jamais entre
+    // deux. Ce comportement SURVIT au retrait du bouton, et c'est voulu.
+    it('une valeur intermédiaire héritée (ex. 87, ancienne sauvegarde) affiche le cran le plus proche', () => {
         state.aiConfig = { ...defaultAiConfig(), creativity: 87 };
 
         restoreAIConfig();
