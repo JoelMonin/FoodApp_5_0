@@ -48,8 +48,11 @@ export function toast(msg, type = '') {
   const t = h('div', { class: `toast ${type}` }, msg);
   container.appendChild(t);
   setTimeout(() => t.classList.add('show'), 10);
+  // LOT 026 — une ERREUR reste affichée 6 s au lieu de 3 : constat de Joel en essai réel
+  // (« j'ai pas compris et le message a disparu vite »). Un message d'échec doit laisser
+  // le temps d'être lu ; les confirmations, elles, gardent leur rythme.
   setTimeout(() => {
     t.classList.remove('show');
     setTimeout(() => t.remove(), 300);
-  }, 3000);
+  }, type === 'error' ? 6000 : 3000);
 }

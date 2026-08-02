@@ -264,7 +264,12 @@ Format JSON uniquement:
   const model = aiConfig.models?.recipeGeneration || AI_ROLES.REASONING;
 
   const rawText = await callAI(prompt, apiKey, model, {
-    maxTokens: 8192,
+    // 8192 → 16384 (LOT 026, correctif post-essai réel de Joel) : le chantier D allonge
+    // nettement les étapes de CINQ recettes, et ce plafond est PARTAGÉ avec les jetons de
+    // réflexion (`thinkingLevel: 'high'`). Resté à 8192, il coupait la réponse en plein
+    // vol — panne constatée en vrai, JSON tronqué au milieu d'un « en poudre », sauvetage
+    // impuissant car la coupe tombait dans la PREMIÈRE recette. Le plafond suit l'exigence.
+    maxTokens: 16384,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,
@@ -305,7 +310,11 @@ Format JSON uniquement:
       }
     }
     if (results.length > 0) return results;
-    throw e;
+    // LOT 026, correctif post-essai réel : `throw e` faisait remonter jusqu'au toast le
+    // message technique anglais du parseur (« Unexpected token 'e', …"en poudre"… is not
+    // valid JSON ») — illisible pour Joel, et disparu avant d'être compris. L'erreur dit
+    // désormais en français ce qui s'est passé et quoi faire.
+    throw new Error('Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent.');
   }
 }
 
@@ -357,7 +366,10 @@ Instructions :
 {"name":"titre","description":"phrase d'accroche","time":"X min","difficulty":"Facile|Moyen|Expert","people":2,"cuisine":"française","ingredients":[{"n":"nom","q":"[QUANTITÉ+UNITÉ]","e":"emoji","c":"catégorie officielle","s":"stock|pinned|missing"}],"steps":["étape détaillée..."]}`;
 
   const rawText = await callAI(prompt, apiKey, model, {
-    maxTokens: 8192,
+    // 8192 → 16384 (LOT 026) : même raison que `generateRecipes` — le chantier D allonge
+    // les étapes et le plafond est partagé avec la réflexion. Une seule recette ici, mais
+    // la coupe en plein vol produirait le même échec, en pire : rien à sauver.
+    maxTokens: 16384,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,

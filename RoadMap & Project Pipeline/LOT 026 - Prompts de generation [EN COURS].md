@@ -117,3 +117,32 @@ FAIT vs ce qu'il ANNONCE » pour laquelle il a été installé. Contrat complét
 **Comptes** : 914 → 922 tests (−8 avec le 🎲, +16 neufs). Le retrait du 🎲 emporte aussi la
 2ᵉ entrée de la garde anti-générations concurrentes — la garde elle-même RESTE (double-clic
 sur « Générer »).
+
+## 6. CORRECTIF POST-ESSAI RÉEL (2026-08-02) — RÉGRESSION DU CHANTIER D, TROUVÉE PAR JOEL
+
+**Symptôme** : première génération d'essai de Joel en échec, avec un message incompréhensible
+(« invalid "e" … "en poudre" ») disparu avant d'être lu.
+
+**Diagnostic sur pièce — la chaîne complète, trois maillons** :
+1. Le chantier D exige des étapes bien plus détaillées → la réponse de l'IA s'allonge. **Le
+   plafond de sortie (8 192 jetons, PARTAGÉ avec les jetons de réflexion `thinkingLevel:
+   'high'`) n'a pas suivi** → réponse coupée en plein vol, au milieu d'un « en poudre »,
+   dans la PREMIÈRE recette — donc sauvetage impuissant (`results.length === 0`).
+2. Le `throw e` du sauvetage faisait remonter jusqu'au toast **le message technique anglais
+   du parseur** (« Unexpected token 'e', … is not valid JSON »).
+3. Les toasts d'erreur disparaissaient en 3 secondes.
+
+**Correctifs, chacun prouvé par mutation (F1-F4, 4/4 rouges, témoin vert)** :
+| # | Correctif | Preuve |
+|---|---|---|
+| 1 | Plafond 8192 → **16384** dans les DEUX appels (générer + transformer) — le plafond suit l'exigence | F1, F2 |
+| 2 | Échec irrécupérable → erreur en FRANÇAIS : « Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent. » | F3 |
+| 3 | Un toast d'ERREUR reste **6 s** (les confirmations gardent 3 s) — changement d'interface global, en réponse directe au constat de Joel | F4 |
+
+**Leçon (la même que « un chiffre se remesure ») : une exigence de prompt qui allonge la
+réponse doit faire re-vérifier le plafond de sortie.** Les tests de contenu du prompt étaient
+tous verts — aucun ne pouvait voir qu'une VRAIE réponse ne tiendrait plus dans le budget.
+C'est l'essai réel qui l'a vu, à la première génération.
+
+**Validation après correctif : 927/927 Vitest · 16/16 Pytest · types OK · build OK.**
+**Preuve par retrait cumulée du lot : 11 mutations, 11 rouges, 0 nulle.**

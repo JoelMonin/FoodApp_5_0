@@ -249,6 +249,31 @@ describe('Gemini Service', () => {
       expect(body).toContain('AUTOSUFFISANTE');
       expect(body).toContain('rien deviner');
     });
+
+    // CORRECTIF POST-ESSAI RÉEL (Joel, 2026-08-02) : avec le chantier D, la réponse coupait
+    // au milieu du JSON (« Unexpected token 'e', …"en poudre"… ») — le plafond de sortie,
+    // PARTAGÉ avec les jetons de réflexion, était resté à 8192 pendant que l'exigence
+    // d'étapes détaillées allongeait 5 recettes. Le plafond suit désormais l'exigence.
+    it('correctif — le plafond de sortie suit l\'allongement des étapes (16384)', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.generationConfig.maxOutputTokens).toBe(16384);
+    });
+
+    it('correctif — une réponse tronquée IRRÉCUPÉRABLE lève une erreur en FRANÇAIS, plus le ' +
+       'message technique anglais du parseur', async () => {
+      // Coupée au milieu de la PREMIÈRE recette : le sauvetage ne trouve aucun objet complet.
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '[{"name":"Tarte","ingredients":[{"n":"Sucre en pou' }] } }]
+        })
+      });
+
+      await expect(generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []))
+        .rejects.toThrow('Réponse incomplète ou illisible');
+    });
   });
 
   // Suite des protections re-blindées (LOT 011) — describe rouvert après l'insertion du
@@ -582,6 +607,13 @@ describe('Gemini Service', () => {
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe('high');
+    });
+
+    it('correctif LOT 026 — le plafond de sortie suit aussi l\'allongement des étapes (16384)', async () => {
+      await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.generationConfig.maxOutputTokens).toBe(16384);
     });
 
     // LOT 014 — cette fonction portait la BONNE méthode (essayer de lire la réponse telle
