@@ -134,6 +134,27 @@ un finding — elle reste dans
 - ⚠️ **Pare-feu A/B** : durcissement défensif, pas un portage — hors périmètre du LOT 027
   (qui ne touche aucun JS de production), à faire valider comme changement dédié.
 
+### [F-012] `aiConfig.exclusions` est le dernier champ libre sans garde ni borne
+
+- **Origine** : audit Codex 5.6 Sol du LOT 028, 2026-08-02 (finding F2, partie hors périmètre).
+- **Gravité** : basse — pas de plantage possible, contrairement à F-011.
+- **Où** : `src/services/gemini.js`, ligne « 6. RÉGIMES & EXCLUSIONS », interpolation
+  `${aiConfig.exclusions || 'rien'}` — **vérifié sur pièce le 2026-08-02**.
+- **Le défaut** : les trois champs libres envoyés à l'IA sont désormais traités
+  DIFFÉREMMENT. `envie` et `exceptions` passent par `consigneLibre` (garde de type + borne
+  dure, LOT 028) ; `exclusions` est interpolé brut. Une valeur non textuelle ne plante pas
+  (l'interpolation rend `[object Object]`) mais part telle quelle dans le message ; une valeur
+  démesurée venue du cloud ou d'une sauvegarde restaurée n'est bornée par rien — le
+  `maxlength="80"` de la page ne protège que le clavier.
+- **Pourquoi ce n'est pas traité** : l'exposition d'`exclusions` est **antérieure au LOT 028**
+  (ce champ était déjà lu par le prompt), donc la corriger sortait du périmètre. Codex l'a
+  explicitement classée « pas une nouvelle classe de vulnérabilité ».
+- **Piste** : appliquer `consigneLibre(aiConfig.exclusions, MAX_EXCLUSIONS_CHARS)` — la SSOT
+  et le patron existent déjà, c'est une ligne. À grouper avec **F-011** (même famille : gardes
+  de type manquantes sur `aiConfig`) en un seul petit lot.
+- ⚠️ **Pare-feu A/B** : modifie un comportement existant sur données abîmées — décision de
+  Joel requise, comme pour F-011.
+
 ---
 
 # Findings traités / écartés
