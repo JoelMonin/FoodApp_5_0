@@ -1,14 +1,46 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.15.0
+- **Version actuelle** : 5.16.0
 - **Dernière mise à jour** : 02/08/2026
-- **Statut** : Version 5.15 publiée (LOTS 025-027) — l'import de recette lit la fiche
-  officielle que les sites publient pour les machines, l'aperçu montre la recette entière,
-  les prompts de génération sont soignés (catégories fournies, anti-répétition 60 min,
-  qualité d'étapes partagée, SSOT), et l'option Keto rejoint les régimes.
+- **Statut** : Version 5.16 publiée (LOT 028) — un champ libre « Envie du moment » ouvre les
+  réglages IA : écrire « chili con carne » et les 5 propositions seront des chili con carne.
+  Le rappel sous le bouton Générer montre la consigne active. Le champ « Exceptions
+  autorisées », décoratif depuis l'origine du projet, parle enfin à l'IA.
 
 ## Historique des modifications
+- [x] [VERSION 5.16 - OnLine] 02/08/2026 : Publication du lot 028
+    - **LOT 028 — Envie du moment** : demande de Joel le jour même de la V5.15 — « pouvoir
+      imposer un type de plat ou une contrainte particulière à la génération, via un champ
+      d'entrée libre », précisée ainsi : « je veux dire "chili con carne" et n'avoir QUE des
+      chili con carne ». C'est donc une EXIGENCE, pas une inspiration : les 5 recettes sont
+      5 variantes de la demande, jamais 5 plats différents dont un seul correspondrait.
+      La consigne gagne sur les puces (type de plat, cuisine) ; les ingrédients imposés
+      restent au-dessus de tout, règle d'or inchangée. Décisions prises par questions
+      fermées : champ en tête des réglages, priorité à la consigne libre, branchement des
+      exceptions
+    - **DÉFAUT DORMANT DEPUIS LE PREMIER JOUR, trouvé par la découverte** : le champ
+      « Exceptions autorisées » était saisi, enregistré, synchronisé au cloud, sauvegardé et
+      restauré — mais lu par **AUCUN des 6 prompts du dépôt**, ni même par l'oracle
+      (`foodapp-v5-Joel.html:5207-5228`, vérifié). Joel s'en était déjà servi (« Riz », export
+      du 2026-07-29) en croyant que l'IA en tenait compte. Branché sur sa décision
+    - **NON-RÉGRESSION PROUVÉE PAR EXÉCUTION, pas par relecture** : les versions `main` et
+      branche chargées CÔTE À CÔTE dans un même test, appelées sur les mêmes entrées →
+      égalité stricte des deux messages sans consigne, différence confirmée avec. Deux
+      mutations inverses prouvent qu'un bloc neuf ne peut pas s'inviter en silence dans les
+      générations de tout le monde
+    - **PREMIER AUDIT LANCÉ PAR CLAUDE LUI-MÊME** via le pont `scripts/audit_bridge.py`
+      (arrivé du projet jumeau le jour même) — fin du copier-coller manuel de Joel dans la
+      boucle d'audit. **Codex 5.6 Sol : GO AVEC RÉSERVES**, niveau relevé de Standard à Dur
+      de sa propre initiative. **4 findings, 4 confirmés sur pièce, 4 corrigés** — le
+      meilleur étant un défaut que j'avais créé : en branchant les exceptions au prompt, je
+      leur ai donné une exposition sans leur donner la garde de type que le champ NEUF
+      portait déjà (une donnée corrompue plantait la génération). Trace versionnée dans
+      `audits/bridge/lot28-envie-du-moment/`
+    - Publié **sans essai préalable de Joel** (feu vert direct « publie »), comme aux
+      LOTS 019 et 027 — tracé fiche §7
+    - Métriques : types OK + **952/952 Vitest** + **216/216 Pytest** (16 verrous + 200 du
+      pont d'audit), build OK · **13 mutations rouges nommées, 0 nulle**
 - [x] [VERSION 5.15 - OnLine] 02/08/2026 : Publication des lots 025 à 027
     - **LOT 025 — Amélioration IA** : né d'un constat de Joel (recette Marmiton « perdue »
       après transformation — elle existait, l'écran ne montrait que la phrase d'accroche).

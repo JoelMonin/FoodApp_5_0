@@ -7,11 +7,13 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : LOT 028 — Envie du moment (ouvert le 2026-08-02)
+## Lot actif : AUCUN — la Version 5.16 est en ligne (2026-08-02)
 
-**Branche `feat/lot28-envie-du-moment`** (depuis `main`, V5.15). Niveau d'audit : **Standard**
-(le lot touche le prompt de génération — `src/services/gemini.js` est zone sensible).
-Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [EN COURS].md`.
+**LOT 028 publié en V5.16 le 2026-08-02** (feu vert direct de Joel : « publie », sans essai
+préalable — même procédé qu'aux LOTS 019 et 027, tracé dans la fiche §7).
+Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [CLOTURE].md`.
+Niveau d'audit **relevé de Standard à Dur par Codex lui-même** (zone sensible
+`src/services/gemini.js` + valeurs traversant des frontières externes persistées).
 
 **Demande de Joel** : « pouvoir imposer un type de plat ou une contrainte particulière à la
 génération, via un champ d'entrée libre ». Trois décisions prises par question fermée le

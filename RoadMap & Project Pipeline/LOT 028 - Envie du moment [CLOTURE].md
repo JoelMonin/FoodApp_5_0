@@ -1,4 +1,4 @@
-# LOT 028 — Envie du moment `[EN COURS]`
+# LOT 028 — Envie du moment `[CLOTURE]` — publié en V5.16 le 2026-08-02
 
 **Ouvert le 2026-08-02** · Branche `feat/lot28-envie-du-moment` (depuis `main`, V5.15) ·
 Niveau d'audit : **Standard** (audit de spec court + audit du diff final) — le lot touche
@@ -257,7 +257,11 @@ menteurs en `<input class="ai-input" maxlength="…">` (gap 8).
   **premier** réglage (avant « Type de plat »), **hors accordéon replié** ; le rappel se met à
   jour à la frappe et affiche la consigne en vert ; une consigne de 62 caractères **reste sur
   une seule ligne** (14 px) grâce à la troncature posée sur le `span` seul.
-- [ ] **Essai réel de Joel** avant publication (une génération avec « chili con carne »).
+- [x] ~~**Essai réel de Joel** avant publication (une génération avec « chili con carne »)~~ —
+  **LEVÉ par décision de Joel le 2026-08-02** (« publie », feu vert direct après le rapport
+  d'audit, sans essai préalable — même procédé qu'aux LOTS 019 et 027). **Si une génération
+  avec une consigne libre surprend à l'usage, revenir à cette fiche en premier** : le
+  comportement attendu est décrit au §1 (5 variantes de la demande) et la hiérarchie au §6.5.
 
 ## 8. ÉCARTS DÉCLARÉS (rien de silencieux)
 
@@ -317,5 +321,5 @@ parmi les tests, mutation par mutation.
 | Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle, témoin vert** (9 sur la fonctionnalité, 4 sur les correctifs d'audit) |
 | Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
 | Vérification visuelle | ✅ 2026-08-02 (§7) |
-| Essai réel de Joel | ⏳ **seul point restant** |
-| Publication | ⏳ |
+| Essai réel de Joel | ➖ levé par sa décision du 2026-08-02 (feu vert de publication direct) |
+| Publication | ✅ **V5.16 le 2026-08-02** |
