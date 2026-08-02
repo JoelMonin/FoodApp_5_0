@@ -104,8 +104,38 @@ d'accroche existants `resetPasteModal`/`setPasteSaveButtonsEnabled`.
 | C — rapport de fidélité | ✅ | §6 ci-dessous — **analyse seule, aucun prompt modifié** |
 | D — fiche structurée | ✅ | `src/utils/recipeSchema.js` + `tests/recipe-schema.test.js` (24 tests) + 10 tests d'intégration · mutations **D1→D9** rouges · audit de spec Codex intégré (§10.1 bis) |
 
-**Validation finale du lot : 912/912 Vitest · 16/16 Pytest · types OK · build OK.**
-**Preuve par retrait cumulée : 16 mutations, 16 rouges, 0 nulle** (7 volets 0/A/B + 9 volet D).
+| P2 — apostrophes | ✅ | Correctif appliqué aux **DEUX** prompts de `gemini.js` + 2 tests · mutations **P2a/P2b** rouges |
+
+**Validation finale du lot : 914/914 Vitest · 16/16 Pytest · types OK · build OK.**
+**Preuve par retrait cumulée : 18 mutations, 18 rouges, 0 nulle** (7 volets 0/A/B + 9 volet D
++ 2 P2), chacune avec un test NOMMÉ, plus un témoin non muté resté vert.
+
+### P2 — APPLIQUÉ LE 2026-08-02, sur preuve visuelle de Joel
+
+**Déclencheur** : capture de l'écran de recette après import du tajine aux pruneaux. Le défaut
+touchait **jusqu'au titre** — « Tajine d agneau aux pruneaux » — et chacune des 5 étapes
+(« l oignon », « l huile d olive », « l eau », « d amandes dorées »).
+
+**Cause** : la consigne anti-guillemets-doubles, écrite pour protéger la lecture du JSON, était
+comprise par l'IA comme une interdiction du caractère `'` — qui est l'apostrophe en français.
+Vérifié une seconde fois : **aucun code du projet ne retire ces apostrophes**, la cause était
+bien dans le message envoyé.
+
+**Correctif** : la protection JSON est CONSERVÉE mot pour mot (son test reste vert sans
+retouche) ; on ajoute seulement l'exclusion explicite de l'apostrophe interne aux mots.
+
+**⚠️ APPLIQUÉ AUX DEUX PROMPTS, pas seulement à celui du défaut observé.** La même formulation
+était recopiée dans `generateRecipes` : ne corriger que le prompt de la recette collée aurait
+laissé l'écran « Recettes IA » manger ses apostrophes. **Un défaut se corrige là où sa cause
+est recopiée, pas seulement là où on l'a vu.** La mutation P2a le prouve — retirer la consigne
+du seul prompt de génération fait rougir un test que le second prompt ne couvre pas.
+
+**Incident d'outillage consigné** : la première tentative de preuve a conclu « mutation non
+détectée » sur les DEUX cas… parce que l'ancre de recherche, écrite en fins de ligne Unix, ne
+matchait pas un fichier en fins de ligne Windows. **La mutation ne s'était jamais appliquée.**
+C'est le faux négatif exact que le LOT 014 a appris à traquer, dans l'autre sens : un harnais
+peut aussi déclarer « verte » une mutation qui n'a pas eu lieu. Le harnais porte désormais une
+garde (« ancre trouvée 2 fois, sinon abandon ») et un **témoin non muté**.
 
 ### ÉPREUVE DU RÉEL DU VOLET D (13 sites, 2026-08-02)
 

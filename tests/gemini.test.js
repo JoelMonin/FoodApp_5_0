@@ -181,6 +181,22 @@ describe('Gemini Service', () => {
       expect(fetch.mock.calls[0][1].body).toContain('guillemets simples');
     });
 
+    // LOT 025, correctif P2 — DÉFAUT VU SUR PIÈCE par Joel le 2026-08-02, capture à l'appui :
+    // « Tajine d agneau aux pruneaux », « l oignon », « l huile d olive », « d amandes ».
+    // Le titre lui-même était amputé. La consigne anti-guillemets-doubles (rédigée pour
+    // protéger la lecture du JSON) était comprise par l'IA comme une interdiction du
+    // caractère `'` — or en français c'est l'apostrophe. La protection JSON est CONSERVÉE
+    // telle quelle (test ci-dessus), on ne fait qu'exclure explicitement l'apostrophe
+    // interne aux mots. Vérifié : aucun code du projet ne retire ces apostrophes, la cause
+    // était bien dans le message envoyé.
+    it('P2 — exige explicitement l\'apostrophe à l\'intérieur des mots', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      const body = fetch.mock.calls[0][1].body;
+      expect(body).toContain('apostrophe');
+      expect(body).toContain("l'eau");
+    });
+
     it('restaure le filtre de sécurité BLOCK_NONE sur les 4 catégories', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 
@@ -363,6 +379,18 @@ describe('Gemini Service', () => {
       await transformRecipeFromText('', 'Zébrez la chair des aubergines au couteau', [], 'MOCK_KEY');
 
       expect(fetch.mock.calls[0][1].body).toContain('Zébrez la chair des aubergines au couteau');
+    });
+
+    // LOT 025, correctif P2 — le MÊME défaut vivait dans les DEUX prompts, avec la même
+    // formulation. Ne corriger que celui-ci aurait laissé l'écran « Recettes IA » manger
+    // ses apostrophes : un défaut ne se corrige pas sur l'écran où on l'a vu, mais partout
+    // où sa cause est recopiée.
+    it('P2 — exige explicitement l\'apostrophe à l\'intérieur des mots', async () => {
+      await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+
+      const body = fetch.mock.calls[0][1].body;
+      expect(body).toContain('apostrophe');
+      expect(body).toContain("l'eau");
     });
 
     it('injecte l\'inventaire en stock dans le prompt', async () => {

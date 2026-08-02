@@ -206,6 +206,8 @@ ${imposedPrompt}
    Interdits : ingrédients "Aucun" ou "N/A".
 3. Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).
    Aucun guillemet double (") dans les valeurs de texte.
+   ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
+   « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».
 4. Tu NE DOIS retourner QUE du code JSON (encadré ou non par des balises \`\`\`json). AUCUN texte explicatif.
 
 Format JSON uniquement:
@@ -302,6 +304,8 @@ Instructions :
 3. CATÉGORIES : Utilise uniquement ${CATEGORIES.join(', ')}.
 4. GUILLEMETS : Utilise UNIQUEMENT des guillemets simples (') dans les textes. Aucun guillemet
    double (") dans les valeurs.
+   ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
+   « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».
 5. RÉPONSE : Réponds UNIQUEMENT avec l'objet JSON suivant, sans texte explicatif :
 {"name":"titre","description":"phrase d'accroche","time":"X min","difficulty":"Facile|Moyen|Expert","people":2,"cuisine":"française","ingredients":[{"n":"nom","q":"[QUANTITÉ+UNITÉ]","e":"emoji","c":"catégorie officielle","s":"stock|pinned|missing"}],"steps":["étape détaillée..."]}`;
 
