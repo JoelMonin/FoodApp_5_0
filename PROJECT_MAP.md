@@ -121,6 +121,7 @@
 - `tests/test_agents_md_freshness.py` : Verrou de fraîcheur Python pour `AGENTS.md`.
 - `tests/test_project_map_freshness.py` : Verrou de fraîcheur Python pour `PROJECT_MAP.md`.
 - `tests/test_version_ssot.py` : Verrou de cohérence du versionnage (SSOT `APP_VERSION`).
+- `tests/test_audit_bridge.py` : Tests RUNTIME du pont d'audit `scripts/audit_bridge.py` (200 cas). Ne teste QUE du comportement — porte de validité, verrou de session, snapshot git, liaison SSoT, quarantaine de secrets, archivage des défaillances — jamais la présence d'un littéral. Aucun appel réseau ni `codex` réel : le runner subprocess est injecté et git/CLI sont monkeypatchés, `BRIDGE_ROOT` redirigé vers `tmp_path`. Repris du Projet ETF ANALYZER le 2026-08-02 avec le wrapper.
 
 ---
 

@@ -1,4 +1,38 @@
 """Pont d'audit Claude <-> Codex (V1 sobre) — `scripts/audit_bridge.py`.
+
+But (chantier `feat/pont-audit-codex`, 2026-07-24) : supprimer le copier-coller
+manuel de Joel dans la boucle d'audit. Claude appelle Codex via `codex exec` en
+lecture seule, le wrapper capture la sortie BRUTE et écrit lui-même les artefacts
+de traçabilité. Joel garde SEUL le feu vert de merge.
+
+PORTÉE HONNÊTE : garde-fou ANTI-ACCIDENT (troncature / substitution involontaire
+de la réponse), PAS une preuve cryptographique contre un exécutant malveillant —
+Claude, le wrapper et les artefacts partagent le même compte Windows et le même
+dépôt. La preuve forte (stockage externe append-only / signature hors de portée
+de Claude) est un candidat V2 explicite, jamais un acquis.
+
+Architecture GO par Codex Sol (2026-07-24) puis 8 corrections de bootstrap
+(2026-07-24, tour 2). Invariants gravés :
+  - snapshot immuable base_sha (merge-base) -> target_sha, arbre propre HORS
+    `audits/bridge/` vérifié AVANT et APRÈS (les artefacts du pont ne salissent
+    pas le tour) ;
+  - VERROU exclusif AVANT toute lecture/écriture du registre de session ;
+  - session = SSoT : modèle/effort/dépôt/branche/hashes/version CLI liés ;
+    `new` seulement sans thread enregistré, `resume` seulement avec le thread exact ;
+  - porte de validité par PRÉSENCE POSITIVE (turn.completed, dernier agent_message
+    == RESPONSE, thread_id) — un échec n'est JAMAIS un GO implicite ; le modèle et
+    l'effort ne sont PAS émis par le CLI (prouvé end-to-end), ils font foi via argv ;
+  - toute tentative (échec, timeout, exception) est ARCHIVÉE avec un manifeste ;
+  - scan de secrets sur TOUS les artefacts bruts (prompt/réponse/JSONL/stderr) ;
+  - promotion ATOMIQUE d'un répertoire (un seul rename), anti-écrasement ;
+  - identité injectée depuis le modèle réel, jamais tapée librement par Claude.
+
+Ce module est du CODE D'INFRA en bootstrap MANUEL : son diff est audité à la main
+par Sol AVANT toute activation officielle du pont (il ne se certifie pas lui-même).
+
+Limites V1 assumées (documentées, non silencieuses) : la mise à mort de l'arbre de
+process enfant sur timeout Windows repose sur `subprocess` (pas de Job Object) ; et
+`--force-unlock` est un geste HUMAIN délibéré + journalisé, sans test de vie du PID.
 """
 from __future__ import annotations
 
@@ -14,8 +48,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BRIDGE_ROOT = ROOT / "audits" / "bridge"
-BRIDGE_REL = "audits/bridge/"
+BRIDGE_REL = "audits/bridge/"  # préfixe exclu des vérifs clean-tree
 
+# Mapping modèle réel -> identité (le wrapper génère l'identité depuis le modèle
+# DEMANDÉ ; Claude ne la tape jamais librement).
 MODEL_IDENTITY = {
     "gpt-5.6-sol": "Codex 5.6 Sol",
     "gpt-5.6-terra": "Codex 5.6 Terra",
@@ -23,11 +59,57 @@ MODEL_IDENTITY = {
 }
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
 
+# ── Détecteur de secrets ─────────────────────────────────────────────────────
+# PORTÉE DÉCLARÉE, à ne jamais survendre : c'est une heuristique par PRÉFIXE
+# CONNU, sur une liste de familles CHOISIES (ci-dessous). Elle ne verra jamais un
+# secret sans préfixe reconnaissable, ni une famille non listée. Chaque famille
+# ajoutée élargit aussi la surface de faux positifs — la liste est donc délibérée
+# et nommée, pas « tous les secrets ».
+#
+# Garde `_DEBUT_DE_MOT` : le préfixe ne compte que si le caractère qui le précède
+# n'est PAS alphanumérique. Motif de l'ajout — audit Lot 108 T1b tour 1, le
+# préfixe `sk-` a matché au milieu d'un identifiant opaque d'URL Gemini
+# (`…UkiP5sk-hIyimS9lq…`) stocké dans `ai_cache`. Coût réel d'un faux positif :
+# la quarantaine, donc un tour non versionné — et, jusqu'au correctif du même
+# jour, la perte du fil d'audit entier.
+#
+# `_` et `-` sont VOLONTAIREMENT hors de la garde, contrairement à un `\b` :
+# sinon `CLE_sk-…` deviendrait invisible (`_` est un caractère de mot pour `\b`).
+# PRIX ASSUMÉ, mesuré et testé : un identifiant d'URL contenant `_sk-` ou `-sk-`
+# déclenche encore une fausse quarantaine. Cette garde ferme l'incident RÉEL
+# rencontré, PAS toute la classe des collisions dans les identifiants URL-safe.
+_DEBUT_DE_MOT = r"(?<![A-Za-z0-9])"
+
+# Familles surveillées, une entrée par PRÉFIXE OFFICIEL documenté. Le trou fermé
+# le 2026-07-29 (finding Sol) était de ne connaître qu'un préfixe par famille :
+# `ghp_` seul ignorait `github_pat_` (jeton granulaire, le plus courant
+# aujourd'hui) et les jetons d'application ; et `sk-[A-Za-z0-9]` s'arrêtait au
+# premier tiret, donc ni `sk-proj-…` (OpenAI) ni `sk-ant-…` (Anthropic) — les
+# deux formats ACTUELS — n'étaient vus. Ce n'était pas la limite déclarée
+# ci-dessus : c'étaient des préfixes documentés, simplement absents.
 SECRET_PATTERNS = [
-    re.compile(r"sk-[A-Za-z0-9]{20,}"),
-    re.compile(r"AIza[0-9A-Za-z_\-]{30,}"),
-    re.compile(r"ghp_[A-Za-z0-9]{30,}"),
-    re.compile(r"xox[baprs]-[A-Za-z0-9\-]{10,}"),
+    # OpenAI / Anthropic. Le corps de la forme HISTORIQUE reste sans tiret :
+    # admettre `-` ici a été essayé et MESURÉ comme dangereux — l'URL d'un
+    # article de presse `…/4922846-sk-hynix-has-room-for-another-leg-up`
+    # (SK Hynix, fabricant de puces, sujet récurrent de l'actualité ETF présente
+    # dans `news_articles`) devenait une fausse fuite. Les formats modernes sont
+    # donc couverts par leur sous-préfixe NOMMÉ, jamais par un joker.
+    # Limite déclarée : un sous-préfixe éditeur inédit devra être ajouté ici.
+    re.compile(_DEBUT_DE_MOT + r"sk-(?:proj|ant|svcacct|admin)-[A-Za-z0-9_\-]{20,}"),
+    re.compile(_DEBUT_DE_MOT + r"sk-[A-Za-z0-9]{20,}"),
+    # Google (clés d'API Gemini / Maps…).
+    re.compile(_DEBUT_DE_MOT + r"AIza[0-9A-Za-z_\-]{30,}"),
+    # GitHub : `github_pat_` (granulaire) + les 5 préfixes courts documentés
+    # (`ghp_` PAT classique, `gho_` OAuth, `ghu_` user-to-server,
+    # `ghs_` server-to-server, `ghr_` refresh).
+    re.compile(_DEBUT_DE_MOT + r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(_DEBUT_DE_MOT + r"gh[pousr]_[A-Za-z0-9]{30,}"),
+    # Slack : `xox<lettre>-` (bot/user/app/refresh/…), `xapp-` (niveau
+    # application), `xwfp-` (workflow).
+    re.compile(_DEBUT_DE_MOT + r"xox[a-z]-[A-Za-z0-9\-]{10,}"),
+    re.compile(_DEBUT_DE_MOT + r"x(?:app|wfp)-[A-Za-z0-9\-]{10,}"),
+    # Pas de garde ici : ce motif COMMENCE par un tiret, une frontière de mot n'y
+    # aurait aucun sens (et il doit rester détecté même collé à un dump binaire).
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
 ]
 
@@ -36,6 +118,9 @@ class BridgeError(RuntimeError):
     """Erreur bloquante du pont : arrête proprement AVANT toute dépense de tokens."""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers purs (testables sans réseau ni subprocess)
+# ─────────────────────────────────────────────────────────────────────────────
 def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -45,14 +130,17 @@ def _sha256_file(path: Path) -> str:
 
 
 def sanitize_name(name: str) -> str:
+    """Neutralise le path traversal dans un nom de chantier / d'auditeur."""
     if not name or not re.fullmatch(r"[A-Za-z0-9._-]+", name) or name in {".", ".."}:
         raise BridgeError(
-            f"nom invalide {name!r} : seuls [A-Za-z0-9._-] sont autorisés."
+            f"nom invalide {name!r} : seuls [A-Za-z0-9._-] sont autorisés "
+            "(protection path traversal)."
         )
     return name
 
 
 def build_identity_line(model: str) -> str:
+    """Ligne d'identité injectée en tête de prompt, dérivée du modèle réel."""
     identity = MODEL_IDENTITY.get(model)
     if identity is None:
         raise BridgeError(
@@ -65,6 +153,12 @@ def build_identity_line(model: str) -> str:
 
 
 def clean_outside_bridge(porcelain: str) -> bool:
+    """True si aucun changement git HORS `audits/bridge/`.
+
+    Les artefacts que le pont écrit lui-même (SESSION.json, tours promus…) ne
+    doivent PAS compter comme un arbre sale — sinon chaque tour réel serait
+    invalidé (finding Sol #1). Seule une modif de code AUDITÉ salit le tour.
+    """
     for line in porcelain.splitlines():
         if not line.strip():
             continue
@@ -78,6 +172,7 @@ def clean_outside_bridge(porcelain: str) -> bool:
 
 
 def parse_events(events_text: str) -> dict:
+    """Analyse le flux JSONL de `codex exec --json`."""
     thread_id = None
     model = None
     has_completed = False
@@ -136,6 +231,7 @@ def parse_events(events_text: str) -> dict:
 
 
 def scan_secrets(*texts: str) -> list[str]:
+    """Retourne les motifs de secret trouvés (vide = propre)."""
     hits = []
     for text in texts:
         for pat in SECRET_PATTERNS:
@@ -145,6 +241,9 @@ def scan_secrets(*texts: str) -> list[str]:
 
 
 def next_turn_number(chantier_dir: Path) -> int:
+    """Prochain NN d'après les tours déjà promus (répertoires `NN/`), quarantaine
+    incluse. Doit être appelé SOUS LE VERROU. Un NN d'échec ne se réutilise jamais.
+    """
     if not chantier_dir.exists():
         return 1
     maxn = 0
@@ -159,6 +258,9 @@ def next_turn_number(chantier_dir: Path) -> int:
     return maxn + 1
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Git — snapshot immuable
+# ─────────────────────────────────────────────────────────────────────────────
 def _git(*args: str) -> str:
     return subprocess.check_output(
         ["git", "-C", str(ROOT), *args], text=True, encoding="utf-8"
@@ -166,6 +268,7 @@ def _git(*args: str) -> str:
 
 
 def git_snapshot() -> dict:
+    """Photo git : branche, HEAD, propreté de l'arbre HORS `audits/bridge/`."""
     porcelain = subprocess.check_output(
         ["git", "-C", str(ROOT), "status", "--porcelain"], text=True, encoding="utf-8"
     )
@@ -177,13 +280,20 @@ def git_snapshot() -> dict:
 
 
 def lot_base_sha(head: str) -> str:
-    try:
-        return _git("merge-base", "master", "HEAD")
-    except subprocess.CalledProcessError:
+    """Base réelle du lot = merge-base avec la branche par défaut. Repli : head.
+
+    ADAPTATION FoodApp : la branche par défaut de CE dépôt est `main` (elle est
+    donc essayée EN PREMIER ; `master` n'existe pas ici). Ne pas se tromper de
+    nom a un coût silencieux et grave : si aucun merge-base n'est trouvé, le
+    repli rend `head`, donc `base_sha == target_sha`, donc un diff VIDE — l'audit
+    part alors sur un périmètre nul sans rien signaler.
+    """
+    for defaut in ("main", "master"):
         try:
-            return _git("merge-base", "main", "HEAD")
+            return _git("merge-base", defaut, "HEAD")
         except subprocess.CalledProcessError:
-            return head
+            continue
+    return head
 
 
 def assert_feat_branch(branch: str) -> None:
@@ -195,15 +305,21 @@ def assert_feat_branch(branch: str) -> None:
 
 
 def cli_version() -> str:
-    try:
-        return subprocess.check_output(
-            ["codex", "--version"], text=True, encoding="utf-8"
-        ).strip()
-    except Exception:
-        return "unknown"
+    return subprocess.check_output(
+        ["codex", "--version"], text=True, encoding="utf-8"
+    ).strip()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Verrou exclusif par session (atomique, AVANT toute mutation du registre)
+# ─────────────────────────────────────────────────────────────────────────────
 def acquire_lock(chantier_dir: Path, thread_id: str | None, force_unlock: bool):
+    """Acquiert un verrou EXCLUSIF via O_CREAT|O_EXCL (atomique). Retourne (path, token).
+
+    Un second lancement concurrent échoue AVANT toute dépense de tokens. Un verrou
+    orphelin n'est JAMAIS supprimé en silence : `--force-unlock` (geste humain
+    délibéré) est requis, et la réclamation est journalisée dans RECLAIM.log.
+    """
     chantier_dir.mkdir(parents=True, exist_ok=True)
     lock_path = chantier_dir / ".lock"
     token = f"{os.getpid()}-{time.time_ns()}"
@@ -216,7 +332,10 @@ def acquire_lock(chantier_dir: Path, thread_id: str | None, force_unlock: bool):
         existing = _read_lock(lock_path)
         if not force_unlock:
             raise BridgeError(
-                f"verrou de session déjà présent : {existing}."
+                f"verrou de session déjà présent : {existing}. Un autre appel du "
+                "pont tourne, ou un verrou orphelin subsiste (crash). Aucune "
+                "réclamation silencieuse — relancer avec --force-unlock APRÈS avoir "
+                "vérifié qu'aucun `codex exec` n'est actif."
             )
         with (chantier_dir / "RECLAIM.log").open("a", encoding="utf-8") as log:
             log.write(
@@ -240,6 +359,8 @@ def _read_lock(lock_path: Path) -> str:
 
 
 def release_lock(lock_path: Path, token: str) -> None:
+    """Ne libère QUE si le verrou nous appartient (protège d'un verrou recréé par
+    un autre process après un force-unlock concurrent)."""
     try:
         content = json.loads(lock_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -251,6 +372,9 @@ def release_lock(lock_path: Path, token: str) -> None:
             pass
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Registre de session = SSoT (liaison complète — finding Sol #2)
+# ─────────────────────────────────────────────────────────────────────────────
 def session_binding_hashes() -> dict:
     out = {}
     for label, rel in (
@@ -275,6 +399,10 @@ def load_or_create_session(
     repo: str,
     branch: str,
 ) -> dict:
+    """Charge le registre SESSION.json ou le crée. Le registre est la SSoT :
+    modèle/effort/dépôt/branche/hashes/version CLI liés ; `new` seulement sans
+    thread enregistré, `resume` seulement avec le thread EXACT.
+    """
     chantier_dir.mkdir(parents=True, exist_ok=True)
     session_path = chantier_dir / "SESSION.json"
     binding = session_binding_hashes()
@@ -295,16 +423,18 @@ def load_or_create_session(
                 mismatches.append(f"{key} a changé depuis l'ouverture de session")
         if mismatches:
             raise BridgeError(
-                "liaison de session rompue : " + " ; ".join(mismatches)
+                "liaison de session rompue -> il faut une NOUVELLE session (jamais "
+                "resume) : " + " ; ".join(mismatches)
             )
         stored_thread = reg.get("thread_id")
         if mode == "new" and stored_thread:
             raise BridgeError(
-                "cette session a déjà un thread enregistré -> utiliser resume."
+                "cette session a déjà un thread enregistré -> utiliser resume, pas new "
+                "(le registre est la source de vérité)."
             )
         if mode == "resume":
             if not stored_thread:
-                raise BridgeError("resume impossible : aucun thread enregistré.")
+                raise BridgeError("resume impossible : aucun thread enregistré (faire un new d'abord).")
             if requested_thread != stored_thread:
                 raise BridgeError(
                     f"resume : thread demandé {requested_thread!r} != enregistré {stored_thread!r}."
@@ -312,7 +442,7 @@ def load_or_create_session(
         return reg
 
     if mode == "resume":
-        raise BridgeError("resume impossible : session inexistante.")
+        raise BridgeError("resume impossible : session inexistante (faire un new d'abord).")
     reg = {
         "chantier": chantier_dir.name,
         "model": model,
@@ -335,11 +465,14 @@ def save_session_thread(chantier_dir: Path, thread_id: str) -> None:
     session_path.write_text(json.dumps(reg, indent=2), encoding="utf-8")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Construction de la commande codex (prompt via stdin)
+# ─────────────────────────────────────────────────────────────────────────────
 def build_command(
     *, model: str, effort: str, mode: str, thread_id: str | None, response_path: Path
 ) -> list[str]:
     if effort not in VALID_EFFORTS:
-        raise BridgeError(f"effort {effort!r} invalide.")
+        raise BridgeError(f"effort {effort!r} invalide (attendu : {sorted(VALID_EFFORTS)}).")
     effort_override = f'model_reasoning_effort="{effort}"'
     if mode == "new":
         return [
@@ -350,6 +483,9 @@ def build_command(
     if mode == "resume":
         if not thread_id:
             raise BridgeError("mode resume : thread_id requis.")
+        # `resume` refuse -C (dépôt mémorisé) MAIS accepte --model (CLI 0.144.1) : on
+        # réimpose EXPLICITEMENT le modèle (le demandé fait foi, symétrie avec `new`)
+        # + la lecture seule par overrides -c + --strict-config.
         return [
             "codex", "exec", "resume", thread_id,
             "--model", model,
@@ -357,9 +493,12 @@ def build_command(
             "-c", 'approval_policy="never"', "--strict-config",
             "--json", "-o", str(response_path), "-",
         ]
-    raise BridgeError(f"mode {mode!r} inconnu.")
+    raise BridgeError(f"mode {mode!r} inconnu (new|resume).")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Orchestrateur d'un tour d'audit
+# ─────────────────────────────────────────────────────────────────────────────
 def run_audit(
     *,
     chantier: str,
@@ -372,25 +511,32 @@ def run_audit(
     timeout_s: int = 900,
     runner=None,
 ) -> dict:
+    """Exécute UN tour d'audit et écrit les artefacts. Retourne le manifeste.
+
+    `runner(argv, stdin_text, timeout_s)` est injectable (défaut : subprocess réel).
+    """
     chantier = sanitize_name(chantier)
     if model not in MODEL_IDENTITY:
-        raise BridgeError(f"modèle {model!r} non désigné.")
+        raise BridgeError(f"modèle {model!r} non désigné (aucun défaut silencieux).")
     if effort not in VALID_EFFORTS:
         raise BridgeError(f"effort {effort!r} invalide.")
     if mode not in {"new", "resume"}:
-        raise BridgeError(f"mode {mode!r} inconnu.")
+        raise BridgeError(f"mode {mode!r} inconnu (new|resume).")
 
     chantier_dir = BRIDGE_ROOT / chantier
 
+    # 1. Pré-vol : snapshot git, arbre propre HORS bridge, branche feat/.
     snap = git_snapshot()
     assert_feat_branch(snap["branch"])
     if not snap["clean"]:
         raise BridgeError(
-            "arbre git NON propre (hors audits/bridge/)."
+            "arbre git NON propre (hors audits/bridge/) — committer un checkpoint "
+            "sur la branche feat/ avant d'auditer (snapshot immuable exigé)."
         )
     target_sha = snap["head"]
     branch = snap["branch"]
 
+    # 2. VERROU d'abord (avant toute lecture/écriture du registre — finding Sol #4).
     lock_path, token = acquire_lock(chantier_dir, thread_id, force_unlock)
     try:
         reg = load_or_create_session(
@@ -400,7 +546,7 @@ def run_audit(
         nn = next_turn_number(chantier_dir)
         work = chantier_dir / f".tmp_{nn}"
         if work.exists():
-            raise BridgeError(f"répertoire de travail résiduel {work}.")
+            raise BridgeError(f"répertoire de travail résiduel {work} — nettoyer d'abord.")
         work.mkdir(parents=True)
 
         identity = build_identity_line(model)
@@ -420,16 +566,17 @@ def run_audit(
             "identity_injected": identity, "binding": reg["binding"],
         }
 
+        # 3. Appel bloquant — toute défaillance est ARCHIVÉE (finding Sol #5).
         run = runner or _default_runner
         try:
             result = run(argv, full_prompt, timeout_s)
         except subprocess.TimeoutExpired as exc:
             return _archive_failure(
                 work, chantier_dir, nn, common,
-                status="INVALID", reason=f"timeout après {timeout_s}s",
+                status="INVALID", reason=f"timeout après {timeout_s}s (process tué)",
                 partial_stdout=exc.stdout, partial_stderr=exc.stderr,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — on archive toute défaillance runner
             return _archive_failure(
                 work, chantier_dir, nn, common,
                 status="INVALID", reason=f"exception runner : {type(exc).__name__}: {exc}",
@@ -440,6 +587,7 @@ def run_audit(
         (work / "EVENTS.jsonl").write_text(events_text, encoding="utf-8")
         (work / "STDERR.txt").write_text(stderr_text, encoding="utf-8")
 
+        # 4. Porte de validité (présence POSITIVE des preuves — finding Sol #3).
         parsed = parse_events(events_text)
         response_text = response_path.read_text(encoding="utf-8") if response_path.exists() else ""
         status, reasons = _validity_gate(
@@ -447,23 +595,31 @@ def run_audit(
             model=model, mode=mode, requested_thread=thread_id,
         )
 
+        # 5. Deuxième vérif : SHA, branche, arbre propre hors bridge (findings #1 + B).
         snap_after = git_snapshot()
         if (snap_after["head"] != target_sha or snap_after["branch"] != branch
                 or not snap_after["clean"]):
             status = "INVALID"
-            reasons.append("SHA/branche/arbre modifié pendant l'appel.")
+            reasons.append("SHA/branche/arbre modifié pendant l'appel (snapshot rompu).")
 
+        # 6. Scan secrets sur TOUS les bruts, stderr inclus (finding Sol #6).
+        # Le statut AVANT quarantaine est conservé : la quarantaine est une décision
+        # sur les FICHIERS (ne rien versionner de brut), pas un jugement sur la
+        # qualité du tour — et c'est lui qui décide si le fil est enregistrable.
         secret_hits = scan_secrets(full_prompt, response_text, events_text, stderr_text)
+        status_hors_quarantaine = status
         if secret_hits:
             status = "QUARANTINED"
             reasons.append(f"secret potentiel détecté : {secret_hits}")
 
+        # 7. Manifeste (écrit EN DERNIER, dans le répertoire de travail).
         manifest = {
             **common,
             "status": status,
+            "status_hors_quarantaine": status_hors_quarantaine,
             "reasons": reasons,
             "model_observed": parsed["model"],
-            "observed_effort": None,
+            "observed_effort": None,  # non exposé par le CLI (honnête, distinct du demandé)
             "thread_id_observed": parsed["thread_id"],
             "clean_before": snap["clean"],
             "clean_after": snap_after["clean"],
@@ -477,23 +633,32 @@ def run_audit(
             json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
+        # 8. Promotion ATOMIQUE d'un répertoire (finding Sol #7), quarantaine hors git.
         if status == "QUARANTINED":
             _promote(work, chantier_dir / "_QUARANTINE", nn)
         else:
             _promote(work, chantier_dir, nn)
-            if status == "VALID" and mode == "new" and parsed["thread_id"]:
-                save_session_thread(chantier_dir, parsed["thread_id"])
+        # 9. Le FIL survit à la quarantaine (finding Sol 2026-07-29). Avant, le
+        # thread n'était enregistré que sur un tour promu : une quarantaine — même
+        # sur faux positif — condamnait tout `resume` et faisait perdre le fil
+        # d'audit entier (vécu sur Lot 108 T1b tour 1). On enregistre donc sur le
+        # statut HORS quarantaine : le tour reste QUARANTINED dans son manifeste,
+        # ce n'est pas un GO déguisé, mais la session reste reprenable. Un tour
+        # réellement cassé (FAILED/INVALID) ne lie toujours aucun thread.
+        if status_hors_quarantaine == "VALID" and mode == "new" and parsed["thread_id"]:
+            save_session_thread(chantier_dir, parsed["thread_id"])
         return manifest
     finally:
         release_lock(lock_path, token)
 
 
 def _validity_gate(*, result, parsed, response_text, model, mode, requested_thread):
+    """(status, reasons). VALID exige la PRÉSENCE POSITIVE de chaque preuve promise."""
     reasons: list[str] = []
     if result.returncode != 0:
         reasons.append(f"exit code {result.returncode} != 0")
     if parsed["malformed"]:
-        reasons.append("JSONL malformé")
+        reasons.append("JSONL malformé / ligne non-JSON")
     if not parsed["has_turn_completed"]:
         reasons.append("aucun événement terminal turn.completed")
     if parsed["has_terminal_failure"]:
@@ -501,9 +666,13 @@ def _validity_gate(*, result, parsed, response_text, model, mode, requested_thre
     if not (response_text and response_text.strip()):
         reasons.append("RESPONSE.md vide")
     if not parsed["last_agent_message"]:
-        reasons.append("aucun agent_message dans le JSONL")
+        reasons.append("aucun agent_message dans le JSONL (preuve absente)")
     elif response_text.strip() != parsed["last_agent_message"].strip():
         reasons.append("RESPONSE.md != dernier agent_message du JSONL")
+    # Le CLI codex n'émet PAS le modèle dans le JSONL (prouvé end-to-end 2026-07-24 :
+    # seuls thread.started / item.* / turn.completed). Le modèle DEMANDÉ fait foi
+    # (argv --model, validé ; codex échoue sur un modèle inconnu). On ne bloque donc
+    # que sur une CONTRADICTION explicite si le CLI venait à l'émettre, jamais sur l'absence.
     if parsed["model"] and parsed["model"] != model:
         reasons.append(f"modèle observé {parsed['model']} != demandé {model}")
     if not parsed["thread_id"]:
@@ -525,12 +694,16 @@ def _as_text(value) -> str:
 def _archive_failure(work: Path, chantier_dir: Path, nn: int, common: dict,
                      *, status: str, reason: str,
                      partial_stdout=None, partial_stderr=None) -> dict:
+    """Archive une défaillance (timeout/exception). Conserve les sorties PARTIELLES
+    disponibles ET passe par le MÊME scan de secrets / quarantaine que le chemin
+    normal avant toute promotion (findings Sol tour 3 #5/#6)."""
     out, err = _as_text(partial_stdout), _as_text(partial_stderr)
     if out:
         (work / "EVENTS.jsonl").write_text(out, encoding="utf-8")
     if err:
         (work / "STDERR.txt").write_text(err, encoding="utf-8")
 
+    # Scan de TOUT le brut disponible + le motif d'exception, AVANT promotion.
     scan_texts = [reason]
     for name in ("REQUEST.md", "RESPONSE.md", "EVENTS.jsonl", "STDERR.txt"):
         p = work / name
@@ -561,25 +734,38 @@ def _archive_failure(work: Path, chantier_dir: Path, nn: int, common: dict,
 
 
 def _promote(work: Path, parent_dir: Path, nn: int) -> None:
+    """Promotion ATOMIQUE : un seul rename du répertoire de travail vers `NN/`.
+
+    Anti-écrasement : refuse si la destination existe (un NN ne se réutilise jamais).
+    """
     parent_dir.mkdir(parents=True, exist_ok=True)
     dest = parent_dir / str(nn)
     if dest.exists():
-        raise BridgeError(f"collision de promotion : {dest} existe déjà.")
+        raise BridgeError(f"collision de promotion : {dest} existe déjà (NN réutilisé ?).")
     os.rename(str(work), str(dest))
 
 
 def _default_runner(argv: list[str], stdin_text: str, timeout_s: int):
+    """Runner subprocess réel (jamais utilisé en test — les tests injectent un mock).
+
+    `subprocess.run(timeout=...)` tue le process enfant à l'échéance ; sur Windows,
+    d'éventuels petits-enfants ne sont pas garantis tués (limite V1 documentée).
+    """
     return subprocess.run(
         argv, input=stdin_text, capture_output=True, text=True,
         encoding="utf-8", timeout=timeout_s, cwd=str(ROOT),
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────────────────────
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Pont d'audit Claude <-> Codex (V1).")
     parser.add_argument("--chantier", required=True)
     parser.add_argument("--model", required=True, choices=sorted(MODEL_IDENTITY))
-    parser.add_argument("--effort", required=True, choices=sorted(VALID_EFFORTS))
+    parser.add_argument("--effort", required=True, choices=sorted(VALID_EFFORTS),
+                        help="TOUJOURS explicite (défaut CLI = low).")
     parser.add_argument("--prompt-file", required=True, type=Path)
     parser.add_argument("--mode", choices=("new", "resume"), default="new")
     parser.add_argument("--thread-id", default=None)
