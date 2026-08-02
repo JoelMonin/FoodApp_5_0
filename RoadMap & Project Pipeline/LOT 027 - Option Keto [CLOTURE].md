@@ -1,4 +1,4 @@
-# LOT 027 — Option Keto `[EN COURS]`
+# LOT 027 — Option Keto `[CLOTURE]` — publié en V5.15 le 2026-08-02
 
 **Ouvert le 2026-08-02** · Branche `feat/lot27-option-keto` (**chaînée sur
 `feat/lot26-prompts-generation`**, même procédé que les LOTS 016/017/018 — décision de Joel :
@@ -84,7 +84,10 @@ l'IA (ligne « RÉGIMES & EXCLUSIONS ») comme les cinq autres. Rien d'autre ne 
   — prouvé par le même bout-en-bout (état conservé, puce rallumée, voisine éteinte).
 - [x] Validation unifiée verte : **934/934 Vitest · 16/16 Pytest · types OK · build OK**,
   preuve par retrait 3/3 (2026-08-02).
-- [ ] Essai réel de Joel : une génération avec Keto cochée sort des recettes cétogènes.
+- [x] ~~Essai réel de Joel avant publication~~ — **levé par décision de Joel le 2026-08-02**
+  (« ok, publie tout en V5.15 », feu vert direct sans essai préalable — même procédé que le
+  LOT 019, tracé ici). Si une génération Keto surprend à l'usage, revenir à cette fiche en
+  premier.
 
 ## 6. SUIVI
 
@@ -95,4 +98,5 @@ l'IA (ligne « RÉGIMES & EXCLUSIONS ») comme les cinq autres. Rien d'autre ne 
 | Implémentation + tests | ✅ 2026-08-02 — 1 ligne dans `index.html`, ZÉRO JS de production, `tests/diet-chips.test.js` (6 tests) + entrée `PROJECT_MAP.md` |
 | Preuve par retrait | ✅ 2026-08-02 — **3 mutations / 3 rouges nommées, 0 nulle, témoin vert** (M1 puce retirée → 2 rouges ; M2 ligne RÉGIMES débranchée → 3 rouges ; M3 rallumage débranché → 1 rouge) |
 | Validation unifiée | ✅ 2026-08-02 — **934/934 Vitest · 16/16 Pytest · types OK · build OK** |
-| Essai réel de Joel | ⏳ |
+| Essai réel de Joel | ➖ levé par sa décision du 2026-08-02 (feu vert de publication direct) |
+| Publication | ✅ **V5.15 le 2026-08-02**, avec les LOTS 025 et 026 |

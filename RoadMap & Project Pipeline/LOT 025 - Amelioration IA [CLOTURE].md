@@ -1,4 +1,4 @@
-# LOT 025 — Amélioration IA `[A PUBLIER]`
+# LOT 025 — Amélioration IA `[CLOTURE]` — publié en V5.15 le 2026-08-02
 
 **Ouvert le 2026-08-02** · **Terminé le 2026-08-02** (audit final Codex : GO) · Branche
 `feat/lot25-amelioration-ia` · Niveau d'audit : **Standard**

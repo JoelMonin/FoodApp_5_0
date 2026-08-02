@@ -7,31 +7,41 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif
+## Lot actif : AUCUN — la Version 5.15 est en ligne (2026-08-02)
 
-**LOT 027 — Option Keto**, ouvert le **2026-08-02** sur `feat/lot27-option-keto`
-(chaînée sur la branche du 026 — décision de Joel : « on ne push pas encore », les trois
-lots partiront ensemble). Fiche :
-`RoadMap & Project Pipeline/LOT 027 - Option Keto [EN COURS].md`.
-Demande de Joel : ajouter une puce **« Keto »** (régime cétogène : très pauvre en glucides,
-riche en graisses) aux options diététiques du panneau IA. Niveau d'audit : **Léger**.
+**Les LOTS 025 + 026 + 027 sont publiés en V5.15 le 2026-08-02** (feu vert explicite de
+Joel : « ok, publie tout en V5.15 »). Trois branches chaînées (`lot25` ← `lot26` ← `lot27`),
+une seule fusion `--no-ff` dans `main`. Le commit de gouvernance du matin (nettoyage du
+backlog + registre des dettes, sciemment retenu) est parti dans le même envoi.
+**Métriques finales : types OK · 934/934 Vitest · 16/16 Pytest · build OK · 33 mutations
+rouges cumulées (18+12+3), 0 nulle.**
 
-| Étape | État |
-|---|---|
-| Phase découverte (agent Explore) | ✅ 8 ressources, 6 points d'attention, F-011 consigné |
-| Spécification dans la fiche | ✅ |
-| Implémentation + tests | ✅ 1 ligne d'HTML, zéro JS de production, 6 tests neufs |
-| Validation unifiée + preuve par retrait | ✅ 934/934 Vitest · 16/16 Pytest · build OK · 3 mutations/3 rouges |
-| Essai réel de Joel | ⏳ |
+Ce que la page en ligne gagne : l'import de recette lit la **fiche officielle
+`schema.org/Recipe`** des sites (repli honnête sinon), l'aperçu montre la recette **entière**,
+les prompts de génération sont soignés (catégories fournies, anti-répétition 60 min, étapes
+autosuffisantes, SSOT), le bouton 🎲 est retiré (décision produit), et la puce **Keto**
+rejoint les régimes.
 
-## Lot précédent — LOT 026, `[A PUBLIER]`
+## Lot tout juste publié — LOT 027 (V5.15)
+
+**LOT 027 — Option Keto**, ouvert, terminé et publié le **2026-08-02** sur
+`feat/lot27-option-keto`. Fiche :
+`RoadMap & Project Pipeline/LOT 027 - Option Keto [CLOTURE].md`.
+Une 6ᵉ puce « Keto » : **1 ligne d'HTML, zéro JS de production** (la chaîne clic → état →
+cloud → restauration → prompt était entièrement générique), 6 tests neufs dont la première
+couverture de la ligne « RÉGIMES & EXCLUSIONS » du prompt, 3 mutations/3 rouges. Publié sans
+essai préalable par décision de Joel (tracé fiche §5-6, même procédé que le LOT 019).
+Point parqué au registre technique : **F-011** (`diet` sans garde de type, contrairement à
+`cuisines`).
+
+## Lot précédent — LOT 026, publié en V5.15
 
 **LOT 026 — Prompts de génération**, ouvert et terminé le **2026-08-02** sur
 `feat/lot26-prompts-generation` (chaînée sur la branche du 025). **Audit final Codex : GO**
 (2 findings, contre-vérifiés par mutation puis corrigés — dont un majeur : mes tests SSOT
 prouvaient le message, pas le code ; verrou de SOURCE ajouté). 928/928 Vitest ·
-12 mutations/12 rouges. **Attend le feu vert de publication, avec le 025 et le 027.**
-Fiche : `RoadMap & Project Pipeline/LOT 026 - Prompts de generation [A PUBLIER].md`.
+12 mutations/12 rouges.
+Fiche : `RoadMap & Project Pipeline/LOT 026 - Prompts de generation [CLOTURE].md`.
 5 chantiers décidés par Joel après un audit des prompts : catégories injectées, **suppression
 du bouton 🎲** (décision produit, confirmée par question fermée), anti-répétition sur 60 min
 (mémoire de session uniquement), règles de qualité des étapes partagées, SSOT des consignes
@@ -40,13 +50,12 @@ d'erreur en français, erreurs affichées 6 s. **Refusé par Joel, à ne
 pas re-proposer** : muscler la phrase « TRÈS CRÉATIF » (« je n'ai pas envie de disqualifier
 les associations classiques »).
 
-## Lot précédent — LOT 025, `[A PUBLIER]`
+## Lot précédent — LOT 025, publié en V5.15
 
 **LOT 025 — Amélioration IA**, ouvert et terminé le **2026-08-02** sur
 `feat/lot25-amelioration-ia`. **Audit final Codex : GO** (1 finding mineur, contre-vérifié
-puis corrigé). 914/914 Vitest · 18 mutations/18 rouges. **Attend le feu vert de publication**
-— partira seul ou avec le 026, au choix de Joel.
-Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [A PUBLIER].md`.
+puis corrigé). 914/914 Vitest · 18 mutations/18 rouges.
+Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [CLOTURE].md`.
 
 **Né d'un constat de Joel** : après import d'une recette Marmiton et transformation IA, il
 croyait que l'application avait perdu sa recette. **Diagnostic : la transformation avait
@@ -106,9 +115,11 @@ par des tests. **Une modification de test existant était inévitable : elle est
 **Validation du lot : 912/912 Vitest · 16/16 Pytest · types OK · build OK · preuve par
 retrait 16/16, 0 nulle.**
 
-**EN ATTENTE DE JOEL** : (1) audit du diff FINAL par Codex — c'est le moment prévu ;
-(2) décision sur P2 (apostrophes), le seul correctif de prompt encore appuyé sur un défaut
-confirmé ; (3) feu vert de publication.
+**Les trois attentes de l'époque sont soldées** : (1) audit du diff final Codex → **GO** ;
+(2) P2 (apostrophes) → appliqué, puis renforcé au LOT 026 (SSOT `REGLE_GUILLEMETS`) ;
+(3) feu vert de publication → donné le 2026-08-02, parti en V5.15. Reste ouvert hors lot :
+P1 version étroite (sources sans quantités), jamais tranché — au backlog des idées, pas une
+dette.
 
 ---
 

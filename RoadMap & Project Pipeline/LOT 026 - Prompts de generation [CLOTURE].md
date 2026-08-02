@@ -1,4 +1,4 @@
-# LOT 026 — Prompts de génération `[A PUBLIER]`
+# LOT 026 — Prompts de génération `[CLOTURE]` — publié en V5.15 le 2026-08-02
 
 **Ouvert le 2026-08-02** · Branche `feat/lot26-prompts-generation` (**chaînée sur
 `feat/lot25-amelioration-ia`**, même procédé que les LOTS 016/017/018) · Niveau d'audit :
