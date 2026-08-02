@@ -9,7 +9,15 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** Les **LOTS 021, 022, 023 et 024 sont publiés en Version 5.14 le 2026-08-01**
+**Aucun.** Le backlog a été nettoyé le **2026-08-02** (hors lot, documents uniquement) : les
+4 fiches re-vérifiées dans le code, 2 fermées, et création du registre des dettes techniques
+`audits/BACKLOG_TECHNIQUE.md` — qui était réclamé par le démarrage de session depuis sa
+création sans avoir jamais existé. **5 dettes actives** y sont tracées, la plus risquée étant
+**F-002** (restauration hors ligne puis reconnexion : aucun test, risque de perte silencieuse
+de données). **Le seul chantier ouvert du backlog produit est l'accessibilité.** Fusionné dans
+`main` en local, **volontairement non publié** — l'envoi attendra un prochain lot.
+
+--- Les **LOTS 021, 022, 023 et 024 sont publiés en Version 5.14 le 2026-08-01**
 (feu vert explicite de Joel, après essai réel : « la meilleure version jusqu'à aujourd'hui,
 vraiment utilisable dans la vraie vie »). Quatre lots nés de son évaluation de la qualité du
 code, ouverts et mis en ligne le même jour.
