@@ -161,7 +161,44 @@ Trois autres consignes vont dans le même sens : « LE TITRE : doit être techni
 « LE TEMPS : doit inclure toute étape obligatoire », « ÉTAPES : inclus au moins un repère
 sensoriel ». Ce sont des consignes d'**amélioration**, pas de transcription.
 
-### 6.2 Points relevés sur la blanquette (capture de Joel du 2026-08-02)
+### 6.1 bis — ⚠️ AUTO-CORRECTION DU 2026-08-02 : MA GÉNÉRALISATION ÉTAIT FAUSSE
+
+Joel a contesté le §6.1 capture à l'appui. **Vérifié sur pièce, il a raison.**
+
+**Ce qui était faux** : avoir laissé entendre que Marmiton ne porte pas de quantités. La fiche
+structurée de la blanquette (`recette_blanquette-de-veau-facile_19219.aspx`) en donne
+treize : `1 kg de blanquette de veau`, `25 cl de vin blanc`, `1 petite boîte de champignon`,
+`1 petit pot de crème fraîche`… La capture de Joel affichait `½ kg` et `13 cl` simplement
+parce que la page était réglée sur 2 personnes au lieu de 4 : **le site recalcule tout seul.**
+
+**Ce qui reste vrai, et seulement ça** : sur la page **aubergines** précisément, 4 ingrédients
+sur 5 ne portent aucune quantité — vérifié jusque dans les données structurées du site
+(`huile d'olive`, `herbes de Provence`, `poivre`, `sel`). C'est une propriété de CETTE
+recette, pas une propriété de Marmiton. Généraliser d'un seul exemple était l'erreur.
+
+### 6.2 Points relevés sur la blanquette — ⚠️ DEUX SUR TROIS ÉTAIENT FAUX
+
+Ces points avaient été posés comme « à vérifier face au site, pas des erreurs prouvées ». La
+vérification a été faite le 2026-08-02 sur les données structurées du site. **Verdict : sur la
+blanquette, l'IA a transcrit FIDÈLEMENT. C'est moi qui avais tort, pas elle.**
+
+| Point que j'avais soulevé | Ce que dit le site | Verdict |
+|---|---|---|
+| « légèrement dorés » alors qu'une blanquette ne se colore pas | Étape 1 : « Faire revenir la viande dans un peu de beurre doux **jusqu'à ce que les morceaux soient un peu dorés** » | ❌ **MON ERREUR** — l'IA est fidèle |
+| Champignons ajoutés trop tôt avant 1h30-2h de mijotage | Étape 4 : champignons incorporés **avec** carottes et oignons, AVANT le mijotage de l'étape 5 | ❌ **MON ERREUR** — l'IA est fidèle |
+| Apostrophes disparues (« d une cocotte ») | Rien dans le code ne les retire | ✅ **CONFIRMÉ** — seul défaut réel |
+
+**LEÇON, la même qu'au LOT 019 et au LOT 024** : j'ai opposé mon opinion culinaire au texte
+source sans être allé lire le texte source. Une « vérification » qui ne rouvre pas la donnée
+d'origine n'est pas une vérification. Le seul des trois points qui tenait est celui que
+j'avais effectivement vérifié dans le code.
+
+**Conséquence sur les correctifs proposés au §6.3** : **P3 (« ne modifie aucune étape
+technique ») perd sa justification** — il était fondé sur ces deux faux positifs. **P1**
+garde une base étroite (la page aubergines), et **P2 reste le seul correctif appuyé sur un
+défaut confirmé.**
+
+### 6.2 bis — Points d'origine, conservés pour la trace
 
 ⚠️ **Le texte source de cette recette-là n'a pas été fourni : ces points sont des choses À
 VÉRIFIER face au site, pas des erreurs prouvées.** L'aperçu livré au volet A rend
@@ -192,3 +229,49 @@ correctifs sont **rédigés et prêts, mais non appliqués** :
 **P2 ne doit PAS aller jusqu'à supprimer la règle n°4** : elle existe pour empêcher des
 guillemets doubles non échappés de casser la lecture du JSON. Le correctif la précise, il ne
 la retire pas.
+
+---
+
+## 7. LE NETTOYEUR FACE À D'AUTRES SITES — ⚠️ SUR-AJUSTÉ À MARMITON
+
+Question de Joel le 2026-08-02 : « es-tu confiant ? est-ce qu'il marche sur d'autres pages ? »
+**Réponse mesurée sur quatre sites réels : NON.**
+
+| Site | Avant | Après | Réduction |
+|---|---|---|---|
+| Marmiton (celui qui a servi de modèle) | 25 075 | 2 551 | **−90 %** |
+| Marie Claire | 34 491 | 12 029 | −65 % — mais **le plafond de 12 000 s'est déclenché**, donc la page a été coupée net, et il reste ~10 000 caractères de bruit |
+| Journal des Femmes | 4 063 | 2 320 | −43 % |
+| Deliacious (blog) | 5 057 | 4 296 | **−15 %** |
+
+**CAUSE RACINE, une seule** : la coupe de tête repose sur la présence d'un titre de niveau 1
+(`# Titre`) dans le Markdown. **Marmiton est le seul des quatre à en avoir un.** Sur les trois
+autres, aucune coupe de tête n'a lieu, et seuls les marqueurs de fin travaillent. La règle a
+été écrite en regardant une seule page : c'est du sur-ajustement, et il se mesure.
+
+**Ce qui rassure quand même** : le garde-fou ne s'est déclenché sur aucun des quatre, aucune
+recette n'a été amputée. Le nettoyeur est **faible hors Marmiton, jamais destructeur.**
+
+## 8. LA VRAIE SOLUTION — LA FICHE RECETTE STRUCTURÉE (volet D proposé)
+
+Découverte du 2026-08-02, vérifiée sur les cinq pages : **les cinq sites publient déjà leur
+recette en données structurées** (schema.org `Recipe`, la fiche que Google lit pour afficher
+les recettes dans ses résultats). Et le lecteur de page sait rendre le HTML brut, donc cette
+fiche est atteignable depuis le navigateur — vérifié, en-tête `x-return-format: html`.
+
+Sur la blanquette, cette fiche donne **exactement** : 13 ingrédients avec leurs quantités,
+les 7 étapes au mot près, `4 personnes`, `PT2H15M`. **Poids : 1 088 caractères, contre 25 000
+pour la page.** Soit **−96 %**, et surtout **plus rien à deviner** : l'IA n'aurait plus qu'à
+poser emojis et catégories, au lieu de reconstituer une recette dans un tas de bruit.
+
+**Ce que ça résout d'un coup** : le sur-ajustement du §7, le risque « l'IA suit une autre
+recette de la page », et l'essentiel du grief du §6.
+
+**⚠️ CE N'EST PAS GRATUIT — trois pièges déjà repérés, à traiter par des tests :**
+1. **Les formes divergent d'un site à l'autre.** Marie Claire rend les ingrédients en **UNE
+   SEULE CHAÎNE** avec des retours ligne, pas en liste. Le champ « personnes » est tantôt
+   `"4 personnes"`, tantôt `"4"`, tantôt `["2", "2 personnes"]`. Il faut un normaliseur, écrit
+   et testé — pas supposé.
+2. **Les durées sont au format ISO** (`PT2H15M`), à traduire en « 2 h 15 ».
+3. **Il faut un repli** : une page sans fiche structurée doit retomber sur le nettoyeur
+   actuel. Les deux chemins cohabitent, le nouveau ne remplace rien.

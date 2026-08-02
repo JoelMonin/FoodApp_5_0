@@ -27,12 +27,31 @@ la phrase d'accroche. **On lui demandait de sauvegarder ce qu'il ne pouvait pas 
 **Validation : 879/879 Vitest · 16/16 Pytest · types OK · build OK · preuve par retrait 7/7,
 0 nulle.**
 
-**⚠️ EN ATTENTE DE DÉCISION DE JOEL** — le volet C a montré que **l'IA ne retranscrit pas la
-recette du site, elle la réécrit, et c'est le prompt qui le lui demande** : « Spécifie des
-quantités … **jamais vides** » ordonne d'inventer ce que le site ne dit pas (sur la page
-Marmiton, 4 ingrédients sur 5 n'ont aucune quantité). Trois correctifs de prompt sont prêts
-(P1/P2/P3, fiche §6.3) et **non appliqués** : changer un prompt change un comportement
-observable.
+**⚠️ AUTO-CORRECTION DU 2026-08-02 — MON RAPPORT DE FIDÉLITÉ (volet C) ÉTAIT FAUX SUR DEUX
+POINTS SUR TROIS.** Joel a contesté, capture à l'appui ; vérification faite sur les données
+structurées des sites ; **il a raison**. (1) Marmiton porte bien ses quantités — la blanquette
+en donne treize ; sa capture affichait `½ kg` parce que la page était réglée sur 2 personnes,
+le site recalcule. Seule la page **aubergines** n'en porte pas, et c'est une propriété de
+cette recette-là, pas du site. (2) Mes deux griefs sur la blanquette (« viande dorée », «
+champignons trop tôt ») sont **démentis par le texte source** : l'IA avait transcrit
+fidèlement. **J'ai opposé mon opinion culinaire au texte source sans l'avoir lu** — même leçon
+qu'aux LOTS 019 et 024. Détail : fiche du lot §6.1 bis et §6.2. **Seul défaut confirmé : les
+apostrophes manquantes (P2).** P3 perd sa justification, P1 se réduit à un cas étroit.
+
+**⚠️ LE NETTOYEUR EST SUR-AJUSTÉ À MARMITON** (mesuré sur 4 sites, fiche §7) : −90 % sur
+Marmiton, mais −65 % sur Marie Claire (plafond déclenché), −43 % sur Journal des Femmes et
+**−15 % sur un blog**. Cause unique : la coupe de tête exige un titre de niveau 1, que seul
+Marmiton possède. **Jamais destructeur** (garde-fou jamais déclenché, aucune recette amputée),
+mais faible hors Marmiton.
+
+**➡️ VOLET D PROPOSÉ, NON OUVERT — la fiche recette structurée.** Les 5 sites testés publient
+déjà leur recette en données structurées (schema.org `Recipe`), et le lecteur de page sait
+rendre le HTML brut pour y accéder. Sur la blanquette : 13 ingrédients avec quantités, 7
+étapes au mot près, **1 088 caractères contre 25 000 (−96 %)**, et **plus rien à deviner pour
+l'IA**. Résout d'un coup le sur-ajustement ET l'essentiel du grief du volet C. Trois pièges
+déjà repérés (formes divergentes selon les sites, durées ISO, repli obligatoire) — fiche §8.
+
+**EN ATTENTE DE DÉCISION DE JOEL** : ouvrir le volet D, et/ou appliquer P2.
 
 ---
 
