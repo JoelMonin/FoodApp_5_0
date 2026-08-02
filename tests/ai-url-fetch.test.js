@@ -119,3 +119,54 @@ describe('LOT 011 / chantier 6 — récupération d\'URL via Jina Reader', () =>
         vi.useRealTimers();
     });
 });
+
+// LOT 025, volet B — le nettoyage est branché ICI, dans le chemin de lecture, et non côté
+// service : Joel voit dans le champ exactement ce qui partira à l'IA, et peut le corriger.
+describe('LOT 025 / volet B — la page est nettoyée avant d\'atterrir dans le champ', () => {
+    beforeEach(() => {
+        setupDom();
+        vi.stubGlobal('fetch', vi.fn());
+        document.getElementById('paste-url').value = 'https://exemple.com/recette';
+    });
+
+    it('retire le bandeau de consentement et le pied de page, garde la recette', async () => {
+        fetch.mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve(
+                'Title: Tarte aux pommes : la meilleure recette\n\n' +
+                'URL Source: https://exemple.com/recette\n\n' +
+                'Nous et nos [1117 partenaires](javascript:show();) utilisons des cookies.\n\n' +
+                'Paramétrer Je n\'accepte rien J\'accepte tout\n\n' +
+                '# Tarte aux pommes\n\n' +
+                'Étalez la pâte puis disposez les pommes en rosace.\n\n' +
+                '## Commentaires (42)\n\n' +
+                'martine 5/5 Très bonne recette merci\n\n' +
+                '© 2026 exemple.com'
+            )
+        });
+
+        await fetchRecipeFromUrl();
+
+        const contenu = document.getElementById('paste-content').value;
+        expect(contenu).toContain('Étalez la pâte puis disposez les pommes en rosace.');
+        expect(contenu).not.toContain('1117 partenaires');
+        expect(contenu).not.toContain('J\'accepte tout');
+        expect(contenu).not.toContain('martine');
+        expect(contenu).not.toContain('© 2026');
+        expect(contenu).not.toContain('URL Source:');
+    });
+
+    // DÉFAUT RÉEL constaté par Joel le 2026-08-02 sur la page Marmiton : le champ Titre
+    // affichait « Title: Aubergines au four : la meilleure recette ». L'IA le rattrapait ;
+    // « Sauvegarder tel quel », qui ne passe pas par l'IA, ne le rattrapait pas.
+    it('propose un titre sans le préfixe « Title: » du lecteur de page', async () => {
+        fetch.mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve('Title: Tarte aux pommes : la meilleure recette\n\n# Tarte aux pommes\n\nÉtalez la pâte finement.')
+        });
+
+        await fetchRecipeFromUrl();
+
+        expect(document.getElementById('paste-title').value).toBe('Tarte aux pommes');
+    });
+});

@@ -354,6 +354,17 @@ describe('Gemini Service', () => {
       });
     });
 
+    // LOT 025, volet 0 — ANGLE MORT COMBLÉ. Les six tests ci-dessous inspectent tous le
+    // corps HTTP, mais AUCUN ne vérifiait que le paramètre le plus important — le texte
+    // collé par Joel — y arrivait. On pouvait supprimer entièrement le contenu du message
+    // envoyé à l'IA sans faire rougir un seul test. Ce trou devait être bouché AVANT de
+    // toucher au nettoyage de la page (volet B), sinon la preuve du volet B aurait été vide.
+    it('envoie réellement le texte collé dans le corps de la requête (volet 0)', async () => {
+      await transformRecipeFromText('', 'Zébrez la chair des aubergines au couteau', [], 'MOCK_KEY');
+
+      expect(fetch.mock.calls[0][1].body).toContain('Zébrez la chair des aubergines au couteau');
+    });
+
     it('injecte l\'inventaire en stock dans le prompt', async () => {
       await transformRecipeFromText('', 'du texte', [{ name: 'Tomate' }, { name: 'Basilic' }], 'MOCK_KEY');
 

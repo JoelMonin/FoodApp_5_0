@@ -9,7 +9,34 @@ maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
 ## Lot actif
 
-**Aucun.** Le backlog a été nettoyé le **2026-08-02** (hors lot, documents uniquement) : les
+**LOT 025 — Amélioration IA**, ouvert le **2026-08-02** sur `feat/lot25-amelioration-ia`.
+Fiche : `RoadMap & Project Pipeline/LOT 025 - Amelioration IA [EN COURS].md`.
+
+**Né d'un constat de Joel** : après import d'une recette Marmiton et transformation IA, il
+croyait que l'application avait perdu sa recette. **Diagnostic : la transformation avait
+réussi** — la recette structurée existait en entier en mémoire, mais l'écran n'affichait que
+la phrase d'accroche. **On lui demandait de sauvegarder ce qu'il ne pouvait pas voir.**
+
+| Volet | Résultat |
+|---|---|
+| **0** | Angle mort comblé : **aucun test ne prouvait que le texte collé arrivait dans le message envoyé à l'IA** — on pouvait le supprimer entièrement sans faire rougir un test. Bouché AVANT de toucher au reste |
+| **A** | L'aperçu montre la recette COMPLÈTE : ingrédients, quantités, étapes numérotées (`src/utils/recipeText.js`) |
+| **B** | La page importée est nettoyée avant l'envoi à l'IA (`src/utils/webClean.js`) — **−90 % mesuré sur la vraie page Marmiton**, 25 075 → 2 551 caractères — et le titre ne porte plus le préfixe `Title:` |
+| **C** | Rapport de fidélité IA ↔ site. **Analyse seule, aucun prompt modifié** : 3 correctifs rédigés, en attente de décision de Joel (pare-feu A/B) |
+
+**Validation : 879/879 Vitest · 16/16 Pytest · types OK · build OK · preuve par retrait 7/7,
+0 nulle.**
+
+**⚠️ EN ATTENTE DE DÉCISION DE JOEL** — le volet C a montré que **l'IA ne retranscrit pas la
+recette du site, elle la réécrit, et c'est le prompt qui le lui demande** : « Spécifie des
+quantités … **jamais vides** » ordonne d'inventer ce que le site ne dit pas (sur la page
+Marmiton, 4 ingrédients sur 5 n'ont aucune quantité). Trois correctifs de prompt sont prêts
+(P1/P2/P3, fiche §6.3) et **non appliqués** : changer un prompt change un comportement
+observable.
+
+---
+
+Le backlog a été nettoyé le **2026-08-02** (hors lot, documents uniquement) : les
 4 fiches re-vérifiées dans le code, 2 fermées, et création du registre des dettes techniques
 `audits/BACKLOG_TECHNIQUE.md` — qui était réclamé par le démarrage de session depuis sa
 création sans avoir jamais existé. **5 dettes actives** y sont tracées, la plus risquée étant

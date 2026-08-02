@@ -4,6 +4,8 @@ import { generateId, formatDateFr } from '../utils/helpers.js';
 import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE } from '../constants.js';
 import { transformRecipeFromText } from '../services/gemini.js';
 import { isValidRecipe } from '../utils/validate.js';
+import { nettoyerPageWeb, extraireTitrePage } from '../utils/webClean.js';
+import { recetteEnTexte } from '../utils/recipeText.js';
 import { openModal, closeModal } from './modals.js';
 import { openEnhancedCartPicker } from './cartPicker.js';
 import { updateBadges } from './topbar.js';
@@ -170,8 +172,14 @@ export async function fetchRecipeFromUrl() {
         const text = await res.text();
         if (!text || !text.trim()) throw new Error('Page vide');
 
-        document.getElementById('paste-content').value = text;
-        const mainTitle = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+        // LOT 025, volet B — la page partait ENTIÈRE à l'IA : bandeau cookies, menus,
+        // commentaires, pied de page. Le nettoyage est fait ICI, avant l'écriture dans le
+        // champ, pour que Joel voie exactement ce qui sera envoyé et puisse le corriger.
+        // La garde « page vide » ci-dessus porte toujours sur le texte REÇU, pas sur le
+        // texte nettoyé : c'est la lecture qui a échoué, pas le nettoyage (leçon LOT 015 —
+        // un garde-fou se pose sur la source, jamais sur le résultat).
+        document.getElementById('paste-content').value = nettoyerPageWeb(text);
+        const mainTitle = extraireTitrePage(text);
         if (mainTitle) document.getElementById('paste-title').value = mainTitle;
 
         toast('Page lue ! Cliquez sur Transformer avec l\'IA.');
@@ -213,7 +221,12 @@ export async function transformRecipeAI() {
         // LOT 011, chantier 5 (oracle l.6019-6025) : verrouille le texte source et affiche
         // un aperçu — après transformation, c'est la recette structurée qui sera
         // sauvegardée, plus le texte brut, qui n'a donc plus de raison d'être modifiable.
-        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + (recipe.description || '');
+        // LOT 025, volet A — l'aperçu ne montrait QUE `recipe.description`. La recette
+        // complète existait pourtant déjà dans `_lastTransformedRecipe` : on demandait à Joel
+        // de sauvegarder ce qu'il ne pouvait pas voir. Il voit désormais ce qui sera gardé —
+        // ingrédients, quantités et étapes comprises — et peut le comparer au site d'origine
+        // AVANT de sauvegarder. Le verrouillage du champ, lui, ne bouge pas (acquis LOT 011).
+        document.getElementById('paste-content').value = "✅ Recette analysée et formatée par l'IA.\n\n" + recetteEnTexte(recipe);
         document.getElementById('paste-content').disabled = true;
         document.getElementById('paste-ai-btn').style.display = 'none';
         document.getElementById('paste-save-btn').textContent = 'Sauvegarder en favoris';
