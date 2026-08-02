@@ -102,7 +102,30 @@ d'accroche existants `resetPasteModal`/`setPasteSaveButtonsEnabled`.
 | A — aperçu complet | ✅ | `src/utils/recipeText.js` + `tests/recipe-text-preview.test.js` (16 tests) · mutation **M1** rouge |
 | B — nettoyage de page | ✅ | `src/utils/webClean.js` + `tests/web-clean.test.js` (18 tests) + 2 tests d'intégration · mutations **M2/M3/M4/M5/M7** rouges |
 | C — rapport de fidélité | ✅ | §6 ci-dessous — **analyse seule, aucun prompt modifié** |
-| D — fiche structurée | 📋 **Spec posée (§10), audit Codex EN COURS** — zéro ligne de code tant que l'audit n'est pas rendu | |
+| D — fiche structurée | ✅ | `src/utils/recipeSchema.js` + `tests/recipe-schema.test.js` (24 tests) + 10 tests d'intégration · mutations **D1→D9** rouges · audit de spec Codex intégré (§10.1 bis) |
+
+**Validation finale du lot : 912/912 Vitest · 16/16 Pytest · types OK · build OK.**
+**Preuve par retrait cumulée : 16 mutations, 16 rouges, 0 nulle** (7 volets 0/A/B + 9 volet D).
+
+### ÉPREUVE DU RÉEL DU VOLET D (13 sites, 2026-08-02)
+
+**10 fiches officielles lues / 3 replis.** Le parcours complet a été exécuté site par site :
+
+| Chemin | Sites | Résultat |
+|---|---|---|
+| ✅ Fiche du site | Marmiton (×2), 750g, Marie Claire, Journal des Femmes, Deliacious, Mes brouillons, By ACB 4 you, Aux Fourneaux, Un déjeuner de soleil | **722 à 1 573 caractères**, contre 139 000 à 741 000 pour la page |
+| ⚠️ Repli nettoyeur | Chef Simon, PimpUp, Healthy Julia | Comportement du volet B, inchangé, + message honnête |
+
+**Chef Simon bascule correctement** : sa fiche existe mais ne porte aucune étape — la règle
+du finding 3 la refuse au lieu de livrer une recette sans préparation.
+
+**Ce que l'IA reçoit désormais pour la blanquette de Joel** : les 13 ingrédients avec leurs
+quantités et les 7 étapes au mot près, **1 257 caractères au lieu de 290 414**.
+
+**Limite connue, NON corrigée volontairement** : la `description` de Marmiton porte son
+argumentaire de référencement (« Notée 4.9/5 par 2776 membres Marmiton »). ~150 caractères
+sur 1 257, sans effet observé — et la leçon du §7 vient d'être payée : on ne taille pas une
+règle sur mesure pour un site à la première gêne.
 
 **Validation : 879/879 Vitest · 16/16 Pytest · vérificateur de types OK · build OK.**
 
@@ -335,6 +358,29 @@ Quand le site importé publie sa recette en fiche structurée (schema.org `Recip
 CETTE fiche — normalisée — qui remplit le champ, à la place du texte de page nettoyé ;
 sinon, rien ne change par rapport à aujourd'hui, et Joel est prévenu dans les deux cas.
 
+### 10.1 bis — AUDIT DE SPEC CODEX DU 2026-08-02 : **GO AVEC RÉSERVES**, 6 findings
+
+Audit demandé par Joel AVANT la première ligne de code (quota Codex revenu). **Les 6 findings
+ont été contre-vérifiés sur pièce avant toute correction — aucun n'a été appliqué sur parole.**
+Bilan : **4 confirmés, 1 partiellement, 1 plausible. Aucun à rejeter.** La spec ci-dessous est
+la version CORRIGÉE ; les phrases contestées n'y figurent plus.
+
+| # | Finding Codex | Contre-vérification | Suite donnée |
+|---|---|---|---|
+| 1 | Le repli Markdown après échec réseau contredit l'arbitrage LOT 011 §9 Q2 | ✅ **CONFIRMÉ** — Q2 lu dans le texte : « un seul chemin, un seul point de défaillance » | **Décision de Joel (D1 = A)** : un échec de lecture reste un échec sec |
+| 2 | « 10 s PAR lecture » contredit l'acquis « délai 10 s » et porte l'attente à 20 s | ✅ **CONFIRMÉ, ma spec se contredisait** — le verrou `ai-url-fetch.test.js:107` n'avance qu'une fois de 10 s | **Décision de Joel (D2 = A)** : budget GLOBAL de 10 s |
+| 3 | Plusieurs nœuds `Recipe` : sélection dépendante de l'ordre | 🟡 **PARTIEL** — mesuré sur 10 pages : 9 n'ont qu'une recette, 1 (« Mes brouillons ») en a **3 mais identiques**. Le danger décrit (recette voisine qui gagne) **n'est pas observé** ; le trou de spec, lui, est réel | Règle explicite : **la fiche la plus complète**, jamais « la première » |
+| 4 | « Exploitable » laisse passer une fiche d'intitulés | 🟡 **PLAUSIBLE, non prouvé** (son exemple est hypothétique) — mais le trou se bouche pour rien | Les lignes qui ne sont qu'un intitulé de section sont retirées AVANT le jugement |
+| 5 | Critères 4, 6, 8 non automatisables tels qu'écrits | ✅ **CONFIRMÉ** pour 4 et 6 (« toast honnête », « forme invalide » non définis) | Critères réécrits avec textes exacts et formes énumérées |
+| 6 | `recetteEnTexte` (afficheur) réutilisé comme sérialiseur d'entrée IA | ✅ **CONFIRMÉ — le meilleur finding.** Un changement cosmétique de l'aperçu (majuscules, emojis, compteurs) modifierait **en silence le message envoyé à l'IA** | **Deux fonctions séparées** : `recetteEnTexte` affiche, `ficheEnTexteSource` alimente l'IA |
+
+**⚠️ CONSÉQUENCE DU FINDING 5 À DÉCLARER, PAS À SUBIR** : le critère « les tests existants
+restent verts SANS modification » **ne peut pas tenir**. Vérifié :
+`tests/ai-url-fetch.test.js:57` exige `expect(fetch).toHaveBeenCalledTimes(1)`, or le chemin
+sans fiche en fait désormais deux. **Ce test sera MODIFIÉ en connaissance de cause** — son
+intention (URL exacte, jamais allorigins) est préservée, seul le comptage incident change.
+`:93` (échec HTTP) reste à 1 appel grâce à D1 = A, et reste vert sans modification.
+
 ### 10.2 Parcours utilisateur (AUCUN changement d'interface)
 
 1. Joel colle l'URL → « 🌍 Lire la page » (bouton existant, inchangé).
@@ -343,22 +389,41 @@ sinon, rien ne change par rapport à aujourd'hui, et Joel est prévenu dans les 
    l'arbitrage LOT 011 §9 Q2 (« un seul lecteur, aucun repli sur un AUTRE service ») est
    respecté : Jina reste l'unique lecteur.
 3. Fiche trouvée ET exploitable → le champ reçoit le TEXTE lisible composé depuis la fiche,
-   le titre reçoit `recipe.name`, toast « ✅ Fiche officielle du site trouvée ».
-4. Sinon → SECONDE lecture, en Markdown (chemin actuel inchangé : `nettoyerPageWeb` +
-   `extraireTitrePage`), toast « ⚠️ Pas de fiche officielle — texte brut récupéré,
-   relisez-le avant de transformer ». Deux lectures séquentielles UNIQUEMENT dans ce cas.
+   le titre reçoit `fiche.name`, toast littéral :
+   `✅ Fiche officielle du site trouvée.`
+4. Lecture réussie mais AUCUNE fiche exploitable → SECONDE lecture, en Markdown (chemin
+   actuel inchangé : `nettoyerPageWeb` + `extraireTitrePage`), toast littéral :
+   `⚠️ Pas de fiche officielle — texte brut récupéré, relisez-le avant de transformer.`
+   Deux lectures séquentielles UNIQUEMENT dans ce cas.
 5. La suite est STRICTEMENT inchangée : « Transformer avec l'IA » → aperçu complet (volet A)
    → sauvegarde. L'IA reste l'unique fabricant de la recette finale.
 
-Délai d'expiration : 10 s PAR lecture (acquis LOT 011 §10-D, inchangé). Un échec réseau de
-la lecture HTML bascule sur le chemin Markdown avant de déclarer l'échec.
+**DÉCISION D1 DE JOEL (2026-08-02) = A — un échec de lecture reste un échec sec.** Si la
+lecture HTML échoue (réseau, HTTP en erreur, réponse vide), on s'arrête là avec le message
+littéral de l'oracle `Erreur de lecture. Vérifiez l'URL ou copiez le texte manuellement.` —
+**aucune seconde tentative**. L'arbitrage LOT 011 §9 Q2 (« un seul chemin, un seul point de
+défaillance ») est donc INTÉGRALEMENT respecté : la seconde lecture n'est pas un repli après
+panne, c'est la suite normale d'une lecture RÉUSSIE. Argument chiffré à l'appui : le mode de
+lecture HTML a été essayé sur 12 pages réelles, il a fonctionné 12 fois sur 12.
+
+**DÉCISION D2 DE JOEL (2026-08-02) = A — budget GLOBAL de 10 secondes pour toute l'action**,
+partagé par les deux lectures (un seul `AbortController`, un seul minuteur). Joel n'attend
+jamais plus qu'aujourd'hui, et le verrou `ai-url-fetch.test.js:107` reste vert sans y toucher.
+Si le budget est épuisé pendant la seconde lecture, message d'échec identique.
 
 ### 10.3 Découpage technique
 
 **NOUVEAU MODULE `src/utils/recipeSchema.js`** — pur, zéro dépendance, comme `webClean.js` :
-- `extraireFicheRecette(html)` : trouve les blocs `<script type="application/ld+json">`
-  (via `DOMParser`, PAS de regex sur le HTML), cherche un nœud `@type: Recipe` (tolère le
-  tableau de types, la récursion `@graph`, les tableaux racine), rend `null` sinon.
+- `lireFicheRecette(html)` : trouve les blocs `<script type="application/ld+json">`
+  (via `DOMParser`, PAS de regex sur le HTML), collecte **TOUS** les nœuds `@type: Recipe`
+  (tolère le tableau de types, la récursion `@graph`, les tableaux racine), les normalise,
+  et rend **LA PLUS COMPLÈTE** (nombre d'ingrédients + nombre d'étapes) parmi les
+  exploitables — jamais « la première trouvée » (**finding 3**). Rend `null` sinon.
+- `ficheEnTexteSource(fiche)` : sérialiseur DÉDIÉ à l'entrée IA — texte nu, **sans emoji,
+  sans majuscules décoratives, sans compteur**. Volontairement SÉPARÉ de `recetteEnTexte`
+  (**finding 6**) : l'un habille un aperçu pour Joel, l'autre alimente un message envoyé à
+  l'IA. Les confondre ferait qu'un jour, changer la présentation à l'écran changerait le
+  prompt en silence.
 - `normaliserFiche(nœud)` : rend `{ name, description, people, time, ingredients[], steps[] }`
   ou `null`, en traitant les 4 pièges documentés (§9) :
   - `recipeIngredient` : tableau OU chaîne unique à retours ligne (Marie Claire) → liste ;
@@ -371,13 +436,16 @@ la lecture HTML bascule sur le chemin Markdown avant de déclarer l'échec.
   - Durées ISO 8601 (`PT2H15M`, `PT0H15M`) → « 2 h 15 », « 15 min » ; forme illisible → champ
     simplement absent (jamais d'erreur).
 - `ficheExploitable(fiche)` : `name` non vide + ≥ 1 ingrédient + ≥ 1 étape (**cas Chef
-  Simon** : fiche présente avec 0 étape → INEXPLOITABLE → repli). Décodage des entités par
-  `DOMParser` sur du texte, JamAIS par `innerHTML` sur le DOM vivant.
+  Simon** : fiche présente avec 0 étape → INEXPLOITABLE → repli). **Le jugement intervient
+  APRÈS le retrait des lignes qui ne sont qu'un intitulé de section** (« Ingrédients »,
+  « Préparation », « Instructions », « Étapes », avec ou sans deux-points) — **finding 4** :
+  sans ce retrait, une fiche ne contenant que ces intitulés serait déclarée exploitable et
+  remplacerait silencieusement un repli propre. Décodage des entités par `DOMParser` sur du
+  texte inerte, JAMAIS par `innerHTML` sur le DOM vivant.
 
 **MODIFIÉ `src/ui/pasteRecipe.js`** — `fetchRecipeFromUrl` orchestre : lecture HTML → fiche →
-composition du texte ; repli Markdown sinon. La composition RÉUTILISE `recetteEnTexte`
-(SSOT du volet A) via le mapping `{ name, description, people, time, ingredients: [{n: ligne}],
-steps }` — pas de second composeur.
+`ficheEnTexteSource` ; seconde lecture Markdown seulement si la première a RÉUSSI sans livrer
+de fiche exploitable. Un seul `AbortController` pour les deux (budget global, D2).
 
 **AUCUN changement à** : `index.html` (zéro élément, zéro `onclick`), `gemini.js`,
 `recipeText.js`, `webClean.js`, aux réglages, à `window` (verrou de parité non concerné).
@@ -388,16 +456,29 @@ steps }` — pas de second composeur.
    quantités + 7 étapes ; titre = le `name` de la fiche.
 2. **750g** : la ligne parasite « Ingrédients: » n'apparaît pas ; `&#039;` devient `'`.
 3. **Chef Simon** (fiche à 0 étape) : repli sur le nettoyeur + toast « pas de fiche ».
-4. **Page sans fiche** : comportement d'aujourd'hui à l'identique + toast honnête.
+4. **Page sans fiche** : le champ reçoit exactement `nettoyerPageWeb(texte)` et le titre
+   exactement `extraireTitrePage(texte)` (donc le comportement du volet B, déjà verrouillé
+   par ses propres tests), plus le toast **littéral** `⚠️ Pas de fiche officielle — texte
+   brut récupéré, relisez-le avant de transformer.` *(réécrit — finding 5)*
 5. **`recipeYield`** : les 4 formes relevées (`"4 personnes"`, `["2","2 personnes"]`, `"4"`,
    `3`) donnent toutes un entier.
 6. **Durées** : `PT2H15M` → « 2 h 15 » ; `PT25M` → « 25 min » ; `PT0H15M` → « 15 min » ;
-   forme invalide → champ absent, jamais de plantage.
+   `PT1H` → « 1 h ». **Formes invalides ÉNUMÉRÉES et testées une par une** : `""`, `"1 hour"`,
+   `"90"`, `90`, `null`, `undefined`, `{}` → le champ `time` est ABSENT de la fiche
+   normalisée, et `normaliserFiche` rend quand même une fiche exploitable si le reste est
+   bon. *(réécrit — finding 5 : « forme invalide » et « jamais de plantage » n'étaient pas
+   définis)*
 7. **`HowToSection` imbriquées** (cas synthétique, pas encore rencontré) : étapes aplaties
    dans l'ordre.
-8. **Acquis intacts** : délai 10 s, réponse IA invalide → texte intact (LOT 014 §C), aperçu
-   complet (volet A), remise à zéro à la réouverture (LOT 006) — les tests existants restent
-   verts SANS modification, hors extensions volontaires d'`ai-url-fetch.test.js`.
+8. **Plusieurs nœuds `Recipe`** *(finding 3)* : sur trois nœuds dont un seul complet, c'est
+   le complet qui gagne, quel que soit son rang dans le document.
+9. **Fiche d'intitulés seuls** *(finding 4)* : une fiche dont tous les ingrédients et étapes
+   sont des intitulés de section est déclarée INEXPLOITABLE → repli.
+10. **Acquis intacts** : budget 10 s, réponse IA invalide → texte intact (LOT 014 §C), aperçu
+    complet (volet A), remise à zéro à la réouverture (LOT 006). **Vérifié par la validation
+    unifiée + relecture du diff** — et non par un test applicatif, cette exigence portant sur
+    le diff et non sur un comportement *(reformulé — finding 5)*. **Une seule modification de
+    test existant est prévue et déclarée** : `ai-url-fetch.test.js:57` (cf. §10.1 bis).
 
 ### 10.5 Tests et preuves prévus
 

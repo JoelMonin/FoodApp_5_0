@@ -51,7 +51,28 @@ rendre le HTML brut pour y accéder. Sur la blanquette : 13 ingrédients avec qu
 l'IA**. Résout d'un coup le sur-ajustement ET l'essentiel du grief du volet C. Trois pièges
 déjà repérés (formes divergentes selon les sites, durées ISO, repli obligatoire) — fiche §8.
 
-**EN ATTENTE DE DÉCISION DE JOEL** : ouvrir le volet D, et/ou appliquer P2.
+**➡️ VOLET D LIVRÉ le 2026-08-02** — `src/utils/recipeSchema.js`. L'application lit désormais
+la fiche que le site publie déjà pour les machines. **Épreuve du réel : 10 fiches officielles
+lues sur 13 sites.** Pour la blanquette de Joel, l'IA reçoit les 13 ingrédients avec quantités
+et les 7 étapes au mot près — **1 257 caractères au lieu de 290 414**. Les 3 sites sans fiche
+retombent sur le nettoyeur, avec un message honnête à l'écran.
+
+**AUDIT DE SPEC CODEX (2026-08-02, AVANT la première ligne de code) : GO AVEC RÉSERVES,
+6 findings, tous contre-vérifiés sur pièce — 4 confirmés, 1 partiel, 1 plausible, 0 rejeté.**
+Deux ont été tranchés par Joel (D1 : un échec de lecture reste un échec sec, l'arbitrage
+LOT 011 §9 Q2 tient ; D2 : budget de 10 s GLOBAL, pas par lecture). Le meilleur finding a
+évité un piège invisible : réutiliser l'afficheur d'aperçu comme sérialiseur d'entrée IA
+aurait fait qu'un jour, **changer la présentation à l'écran aurait changé le message envoyé
+à l'IA sans que rien ne le signale**. Deux fonctions désormais séparées, frontière verrouillée
+par des tests. **Une modification de test existant était inévitable : elle est DÉCLARÉE**
+(fiche §10.1 bis), pas silencieuse.
+
+**Validation du lot : 912/912 Vitest · 16/16 Pytest · types OK · build OK · preuve par
+retrait 16/16, 0 nulle.**
+
+**EN ATTENTE DE JOEL** : (1) audit du diff FINAL par Codex — c'est le moment prévu ;
+(2) décision sur P2 (apostrophes), le seul correctif de prompt encore appuyé sur un défaut
+confirmé ; (3) feu vert de publication.
 
 ---
 
