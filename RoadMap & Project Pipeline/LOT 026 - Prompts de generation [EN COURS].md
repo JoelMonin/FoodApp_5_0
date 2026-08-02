@@ -99,8 +99,21 @@ apparaît dans les deux messages (anti-redivergence — le motif que P2 a payé 
 
 | Chantier | État | Preuves |
 |---|---|---|
-| A — catégories | ⏳ | |
-| B — retrait du 🎲 | ⏳ | |
-| C — anti-répétition 60 min | ⏳ | |
-| D — qualité des étapes | ⏳ | |
-| E — SSOT des consignes | ⏳ | |
+| A — catégories | ✅ | `REGLE_CATEGORIES` injectée dans la règle `"c"` · mutation **MA** rouge (2 tests) |
+| B — retrait du 🎲 | ✅ | 10 sites retirés (bouton, fonction, 3 sites `js/app.js`, CSS, test dédié, 2 commentaires, 2 lignes de carte) · `.picker-magic-btn` INTACT · preuve = absence : `ai-random-mode.test.js` supprimé, verrou de parité vert |
+| C — anti-répétition 60 min | ✅ | Mémoire de session dans `aiPanel.js` + ligne conditionnelle dans le prompt · `tests/ai-anti-repetition.test.js` (7 tests, bornes exactes de la fenêtre) · mutations **MC1/MC2/MC3/MC4** rouges |
+| D — qualité des étapes | ✅ | `REGLE_QUALITE_ETAPES` dans les DEUX prompts + garde de fidélité côté recette collée · mutation **MD** rouge (2 tests) |
+| E — SSOT des consignes | ✅ | 3 constantes de module (`REGLE_GUILLEMETS`/`REGLE_CATEGORIES`/`REGLE_QUALITE_ETAPES`) consommées par les deux prompts · 3 tests d'identité anti-redivergence · mutation **ME** rouge (2 tests) |
+
+**Validation : 922/922 Vitest (58 fichiers) · 16/16 Pytest · types OK · build OK.**
+**Preuve par retrait : 7 mutations, 7 rouges, 0 nulle, témoin non muté 100 % vert** — ancres
+mono-lignes uniquement (leçon de l'incident CRLF du P2, LOT 025).
+
+**Incident attrapé par l'outillage, à retenir** : le vérificateur de types (LOT 021) a
+bloqué la validation parce que la nouvelle option `recentNames` était LUE par le code sans
+être déclarée au contrat de `generateRecipes` — exactement la classe d'écart « ce que le code
+FAIT vs ce qu'il ANNONCE » pour laquelle il a été installé. Contrat complété, pas contourné.
+
+**Comptes** : 914 → 922 tests (−8 avec le 🎲, +16 neufs). Le retrait du 🎲 emporte aussi la
+2ᵉ entrée de la garde anti-générations concurrentes — la garde elle-même RESTE (double-clic
+sur « Générer »).

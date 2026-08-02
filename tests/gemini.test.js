@@ -196,6 +196,72 @@ describe('Gemini Service', () => {
       expect(body).toContain('apostrophe');
       expect(body).toContain("l'eau");
     });
+  });
+
+  // LOT 026 — les décisions de Joel du 2026-08-02 après l'audit des prompts (fiche du lot,
+  // §1). Chaque test verrouille UN chantier ; le chantier B (retrait du 🎲) n'a pas de test
+  // ici — sa preuve est l'absence : `tests/ai-random-mode.test.js` supprimé avec lui.
+  describe('generateRecipes — améliorations du LOT 026', () => {
+    beforeEach(() => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '[]' }] } }]
+        })
+      });
+    });
+
+    // Chantier A — l'IA devait DEVINER les catégories : le squelette exigeait
+    // `"c":"[CATÉGORIE]"` sans jamais donner la liste, qui n'était injectée que dans le
+    // prompt de la recette collée. Les noms inventés finissaient en « Autres » — articles
+    // mal rangés dans la liste de courses.
+    it('A — donne la liste EXACTE des catégories officielles (SSOT CATEGORIES)', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      expect(fetch.mock.calls[0][1].body).toContain(CATEGORIES.join(', '));
+    });
+
+    // Chantier C — anti-répétition en SÉRIE seulement (décision de Joel).
+    it('C — les noms récents partent avec l\'interdiction de les reproposer', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], [], {
+        recentNames: ['Risotto aux champignons', 'Quiche lorraine']
+      });
+
+      const body = fetch.mock.calls[0][1].body;
+      expect(body).toContain('DÉJÀ PROPOSÉES RÉCEMMENT');
+      expect(body).toContain('Risotto aux champignons, Quiche lorraine');
+      expect(body).toContain('AUCUNE');
+    });
+
+    it('C — mémoire vide : AUCUNE ligne anti-répétition (pas un jeton pour rien, ' +
+       'et la première génération d\'une session reste identique à avant)', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      expect(fetch.mock.calls[0][1].body).not.toContain('DÉJÀ PROPOSÉES');
+    });
+
+    // Chantier D — « la meilleure qualité tout le temps » (consigne de Joel) : des étapes
+    // qu'on peut suivre sans rien deviner.
+    it('D — exige des étapes autosuffisantes (durées, températures, repère de réussite)', async () => {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+      const body = fetch.mock.calls[0][1].body;
+      expect(body).toContain('AUTOSUFFISANTE');
+      expect(body).toContain('rien deviner');
+    });
+  });
+
+  // Suite des protections re-blindées (LOT 011) — describe rouvert après l'insertion du
+  // bloc LOT 026 ci-dessus, avec le MÊME socle de mock qu'avant.
+  describe('generateRecipes — protections re-blindées (LOT 011), suite', () => {
+    beforeEach(() => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '[]' }] } }]
+        })
+      });
+    });
 
     it('restaure le filtre de sécurité BLOCK_NONE sur les 4 catégories', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
@@ -391,6 +457,85 @@ describe('Gemini Service', () => {
       const body = fetch.mock.calls[0][1].body;
       expect(body).toContain('apostrophe');
       expect(body).toContain("l'eau");
+    });
+
+    // LOT 026, chantier D — la même exigence de qualité que la génération, PLUS la garde
+    // de fidélité : la recette collée a un texte source, la génération n'en a pas. Leçon
+    // du volet C du LOT 025 (rapport de fidélité) : c'est l'écart au source qui est le
+    // vrai grief, pas le manque de détail.
+    it('D — porte la MÊME exigence de qualité d\'étapes que la génération', async () => {
+      await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+
+      const body = fetch.mock.calls[0][1].body;
+      expect(body).toContain('AUTOSUFFISANTE');
+      expect(body).toContain('rien deviner');
+    });
+
+    it('D — garde de fidélité : complète les manques sans JAMAIS contredire le texte source', async () => {
+      await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+
+      expect(fetch.mock.calls[0][1].body).toContain('contredire le texte source');
+    });
+  });
+
+  // LOT 026, chantier E — SSOT des consignes communes. P2 a payé le prix de la duplication
+  // (deux corrections pour un défaut) ; ces tests verrouillent que les règles partagées
+  // apparaissent À L'IDENTIQUE dans les deux messages. Si un prompt « redivergeait » (sa
+  // formulation réécrite localement), le fragment canonique disparaîtrait de son corps.
+  describe('SSOT des consignes communes aux deux prompts (LOT 026)', () => {
+    beforeEach(() => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '[]' }] } }]
+        })
+      });
+    });
+
+    async function lesDeuxCorps() {
+      await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+      await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
+      return [fetch.mock.calls[0][1].body, fetch.mock.calls[1][1].body];
+    }
+
+    it('la règle des guillemets/apostrophes est IDENTIQUE dans les deux messages', async () => {
+      const [gen, transfo] = await lesDeuxCorps();
+
+      const canon = "Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).";
+      const canonP2 = "l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,";
+      for (const corps of [gen, transfo]) {
+        expect(corps).toContain(canon);
+        expect(corps).toContain(canonP2);
+      }
+    });
+
+    it('la liste des catégories est IDENTIQUE dans les deux messages', async () => {
+      const [gen, transfo] = await lesDeuxCorps();
+
+      const canon = `Utilise uniquement ${CATEGORIES.join(', ')}.`;
+      expect(gen).toContain(canon);
+      expect(transfo).toContain(canon);
+    });
+
+    it('la règle de qualité des étapes est IDENTIQUE dans les deux messages', async () => {
+      const [gen, transfo] = await lesDeuxCorps();
+
+      const canon = 'Chaque étape est AUTOSUFFISANTE : indique les durées, les températures et le niveau de feu';
+      expect(gen).toContain(canon);
+      expect(transfo).toContain(canon);
+    });
+  });
+
+  // Suite du contrat de transformRecipeFromText (LOT 011) — describe rouvert après
+  // l'insertion du bloc SSOT du LOT 026 ci-dessus, avec le MÊME socle de mock qu'avant.
+  describe('transformRecipeFromText — contrat restauré (LOT 011), suite', () => {
+    beforeEach(() => {
+      fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          candidates: [{ content: { parts: [{ text: '{"name":"Test"}' }] } }]
+        })
+      });
     });
 
     it('injecte l\'inventaire en stock dans le prompt', async () => {

@@ -80,8 +80,7 @@ import {
   renderImposedCapHint,
   updateAIContextSub,
   refreshImposedZone,
-  removeExtraIngredient,
-  generateRandomWithStock
+  removeExtraIngredient
 } from '../src/ui/aiPanel.js';
 // Fenetre « coller une recette » — extraite d'ici au LOT 017. Elle recupere les 29 lignes de
 // remise a zero que le volet A avait sorties de `openModal` : elles ecrivent son etat prive,
@@ -290,7 +289,6 @@ export {
     saveApiKey,
     openModal,
     // LOT 011 — exportés uniquement pour les tests unitaires (mêmes raisons qu'au-dessus).
-    generateRandomWithStock,
     fetchRecipeFromUrl,
     renderAIResults,
     renderFavorites,
@@ -551,7 +549,7 @@ expose({
     openModal, closeModal, openEditEmoji,
     toggleAiSingle, toggleAiChip, saveAiConfigFromUI, 
     searchEmojiAddAI, handleAddInput, addIngredient,
-    addExtraIngredient, generateRandomWithStock,
+    addExtraIngredient,
     fetchRecipeFromUrl, transformRecipeAI, printRecipe, restoreJSON, importStockOnly,
     saveRecipeOnly: savePastedRecipe,
     saveRecipeAndList: savePastedRecipeAndList,

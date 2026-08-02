@@ -3,6 +3,43 @@ import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
 import { creativityLevel } from '../utils/helpers.js';
 
+/**
+ * SSOT DES CONSIGNES COMMUNES AUX DEUX PROMPTS (LOT 026, chantier E).
+ *
+ * Jusqu'ici, les règles partagées étaient RECOPIÉES entre `generateRecipes` et
+ * `transformRecipeFromText`, avec des formulations qui divergeaient déjà — et le correctif
+ * P2 (apostrophes, LOT 025) a dû être appliqué DEUX fois pour cette raison. Chaque règle
+ * commune vit désormais ici, en UN exemplaire, consommée par les deux prompts.
+ *
+ * Arbitrage d'unification (fiche LOT 026, §3.E, validé par Joel) : quand les deux
+ * formulations divergeaient, c'est celle de `generateRecipes` qui survit — elle est figée
+ * au mot près par `tests/gemini.test.js` (LOT 010) ; celle de la recette collée ne l'était
+ * pas, elle s'aligne.
+ */
+
+// Guillemets + apostrophes (P2, LOT 025) : protège la lecture du JSON SANS interdire
+// l'apostrophe française — l'IA comprenait « guillemets simples interdits » comme
+// « apostrophe interdite » et rendait « l eau », « d une cocotte ».
+const REGLE_GUILLEMETS = `Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).
+   Aucun guillemet double (") dans les valeurs de texte.
+   ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
+   « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».`;
+
+// Catégories officielles (LOT 026, chantier A) : la liste n'était donnée QU'À la recette
+// collée — le prompt de génération demandait `"c":"[CATÉGORIE]"` sans jamais dire
+// lesquelles, et l'IA inventait des noms de rayon que `sanitizeCategory` rattrapait ou
+// reléguait en « Autres ».
+const REGLE_CATEGORIES = `Utilise uniquement ${CATEGORIES.join(', ')}.`;
+
+// Qualité des étapes (LOT 026, chantier D — consigne de Joel : « la meilleure qualité tout
+// le temps, et un niveau suffisant d'information pour réaliser la recette parfaitement »).
+// Une seule exigence pour les deux écrans : avant ce lot, la recette collée demandait un
+// repère sensoriel et la génération rien du tout.
+const REGLE_QUALITE_ETAPES = `Chaque étape est AUTOSUFFISANTE : indique les durées, les températures et le niveau de feu
+   chaque fois qu'ils s'appliquent, le moment où chaque ingrédient entre en jeu, et un repère
+   concret de réussite (couleur, texture, consistance). Une personne qui découvre la recette
+   doit pouvoir la réussir parfaitement sans rien deviner.`;
+
 // Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
 // le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
 const RECIPE_SAFETY_SETTINGS = [
@@ -159,6 +196,9 @@ function creativityInstruction(creativity) {
  *
  * @param {Object} [options]
  * @param {Function} [options.onThinkingFallback] - Cf. callAI. Transmis tel quel.
+ * @param {string[]} [options.recentNames] - Noms proposés il y a moins d'une heure (LOT 026,
+ *   chantier C — mémoire de session de `src/ui/aiPanel.js`). Non vide → une ligne d'interdiction
+ *   de reproposer s'ajoute aux contraintes ; vide ou absent → le message est identique à avant.
  */
 export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredients, extraIngredients, options = {}) {
   const creativity = aiConfig.creativity ?? 50;
@@ -185,6 +225,15 @@ export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredien
     ? `3. INGRÉDIENTS IMPOSÉS : Chaque recette DOIT obligatoirement inclure TOUS ces ingrédients : ${allImposed.join(', ')}. C'est une obligation stricte.`
     : `3. INGRÉDIENTS IMPOSÉS : Aucune contrainte spécifique (liberté totale).`;
 
+  // LOT 026, chantier C — anti-répétition EN SÉRIE seulement (décision de Joel) : les noms
+  // proposés dans l'heure arrivent par `options.recentNames` (mémoire de session,
+  // `src/ui/aiPanel.js`). Liste vide → AUCUNE ligne : pas un jeton pour rien, et la
+  // première génération d'une session reste strictement identique à avant.
+  const recentNames = (options.recentNames || []).filter(Boolean);
+  const antiRepetePrompt = recentNames.length > 0
+    ? `\n9. DÉJÀ PROPOSÉES RÉCEMMENT (moins d'une heure) : ${recentNames.join(', ')}. N'en repropose AUCUNE, ni de variante quasi identique.`
+    : '';
+
   const prompt = `Tu es une IA culinaire experte. TA MISSION : générer EXACTEMENT 5 recettes différentes.
 
 🚨 CONTRAINTES (à appliquer sur chaque recette) :
@@ -196,7 +245,7 @@ ${imposedPrompt}
 6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${aiConfig.exclusions || 'rien'}.
    ⚠️ RÈGLE D'OR : Si un ingrédient est "IMPOSÉ" (ex: Riz), il A PRIORITÉ et annule toute contrainte de régime qui l'interdirait (ex: Sans Céréales).
 7. TEMPS & DIFFICULTÉ : Max ${timeStr}, niveau ${diffStr}.
-8. CRÉATIVITÉ : ${creativityInstruction(creativity)}
+8. CRÉATIVITÉ : ${creativityInstruction(creativity)}${antiRepetePrompt}
 🛒 STOCK DISPONIBLE (à privilégier) : ${stockList}
 
 📋 RÈGLES DE DONNÉES ET FORMATAGE :
@@ -204,11 +253,10 @@ ${imposedPrompt}
 2. quantités jamais vides ; "q" contient TOUJOURS la quantité ET l'unité ensemble (ex: "200 g",
    "2 pièces"), jamais l'un sans l'autre ; "e" contient UN SEUL emoji, jamais du texte.
    Interdits : ingrédients "Aucun" ou "N/A".
-3. Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).
-   Aucun guillemet double (") dans les valeurs de texte.
-   ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
-   « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».
-4. Tu NE DOIS retourner QUE du code JSON (encadré ou non par des balises \`\`\`json). AUCUN texte explicatif.
+3. "c" (catégorie) : ${REGLE_CATEGORIES}
+4. ÉTAPES : ${REGLE_QUALITE_ETAPES}
+5. ${REGLE_GUILLEMETS}
+6. Tu NE DOIS retourner QUE du code JSON (encadré ou non par des balises \`\`\`json). AUCUN texte explicatif.
 
 Format JSON uniquement:
 [{"name":"...","description":"...","time":"...","difficulty":"...","people":${aiConfig.ppl},"cuisine":"...","ingredients":[{"n":"[NOM]","q":"[QUANTITÉ+UNITÉ]","e":"[1 EMOJI]","c":"[CATÉGORIE]","s":"[stock|pinned|missing]"}],"steps":["[ÉTAPE 1]"]}]`;
@@ -298,14 +346,13 @@ Instructions :
      (ex: "500g", "20cl"), jamais vides. Chaque ingrédient listé doit être utilisé dans les
      étapes. Utilise des intitulés propres sans préfixes parasites.
    - EMOJIS : Le champ "e" doit obligatoirement être UN SEUL CARACTÈRE emoji, jamais du texte.
-   - ÉTAPES : Reste court mais inclus au moins un repère sensoriel (couleur, texture, réduction).
+   - ÉTAPES : ${REGLE_QUALITE_ETAPES}
+     Complète les précisions techniques manquantes selon les règles de l'art, sans JAMAIS
+     contredire le texte source.
    - STYLE : Évite les formulations vagues ou marketing.
 2. ANALYSE : Analyse TOUS les ingrédients avec leurs QUANTITÉS précises.
-3. CATÉGORIES : Utilise uniquement ${CATEGORIES.join(', ')}.
-4. GUILLEMETS : Utilise UNIQUEMENT des guillemets simples (') dans les textes. Aucun guillemet
-   double (") dans les valeurs.
-   ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
-   « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».
+3. CATÉGORIES : ${REGLE_CATEGORIES}
+4. GUILLEMETS : ${REGLE_GUILLEMETS}
 5. RÉPONSE : Réponds UNIQUEMENT avec l'objet JSON suivant, sans texte explicatif :
 {"name":"titre","description":"phrase d'accroche","time":"X min","difficulty":"Facile|Moyen|Expert","people":2,"cuisine":"française","ingredients":[{"n":"nom","q":"[QUANTITÉ+UNITÉ]","e":"emoji","c":"catégorie officielle","s":"stock|pinned|missing"}],"steps":["étape détaillée..."]}`;
 

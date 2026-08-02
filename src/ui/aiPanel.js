@@ -1,4 +1,4 @@
-import { state, saveState, defaultAiConfig } from '../state.js';
+import { state, saveState } from '../state.js';
 import { h, toast } from '../utils/dom.js';
 import { generateId, areSimilar, autoEmoji, creativityLevel } from '../utils/helpers.js';
 import { DEFAULT_DB } from '../data.js';
@@ -16,8 +16,9 @@ import { togglePin } from '../actions.js';
  * PANNEAU « RECETTES IA » — extrait de `js/app.js` au LOT 017.
  *
  * Deplacement PUR : pas une regle n'a change. Zone deja couverte avant le deplacement — cartes
- * riches, confort de generation, mode aleatoire, fidelite aux ingredients, zone imposee,
- * message de cle API, lecture d'URL — repartie sur plusieurs fichiers `tests/*.test.js`.
+ * riches, confort de generation, fidelite aux ingredients, zone imposee, message de cle API,
+ * lecture d'URL — repartie sur plusieurs fichiers `tests/*.test.js`. (Le mode aleatoire 🎲,
+ * present a l'epoque, a ete supprime au LOT 026 sur decision produit.)
  *
  * LE PLAN N'EN CITAIT QUE 9 FONCTIONS ; IL EN FALLAIT 17. Les huit oubliees n'avaient aucun
  * appelant hors de cet ecran — les laisser dans `js/app.js` y aurait fait vivre des orphelines
@@ -44,16 +45,42 @@ let _generationInFlight = false;
 const AI_LOADING_TEXTS = ["Analyse du stock...", "Recherche d'idées...", "Rédaction des recettes..."];
 
 /**
- * Garde partagee (LOT 014, volet D) : deux points d'entree refusent une generation quand
- * une autre tourne deja — `generateSuggestions` et `generateRandomWithStock`. Ce dernier
- * verifie AVANT de toucher a `state.aiConfig` (LOT 011, audit du sous-lot 11A) : c'est
- * volontaire, et c'est pourquoi la garde existe a deux endroits plutot qu'un. Seul le
- * message etait duplique.
+ * Garde anti-generations concurrentes (LOT 014, volet D). Elle protegeait DEUX points
+ * d'entree jusqu'au retrait du mode 🎲 (LOT 026) ; il n'en reste qu'un,
+ * `generateSuggestions`, et la garde reste indispensable (double-clic sur « Generer »).
  */
 function generationDejaEnCours() {
     if (!_generationInFlight) return false;
     toast('Une génération est déjà en cours…', 'error');
     return true;
+}
+
+// MÉMOIRE ANTI-RÉPÉTITION (LOT 026, chantier C — décision de Joel : « seulement pour des
+// générations en séries, par exemple dans un intervalle donné de 60 minutes »).
+//
+// Mémoire de SESSION uniquement, et c'est un choix : ni synchronisée, ni sauvegardée — un
+// rechargement l'efface. La « série » dont parle Joel (regénérer parce que la fournée ne
+// plaît pas) se joue dans la même session ; en faire un état persistant aurait touché le
+// périmètre du document cloud (LOT 007) et du fichier de sauvegarde (LOT 015) pour un
+// bénéfice nul. État PRIVÉ : seules les trois fonctions ci-dessous y touchent.
+const FENETRE_ANTI_REPETITION_MS = 60 * 60 * 1000;
+let _suggestionsRecentes = []; // [{ name, at }]
+
+/** Noms proposés il y a moins d'une heure — vide à la première génération d'une session. */
+export function nomsSuggestionsRecentes(maintenant = Date.now()) {
+    _suggestionsRecentes = _suggestionsRecentes.filter(s => maintenant - s.at < FENETRE_ANTI_REPETITION_MS);
+    return _suggestionsRecentes.map(s => s.name);
+}
+
+/** À appeler après une génération RÉUSSIE seulement : un échec n'a rien proposé à Joel. */
+export function noterSuggestionsProposees(recipes, maintenant = Date.now()) {
+    const noms = (recipes || []).map(r => r?.name).filter(Boolean);
+    _suggestionsRecentes.push(...noms.map(name => ({ name, at: maintenant })));
+}
+
+/** Remise à zéro, pour l'isolation des tests (l'état de module survit entre deux `it`). */
+export function viderSuggestionsRecentes() {
+    _suggestionsRecentes = [];
 }
 
 export async function generateSuggestions() {
@@ -81,9 +108,13 @@ export async function generateSuggestions() {
     const recipes = await generateRecipes(apiKey, stockItems, state.aiConfig, state.ingredients, state.extraIngredients, {
       // LOT 011 : si l'API rejette le niveau d'effort demande et que le repli reussit quand
       // meme, Joel doit le savoir au moment meme (demande explicite) — jamais silencieux.
-      onThinkingFallback: () => toast('Recettes générées sans le mode réflexion approfondie (temporairement indisponible).')
+      onThinkingFallback: () => toast('Recettes générées sans le mode réflexion approfondie (temporairement indisponible).'),
+      // LOT 026, chantier C : les noms proposés il y a moins d'une heure partent dans le
+      // prompt avec interdiction de les reproposer — liste vide = aucune ligne ajoutée.
+      recentNames: nomsSuggestionsRecentes()
     });
     state.aiSuggestions = recipes;
+    noterSuggestionsProposees(recipes);
     // renderAIResults(recipes); // No need, saveState() will trigger auto-render
     saveState();
 
@@ -159,7 +190,8 @@ export function restoreAIConfig() {
     //
     // LOT 023 — le curseur n'a plus que 3 arrêts fermes (0/50/100, `index.html step="50"`).
     // On affiche donc le CRAN du palier, pas la valeur brute : une ancienne sauvegarde
-    // (ou le tirage 80-100 du bouton 🎲) peut contenir une valeur intermédiaire — le
+    // (ex. un tirage 80-100 de l'ancien bouton 🎲, supprimé au LOT 026 mais dont les
+    // valeurs persistent dans les données) peut contenir une valeur intermédiaire — le
     // pouce du curseur doit malgré tout se poser sur l'un des trois arrêts, jamais entre
     // deux. `state.aiConfig.creativity` lui-même n'est PAS modifié ici : seul l'affichage
     // est arrondi au palier, la donnée garde sa précision d'origine.
@@ -328,42 +360,9 @@ export function removeExtraIngredient(id) {
     refreshImposedZone();
 }
 
-export function generateRandomWithStock() {
-    // Verifiee AVANT de muter state.aiConfig (LOT 011, audit sous-lot 11A) : le refus doit
-    // etre immediat, sans effet de bord.
-    if (generationDejaEnCours()) return;
-    const stock = state.ingredients.filter(i => i.inStock);
-    if (stock.length === 0) { toast('Stock vide', 'error'); return; }
-
-    // Desactivation visuelle du bouton 🎲 le temps de la generation, symetrique a ce que
-    // generateSuggestions fait deja pour #generate-btn (trouve par l'audit : seul le
-    // bouton normal etait desactive, pas celui-ci — un double-clic sur 🎲 restait possible).
-    const magicBtn = document.getElementById('magic-btn');
-    if (magicBtn) magicBtn.disabled = true;
-
-    // Reinitialisation des filtres comme dans l'oracle (l.5092-5097) pour CETTE
-    // generation, MAIS apiKey et models sont preserves : l'oracle les stockait ailleurs,
-    // les reinitialiser ici viderait la cle API de Joel a chaque tirage. `cuisines`
-    // (pluriel, SSOT du LOT 010) est bien cible — l'oracle videait un champ fantome
-    // `cuisine` qui ne servait a rien.
-    // Arbitrage Joel (2026-07-30, post-audit sous-lot 11A) : contrairement a l'oracle
-    // (qui laissait les filtres reinitialises en permanence), TOUT est emprunte pour
-    // une seule generation puis restaure integralement ensuite — pas seulement la
-    // creativite. D'ou la sauvegarde de l'objet entier, pas juste d'un champ.
-    const savedAiConfig = state.aiConfig;
-    state.aiConfig = {
-        ...defaultAiConfig(),
-        apiKey: savedAiConfig.apiKey,
-        models: savedAiConfig.models,
-        ppl: savedAiConfig.ppl || '2',
-        creativity: Math.floor(Math.random() * 21) + 80 // 80-100
-    };
-    restoreAIConfig();
-
-    return generateSuggestions().finally(() => {
-        state.aiConfig = savedAiConfig;
-        restoreAIConfig();
-        saveState(false);
-        if (magicBtn) magicBtn.disabled = false;
-    });
-}
+// LOT 026, chantier B — `generateRandomWithStock` (le bouton 🎲, restaure au LOT 011
+// chantier 4) a ete SUPPRIMEE sur decision produit de Joel du 2026-08-02, confirmee par
+// question fermee : son tirage de creativite 80-100 produisait exactement la meme consigne
+// que le curseur pousse a fond (tout > 66 = la meme phrase), seuls les filtres vides le
+// distinguaient. Fiche du lot, §1 point 2 et §3.B — ce n'est pas une regression, c'est un
+// retrait voulu et trace.

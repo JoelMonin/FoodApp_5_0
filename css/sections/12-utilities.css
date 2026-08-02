@@ -400,26 +400,9 @@
       line-height: 1.5;
     }
 
-    .magic-btn {
-      background: var(--gold-lt);
-      border: 1.5px solid var(--gold);
-      color: var(--gold);
-      padding: 10px 18px;
-      border-radius: 20px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-
-    .magic-btn:hover {
-      background: var(--gold);
-      color: white;
-      transform: scale(1.02);
-    }
+    /* `.magic-btn` (bouton 🎲 de l'écran IA) : retiré au LOT 026 AVEC sa fonctionnalité —
+       suppression produit décidée par Joel, pas une chasse au CSS mort. NE PAS confondre
+       avec `.picker-magic-btn` (dé du sélecteur de courses, 09-modals.css), qui VIT. */
 
     /* Chips labels in imposed zone */
 
