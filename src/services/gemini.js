@@ -20,8 +20,11 @@ import { creativityLevel, envieActive, consigneLibre, listeSure } from '../utils
 // Guillemets + apostrophes (P2, LOT 025) : protège la lecture du JSON SANS interdire
 // l'apostrophe française — l'IA comprenait « guillemets simples interdits » comme
 // « apostrophe interdite » et rendait « l eau », « d une cocotte ».
-const REGLE_GUILLEMETS = `Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).
-   Aucun guillemet double (") dans les valeurs de texte.
+const REGLE_GUILLEMETS = `STRUCTURE JSON : les délimiteurs de chaîne sont OBLIGATOIREMENT des
+   guillemets doubles ("). N'utilise JAMAIS le guillemet simple (') pour ouvrir ou fermer une
+   valeur : {"name": 'Crêpes'} est INVALIDE, {"name": "Crêpes"} est correct.
+   CONTENU DES TEXTES (titre, description, étapes) : n'y place aucun guillemet double —
+   reformule ou utilise une apostrophe.
    ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
    « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».`;
 
@@ -167,7 +170,20 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
   // les envies du moment ».
   if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS') options.onTruncated?.();
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  // LOT 029, chantier D bis — LIRE **TOUTES** LES PARTIES DE LA RÉPONSE, pas seulement la
+  // première. Le code ne lisait que `parts[0]`, ce qui suppose que Google répond toujours en
+  // UN seul morceau. Ce n'est pas garanti : une réponse longue peut arriver découpée, et les
+  // modèles à réflexion peuvent intercaler une partie « pensée ». Si le JSON commence
+  // ailleurs qu'au premier morceau, tout ce qui suit est perdu et la réponse paraît
+  // ILLISIBLE — le message exact que Joel voit, sans qu'aucune troncature soit en cause.
+  // Les parties marquées `thought` sont écartées : ce sont les notes de réflexion du modèle,
+  // jamais la réponse demandée.
+  const parties = data.candidates?.[0]?.content?.parts || [];
+  const text = parties
+    .filter(p => typeof p?.text === 'string' && !p.thought)
+    .map(p => p.text)
+    .join('');
   if (!text) throw new Error("Réponse vide de l'IA");
 
   if (isJSON && !options.schema) {
@@ -350,6 +366,17 @@ Format JSON uniquement:
   } catch (e) {
     // Sauvetage manuel si le JSON est malformé ou tronqué
     let cleanStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // LOT 029 — LIRE LA RÉPONSE ENTIÈRE UNE FOIS LES BALISES RETIRÉES, AVANT de tomber dans
+    // le sauvetage. Mesuré dans le navigateur de Joel le 2026-08-03 : le modèle enveloppe sa
+    // réponse dans un bloc Markdown (```json) environ UNE FOIS SUR DEUX. Ces réponses sont
+    // parfaitement valides — seules les balises gênent — mais elles partaient quand même au
+    // sauvetage d'urgence, qui n'est PAS équivalent : il ne récolte que les objets portant un
+    // nom ET des ingrédients, et jette silencieusement tout le reste (une recette sans
+    // ingrédients, un champ inattendu). Le chemin de secours doit rester un secours.
+    try {
+      return JSON.parse(cleanStr);
+    } catch { /* vraiment illisible ou tronquée : le sauvetage ci-dessous prend la main */ }
     let results = [];
     let depth = 0;
     let inStr = false;

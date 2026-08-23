@@ -132,20 +132,82 @@ du moment » — capture à l'appui : « Erreur IA : Réponse incomplète ou ill
 Extension de périmètre **annoncée à Joel et autorisée par lui** (« oui, fais le chantier D »),
 pas glissée en douce.
 
-**Diagnostic (posé sur le code, pas supposé)** : une « envie du moment » demande **5 variantes
-d'un même plat**, chacune avec les étapes détaillées exigées depuis le LOT 026 — bien plus de
-texte que 5 plats différents. Le plafond de sortie (16 384) est **partagé avec les jetons de
-réflexion** (`thinkingLevel: 'high'`). La réponse est coupée en plein vol ; le sauvetage
-récupère les recettes complètes, mais quand la coupure tombe dans la **première**, il n'y a
-rien à sauver. **C'est la DEUXIÈME sous-estimation du même plafond** (LOT 026 : 8 192 → 16 384,
-déjà après une panne réelle de Joel).
+### ⚠️ PREMIER DIAGNOSTIC : FAUX. Ce qui suit est la correction, pas une nuance.
+
+**Ce que j'avais conclu (à tort)** : la réponse serait coupée au plafond, parce qu'une « envie
+du moment » demande 5 variantes d'un même plat, plus longues que 5 plats différents, et que ce
+plafond est partagé avec les jetons de réflexion. Raisonnement cohérent, appuyé sur un
+précédent réel (LOT 026), **et faux**. Je l'ai posé **sans jamais avoir vu une réponse en
+échec** — la panne exige la clé API de Joel, donc je ne l'avais pas reproduite. Un diagnostic
+« plausible » n'est pas un diagnostic.
+
+**Comment la vraie cause a été trouvée (2026-08-03)** : Joel a proposé « t'as qu'à le faire
+tourner toi-même dans mon Chrome ». Son navigateur porte sa clé API — c'est le seul endroit où
+la panne est reproductible. Six générations instrumentées plus tard, avec capture de la réponse
+brute de Google, le verdict est sans ambiguïté :
+
+| Ce qu'on croyait | Ce que la réponse en échec dit vraiment |
+|---|---|
+| Réponse coupée au plafond | **Motif d'arrêt : `STOP`** — réponse COMPLÈTE, terminée par `]` |
+| Plafond trop bas | **10 579 jetons consommés sur 65 536** — on est à 16 % |
+| Panne systématique | **1 échec sur 4**, puis 1 sur 4 à nouveau — intermittente |
+| Envie du moment mal transmise | **Les recettes SONT des crêpes** — la consigne marche parfaitement |
+
+**LA VRAIE CAUSE — notre propre consigne casse la génération.** Dans la réponse en échec, le
+modèle a écrit :
+
+```
+"name": 'Crêpes douces à la farine de riz...'
+'Roulez délicatement les crêpes sur elles-mêmes...'
+```
+
+Des **guillemets simples comme délimiteurs de chaîne** : du JSON invalide, que ni `JSON.parse`
+ni le sauvetage manuel (qui suit les guillemets doubles pour repérer les chaînes) ne peuvent
+lire. Le modèle applique à la lettre la règle `REGLE_GUILLEMETS`, héritée du LOT 025 :
+
+> « Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes) »
+
+Cette phrase voulait dire « pas de guillemet double **dans le contenu** » ; le modèle la
+comprend par moments comme « **délimite tes chaînes** avec des guillemets simples ». **D'où
+l'intermittence** : tout dépend de la lecture que le modèle fait de la phrase ce jour-là.
+La consigne écrite pour protéger le JSON était devenue la première cause de JSON cassé.
+
+**Ce qui reste utile du premier diagnostic** : le plafond relevé (inoffensif, et le
+`finishReason` est désormais lu, ce qui distingue enfin deux pannes différentes). Mais il ne
+faut pas se raconter d'histoire : **ces correctifs-là ne réparaient PAS la panne de Joel.**
 
 **Aggravant trouvé au passage** : l'app **ne lisait jamais** le motif d'arrêt renvoyé par Google
 (`finishReason`). Elle ne pouvait donc pas distinguer « réponse coupée » de « réponse
 illisible », et conseillait « réessayez » dans les deux cas — conseil **faux** sur une
 troncature, dont la cause est structurelle et se reproduit à l'identique.
 
-**Correctifs** :
+**LES CORRECTIFS QUI RÉPARENT VRAIMENT (chantier E)** :
+
+1. **`REGLE_GUILLEMETS` retournée.** Elle exige désormais explicitement le guillemet DOUBLE
+   comme délimiteur, avec un contre-exemple (`{"name": 'Crêpes'} est INVALIDE`), et sépare
+   nettement les deux sujets qu'elle confondait : les **délimiteurs** (doubles, toujours) et
+   le **contenu** (pas de guillemet double dedans). Le correctif P2 du LOT 025 — l'apostrophe
+   dans les mots reste obligatoire — est préservé mot pour mot et verrouillé par un test.
+2. **Lecture propre avant sauvetage.** Mesuré sur les mêmes générations : **environ une
+   réponse sur deux arrive enveloppée dans un bloc Markdown** (` ```json `). Ces réponses sont
+   valides, mais partaient au **sauvetage d'urgence**, qui ne récolte que les objets ayant un
+   nom ET des ingrédients et jette silencieusement le reste. L'app tente maintenant la lecture
+   entière une fois les balises retirées ; le sauvetage redevient ce qu'il doit être — un
+   secours pour les réponses réellement tronquées.
+
+**MESURE AVANT / APRÈS, sur le navigateur de Joel (2026-08-03)** :
+
+| | Avant le correctif | Après |
+|---|---|---|
+| Échecs par guillemets simples | **1 sur 4** | **0 sur 13** |
+| Messages d'erreur affichés | oui | **aucun** |
+| Réponses enveloppées en Markdown | ~1 sur 2, traitées par le sauvetage | ~1 sur 2, **lues proprement** |
+
+⚠️ **Campagne arrêtée à la demande de Joel** — « vas-y mollo, je paie ces appels API moi ». 13
+générations réelles mesurées, c'est assez pour conclure sur un défaut qui frappait 1 fois sur 4 ;
+ça ne prouve pas une disparition totale. **Son usage normal reste le juge final.**
+
+**Correctifs du premier diagnostic (conservés, mais qui ne réparaient PAS la panne)** :
 1. `MAX_OUTPUT_TOKENS_IA = 65536` (SSOT `src/constants.js`) — le **maximum accepté par
    `gemini-3.7-flash`, vérifié sur la documentation Google**. Confirmé par Joel : « je pense
    que le nouveau gemini 3.7 accepte plus ». Aucun surcoût : on paie les jetons produits, pas
