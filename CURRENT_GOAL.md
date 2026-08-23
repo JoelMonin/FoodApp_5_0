@@ -7,7 +7,34 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : AUCUN — la Version 5.16 est en ligne (2026-08-02)
+## Lot actif : **LOT 029 — Modèle 3.7 et gardes de type** (ouvert le 2026-08-03)
+
+Branche `feat/lot29-modele-37-et-gardes`, **chaînée sur `feat/lot28-envie-du-moment`** (qui
+porte encore 2 commits non publiés). Fiche :
+`RoadMap & Project Pipeline/LOT 029 - Modele 3.7 et gardes de type [EN COURS].md`.
+
+**Cinq chantiers** : (A) le modèle de raisonnement passe à `gemini-3.7-flash` · (B et C) les
+gardes de type manquantes sur les réglages IA, findings F-011 et F-012 du registre technique ·
+(D) plafond de sortie et lecture du motif d'arrêt · **(E) la vraie cause de la panne de Joel**
+— une consigne ambiguë faisait écrire au modèle des guillemets simples comme délimiteurs,
+1 génération sur 4 illisible.
+
+| Étape | État |
+|---|---|
+| Implémentation + tests | ✅ 2026-08-03 |
+| Preuve par retrait | ✅ 8/8 rouges (lot) + **7/7 rouges (correctifs d'audit)** |
+| Validation unifiée | ✅ 986 Vitest · 216 Pytest · types OK · build OK |
+| Audit Codex du diff final | ✅ 2026-08-03 — **NO-GO**, 1 finding CRITIQUE + 6 autres, **tous confirmés sur pièce et corrigés** |
+| Contre-audit après correction | ⏳ **prochaine étape** (reprise du même fil Codex) |
+| Essai réel de Joel | ⏳ bloquant avant publication |
+
+⚠️ **Le premier diagnostic de la panne était FAUX** (troncature supposée, jamais observée). La
+vraie cause n'a été trouvée qu'en instrumentant le navigateur de Joel. La fiche §D en garde la
+trace complète — c'est la leçon la plus chère du lot.
+
+---
+
+## Version 5.16 en ligne (2026-08-02)
 
 **LOT 028 publié en V5.16 le 2026-08-02** (feu vert de Joel : « publie »), **puis confirmé par
 son essai réel : « ça marche »**. La fonctionnalité est validée à l'usage, pas seulement par

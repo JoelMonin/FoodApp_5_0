@@ -45,6 +45,14 @@ const REGLE_QUALITE_ETAPES = `Chaque étape est AUTOSUFFISANTE : indique les dur
 
 // Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
 // le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
+// SSOT du message « réponse coupée » (LOT 029, findings D et F-07). Deux chemins très
+// éloignés le lèvent — la coupure TOTALE, où il ne reste aucun texte, et la coupure PARTIELLE
+// que le sauvetage n'a pas su rattraper. Les deux décrivent la même panne : les écrire deux
+// fois, c'est se condamner à n'en corriger qu'un le jour où la formulation changera.
+const MESSAGE_REPONSE_COUPEE =
+  "La réponse de l'IA a été coupée : la demande produit trop de texte. "
+  + 'Essayez une envie du moment plus courte, ou moins de contraintes à la fois.';
+
 const RECIPE_SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -184,6 +192,14 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
     .filter(p => typeof p?.text === 'string' && !p.thought)
     .map(p => p.text)
     .join('');
+  // LOT 029 (finding F-07 de l'audit Codex) — UNE COUPURE TOTALE RESTE UNE COUPURE. Quand le
+  // plafond est atteint pendant la réflexion, il ne reste AUCUNE partie visible : le drapeau
+  // de troncature était bien levé, mais `generateRecipes` n'avait jamais l'occasion de s'en
+  // servir, car cette ligne levait « Réponse vide » d'abord. Joel lisait donc le message le
+  // moins utile des deux, dans le cas le plus caractéristique de la panne.
+  if (!text && data.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    throw new Error(MESSAGE_REPONSE_COUPEE);
+  }
   if (!text) throw new Error("Réponse vide de l'IA");
 
   if (isJSON && !options.schema) {
@@ -216,6 +232,32 @@ function creativityInstruction(creativity) {
     return "Vise un bon ÉQUILIBRE entre recettes connues et touches d'originalité.";
   }
   return "Sois TRÈS CRÉATIF : ose des associations originales et surprenantes.";
+}
+
+/**
+ * CONTRAT DE SORTIE de `generateRecipes` : un TABLEAU de recettes, toujours (LOT 029, finding
+ * F-01 de l'audit Codex).
+ *
+ * L'écran des résultats fait `recipes.map(...)` sans se poser de question — et il a raison,
+ * c'est le contrat annoncé. Mais une réponse d'IA n'est pas une donnée de confiance : le
+ * modèle rend parfois UNE recette seule au lieu du tableau demandé. Ce JSON-là est
+ * parfaitement valide ; il est simplement à la mauvaise forme.
+ *
+ * On la remet dans le contrat plutôt que de la perdre — c'est exactement ce que le sauvetage
+ * d'urgence faisait, sans que personne l'ait écrit noir sur blanc. Toute autre racine
+ * (nombre, chaîne, objet sans nom) rend `null` : le sauvetage prendra la main.
+ *
+ * @param {unknown} valeur - Ce que `JSON.parse` a rendu.
+ * @returns {any[] | null} Un tableau exploitable, ou `null` si la racine ne l'est pas.
+ */
+function normaliserRecettes(valeur) {
+  if (Array.isArray(valeur)) return valeur;
+  // `name` sert de signature minimale d'une recette. Le passage par un objet indexable est
+  // ce que le vérificateur de types exige pour lire une propriété sur une valeur inconnue —
+  // et il a raison de le demander : rien ne garantit la forme d'une réponse d'IA.
+  const candidat = /** @type {Record<string, unknown>} */ (valeur);
+  if (candidat && typeof candidat === 'object' && candidat.name) return [candidat];
+  return null;
 }
 
 /**
@@ -361,22 +403,33 @@ Format JSON uniquement:
     onTruncated: () => { reponseTronquee = true; }
   });
 
-  try {
-    return JSON.parse(rawText.trim());
-  } catch (e) {
-    // Sauvetage manuel si le JSON est malformé ou tronqué
-    let cleanStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+  // LOT 029 — DEUX LECTURES STRICTES AVANT LE SAUVETAGE, chacune passée au CONTRAT DE SORTIE.
+  //
+  // (1) la réponse telle quelle ; (2) la même, débarrassée de ses balises Markdown — mesuré
+  // dans le navigateur de Joel le 2026-08-03 : le modèle enveloppe sa réponse dans un bloc
+  // ```json environ UNE FOIS SUR DEUX. Ces réponses sont valides, seules les balises gênent,
+  // et elles partaient pourtant au sauvetage d'urgence — un chemin qui ne récolte que les
+  // objets ayant un nom ET des ingrédients, et jette le reste EN SILENCE.
+  //
+  // ⚠️ LE PASSAGE PAR `normaliserRecettes` EST LA PARTIE QUI COMPTE (finding F-01 de l'audit
+  // Codex du 2026-08-03, CRITIQUE et justifié). Ma première version rendait directement le
+  // résultat de `JSON.parse` : une réponse au JSON parfaitement valide mais dont la racine
+  // n'est PAS un tableau (le modèle rend parfois UNE recette seule) traversait alors tout,
+  // et l'écran plantait plus loin sur `recipes.map is not a function`. Le sauvetage, lui,
+  // normalisait toujours en tableau — j'avais donc introduit une régression en croyant
+  // durcir. Le défaut existait DÉJÀ sur la première lecture, hors balises : les deux sont
+  // fermées ici, pas seulement celle que j'ai ouverte.
+  const cleanStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    // LOT 029 — LIRE LA RÉPONSE ENTIÈRE UNE FOIS LES BALISES RETIRÉES, AVANT de tomber dans
-    // le sauvetage. Mesuré dans le navigateur de Joel le 2026-08-03 : le modèle enveloppe sa
-    // réponse dans un bloc Markdown (```json) environ UNE FOIS SUR DEUX. Ces réponses sont
-    // parfaitement valides — seules les balises gênent — mais elles partaient quand même au
-    // sauvetage d'urgence, qui n'est PAS équivalent : il ne récolte que les objets portant un
-    // nom ET des ingrédients, et jette silencieusement tout le reste (une recette sans
-    // ingrédients, un champ inattendu). Le chemin de secours doit rester un secours.
-    try {
-      return JSON.parse(cleanStr);
-    } catch { /* vraiment illisible ou tronquée : le sauvetage ci-dessous prend la main */ }
+  for (const candidat of [rawText.trim(), cleanStr]) {
+    let valeur;
+    try { valeur = JSON.parse(candidat); } catch { continue; }
+    const recettes = normaliserRecettes(valeur);
+    if (recettes) return recettes;
+  }
+
+  {
+    // Sauvetage manuel si le JSON est malformé ou tronqué
     let results = [];
     let depth = 0;
     let inStr = false;
@@ -415,12 +468,7 @@ Format JSON uniquement:
     // « réessayez » dans TOUS les cas. Sur une troncature, ce conseil est faux : la coupure
     // vient de la longueur demandée, elle se reproduira à l'identique. Le bon geste est de
     // réduire la demande, pas de la relancer.
-    if (reponseTronquee) {
-      throw new Error(
-        "La réponse de l'IA a été coupée : la demande produit trop de texte. "
-        + 'Essayez une envie du moment plus courte, ou moins de contraintes à la fois.'
-      );
-    }
+    if (reponseTronquee) throw new Error(MESSAGE_REPONSE_COUPEE);
     throw new Error('Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent.');
   }
 }

@@ -87,6 +87,17 @@ describe('LOT 029 — un réglage IA abîmé ne casse plus la génération', () 
             await expect(generateRecipes('MOCK_KEY', [], aiConfig, [], [])).resolves.toEqual([]);
         });
 
+        // Finding F-04 de l'audit Codex, justifié : les DEUX champs voisins avaient leur
+        // preuve au niveau du lecteur, `cuisines` non — il n'était éprouvé qu'APRÈS
+        // assainissement. Remettre son seul lecteur à `(aiConfig.cuisines || []).join(', ')`
+        // laissait donc toute la suite verte. Un service exporté ne doit rien supposer de son
+        // appelant : c'est la raison d'être du second étage de garde.
+        it('une cuisine corrompue en chaîne ne fait pas échouer la génération', async () => {
+            const aiConfig = { ...defaultAiConfig(), cuisines: 'italienne', ppl: '2' };
+
+            await expect(generateRecipes('MOCK_KEY', [], aiConfig, [], [])).resolves.toEqual([]);
+        });
+
         it('un équipement corrompu SANS le mot piège plante aussi sans garde', async () => {
             // Le jumeau du précédent, par l'autre branche (`.length`/`.join`) : les deux
             // chemins doivent tenir, pas seulement celui qui contient « Poêles ».

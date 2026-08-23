@@ -61,6 +61,17 @@ describe('LOT 029 — la consigne qui cassait le JSON', () => {
             expect(corps()).not.toContain('UNIQUEMENT des guillemets simples');
         });
 
+        // Finding F-06 de l'audit Codex : la phrase interdisant le guillemet double DANS le
+        // contenu n'était couverte par aucun test. Or c'est elle qui empêche le modèle
+        // d'écrire `"steps":["Passer en mode "grill"."]` — un cas que ni la lecture stricte
+        // ni le sauvetage ne savent démêler, puisque rien ne distingue ce guillemet d'un
+        // délimiteur. La règle est le SEUL rempart : elle doit être verrouillée comme tel.
+        it('interdit aussi le guillemet double DANS le contenu — seul rempart côté code', async () => {
+            await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+            expect(corps()).toContain('aucun guillemet double');
+        });
+
         it('préserve le correctif P2 : l\'apostrophe dans les mots reste obligatoire', async () => {
             // Non-régression du LOT 025. En durcissant la règle des délimiteurs, il aurait
             // été facile de réinterdire l'apostrophe — le défaut que Joel avait vu sur pièce
@@ -85,18 +96,74 @@ describe('LOT 029 — la consigne qui cassait le JSON', () => {
             expect(recettes[0].name).toBe('Crêpes');
         });
 
-        it('le bloc Markdown n\'est PAS lu par le sauvetage : les champs inconnus survivent', async () => {
-            // La preuve que le chemin propre est bien pris. Le sauvetage ne reconstruit que
-            // `name`/`ingredients`/`steps` en ne gardant que les objets qu'il reconnaît ;
-            // une lecture entière conserve TOUT, y compris ce qu'il ignorerait.
-            const avecExtras = '```json\n[{"name":"Crêpes","cuisine":"Française","time":"25 min",'
-                + '"ingredients":[{"n":"Farine","q":"250 g"}],"steps":["Mélanger."]}]\n```';
-            fetch.mockResolvedValue(reponse(avecExtras));
+        // ⚠️ FAUX VERROU CORRIGÉ (finding F-02 de l'audit Codex, justifié). Ce test vérifiait
+        // d'abord que les champs `cuisine`/`time` survivaient — sauf que le sauvetage conserve
+        // l'objet ENTIER (`results.push(p)`), donc ces champs survivaient aussi par son chemin.
+        // Il restait vert en supprimant tout le correctif : il ne prouvait RIEN.
+        //
+        // Le discriminant réel est ailleurs : le sauvetage ne garde que les objets ayant un nom
+        // ET des ingrédients non vides. Une recette sans ingrédients est donc SILENCIEUSEMENT
+        // JETÉE par lui, et conservée par la lecture propre. C'est ce que ce test exerce.
+        it('la lecture propre garde une recette que le sauvetage aurait jetée en silence', async () => {
+            const cinqRecettes = '```json\n[' + [
+                '{"name":"Crêpes 1","ingredients":[{"n":"Farine","q":"250 g"}],"steps":["Mélanger."]}',
+                '{"name":"Crêpes 2","ingredients":[],"steps":["Garnir selon l\'envie."]}',
+                '{"name":"Crêpes 3","ingredients":[{"n":"Lait","q":"500 ml"}],"steps":["Cuire."]}'
+            ].join(',') + ']\n```';
+            fetch.mockResolvedValue(reponse(cinqRecettes));
 
             const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 
-            expect(recettes[0].cuisine).toBe('Française');
-            expect(recettes[0].time).toBe('25 min');
+            // Par le sauvetage, la recette du milieu disparaîtrait sans un mot : 2 au lieu de 3.
+            expect(recettes).toHaveLength(3);
+            expect(recettes.map(r => r.name)).toEqual(['Crêpes 1', 'Crêpes 2', 'Crêpes 3']);
+        });
+
+        // Finding F-01 de l'audit Codex, CRITIQUE — la régression que J'AVAIS introduite en
+        // croyant durcir : une réponse valide dont la racine n'est pas un tableau traversait
+        // tout, et l'écran plantait plus loin sur `recipes.map is not a function`.
+        it('UNE recette rendue hors tableau est remise dans le contrat, pas propagée telle quelle', async () => {
+            fetch.mockResolvedValue(reponse('```json\n{"name":"Crêpes","ingredients":[{"n":"Farine","q":"250 g"}],"steps":["Mélanger."]}\n```'));
+
+            const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+            expect(Array.isArray(recettes)).toBe(true);
+            expect(recettes).toHaveLength(1);
+            expect(recettes[0].name).toBe('Crêpes');
+        });
+
+        it('une recette seule SANS ingrédients est gardée — le sauvetage l\'aurait perdue', async () => {
+            // Le discriminant de la remise en tableau : le sauvetage exige un nom ET des
+            // ingrédients non vides, il jetterait donc cette recette et l'écran afficherait
+            // une erreur. La lecture propre la conserve. Sans ce cas, la ligne de remise en
+            // tableau n'était prouvée par rien — le sauvetage faisait le même travail.
+            fetch.mockResolvedValue(reponse('{"name":"Crêpes à garnir","ingredients":[],"steps":["Garnir selon l\'envie."]}'));
+
+            const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+            expect(recettes).toHaveLength(1);
+            expect(recettes[0].name).toBe('Crêpes à garnir');
+        });
+
+        it('le MÊME contrat vaut sans balises Markdown — le trou existait déjà là', async () => {
+            // Ce cas-ci n'est pas une régression du lot : la toute première lecture
+            // (`JSON.parse(rawText)`) rendait déjà la racine sans la vérifier, depuis toujours.
+            fetch.mockResolvedValue(reponse('{"name":"Crêpes nature","ingredients":[{"n":"Oeuf","q":"2"}],"steps":["Battre."]}'));
+
+            const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
+
+            expect(Array.isArray(recettes)).toBe(true);
+            expect(recettes[0].name).toBe('Crêpes nature');
+        });
+
+        it('une racine inexploitable retombe sur le sauvetage au lieu de contaminer l\'écran', async () => {
+            // Racine valide en JSON mais absurde ici : ni tableau, ni recette. Elle ne doit
+            // surtout pas être rendue telle quelle — l'écran ferait `.map()` dessus.
+            fetch.mockResolvedValue(reponse('"une chaîne de caractères, pas des recettes"'));
+
+            await expect(
+                generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], [])
+            ).rejects.toThrow(/Réessayez|coupée/);
         });
 
         it('une réponse VRAIMENT tronquée passe toujours au sauvetage', async () => {

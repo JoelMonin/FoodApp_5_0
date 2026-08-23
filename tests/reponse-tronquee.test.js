@@ -1,22 +1,26 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { generateRecipes } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { MAX_OUTPUT_TOKENS_IA } from '../src/constants.js';
 
-// LOT 029, chantier D — PANNE RÉELLE REMONTÉE PAR JOEL le 2026-08-03 :
-// « j'ai quand même ce message la plupart du temps avec les envies du moment »
-// (capture : « Erreur IA : Réponse incomplète ou illisible. Réessayez… »).
+// LOT 029, chantier D — LA TRONCATURE, ET SEULEMENT ELLE.
 //
-// CE QUI SE PASSAIT. Une « envie du moment » demande 5 VARIANTES D'UN MÊME PLAT, chacune
-// avec les étapes détaillées exigées depuis le LOT 026. Le texte produit dépasse alors le
-// plafond de longueur — plafond PARTAGÉ avec les jetons de réflexion du modèle. Google
-// coupe la réponse en plein vol et le signale par `finishReason: 'MAX_TOKENS'`.
-// L'app ne lisait JAMAIS ce champ : toute réponse coupée était traitée comme du charabia,
-// et Joel se voyait conseiller « réessayez » — alors qu'un essai identique reproduit
-// exactement la même coupure, la cause étant structurelle et non aléatoire.
+// ⚠️ CE FICHIER A FAILLI RACONTER UNE HISTOIRE FAUSSE (finding F-05 de l'audit Codex du
+// 2026-08-03, justifié). Il annonçait couvrir « la panne réelle remontée par Joel ». Ce
+// n'était pas vrai : la panne de Joel n'avait RIEN d'une troncature — sa cause est une
+// consigne ambiguë qui faisait écrire au modèle des guillemets simples comme délimiteurs
+// (verrouillée, elle, par `tests/json-reponse-ia.test.js`). Les réponses mesurées dans son
+// navigateur consommaient ~10 500 jetons sur 65 536 et s'arrêtaient normalement.
 //
-// C'est la DEUXIÈME sous-estimation du même plafond (LOT 026 : 8192 → 16384). Ces tests
-// existent pour qu'il n'y en ait pas une troisième silencieuse.
+// Laisser l'affirmation aurait un coût précis et prévisible : au prochain JSON illisible, un
+// mainteneur relèverait le plafond — le geste inutile — au lieu de regarder la réponse brute.
+//
+// CE QUE CES TESTS COUVRENT DONC VRAIMENT : la troncature comme panne POSSIBLE (elle s'est
+// produite pour de bon au LOT 026, 8192 → 16384), le fait que le plafond vienne de la SSOT,
+// et surtout que l'app sache DIRE qu'une réponse a été coupée au lieu de conseiller
+// « réessayez » — conseil faux face à une coupure, qui se reproduit à l'identique.
 
 const CORPS = () => JSON.parse(fetch.mock.calls[0][1].body);
 
@@ -53,10 +57,21 @@ describe('LOT 029 — réponse de l\'IA coupée au plafond', () => {
             expect(CORPS().generationConfig.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_IA);
         });
 
-        it('laisse de la marge au-delà de la valeur qui a échoué chez Joel', () => {
-            // Verrou de NON-RETOUR : 16384 est la valeur exacte qui produisait la panne.
-            // Y revenir doit faire rougir, pas passer inaperçu.
+        it('laisse de la marge au-delà de l\'ancienne valeur', () => {
             expect(MAX_OUTPUT_TOKENS_IA).toBeGreaterThan(16384);
+        });
+
+        // ⚠️ FAUX VERROU CORRIGÉ (finding F-03 de l'audit Codex, justifié). Les trois tests
+        // ci-dessus comparent la valeur ENVOYÉE à la constante — ce qui reste vrai si le
+        // service écrit `65536` en dur ! Ils annonçaient « vient de la SSOT » en prouvant
+        // seulement « vaut le même nombre ». Cette vérification-ci est la seule qui morde :
+        // elle lit le service et exige qu'aucun plafond n'y soit écrit en chiffres.
+        it('AUCUN plafond n\'est écrit en chiffres dans le service (la SSOT, vraiment)', () => {
+            const service = readFileSync(resolve(__dirname, '../src/services/gemini.js'), 'utf8');
+
+            const enDur = [...service.matchAll(/maxTokens:\s*(\d+)/g)].map(m => m[1]);
+            expect(enDur).toEqual([]);
+            expect(service).toContain('maxTokens: MAX_OUTPUT_TOKENS_IA');
         });
     });
 
@@ -77,6 +92,33 @@ describe('LOT 029 — réponse de l\'IA coupée au plafond', () => {
             await expect(
                 generateRecipes('MOCK_KEY', [], { ...defaultAiConfig(), envie: 'chili con carne', ppl: '2' }, [], [])
             ).rejects.toThrow(/plus courte|moins de contraintes/i);
+        });
+
+        // Finding F-07 de l'audit Codex : quand le plafond est atteint PENDANT la réflexion,
+        // il ne reste aucune partie visible. Le drapeau de troncature était bien levé, mais
+        // « Réponse vide » était lancé avant que quiconque puisse s'en servir — donc le
+        // message le moins utile, dans le cas le plus caractéristique de la panne.
+        it('une coupure TOTALE (aucun texte restant) dit aussi qu\'elle a été coupée', async () => {
+            fetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] })
+            });
+
+            await expect(
+                generateRecipes('MOCK_KEY', [], { ...defaultAiConfig(), envie: 'chili', ppl: '2' }, [], [])
+            ).rejects.toThrow(/coupée/i);
+        });
+
+        it('une réponse vide SANS coupure garde le message « réponse vide »', async () => {
+            // Contre-épreuve : le correctif ci-dessus ne doit pas avaler l'autre panne.
+            fetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ candidates: [{ finishReason: 'STOP', content: { parts: [] } }] })
+            });
+
+            await expect(
+                generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], [])
+            ).rejects.toThrow(/vide/i);
         });
 
         it('une réponse VRAIMENT illisible garde son message d\'origine', async () => {

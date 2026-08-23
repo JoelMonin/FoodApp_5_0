@@ -50,18 +50,23 @@ export const MAX_EXCLUSIONS_CHARS = 80;
 // du moment »).
 //
 // CE PLAFOND EST PARTAGÉ AVEC LES JETONS DE RÉFLEXION du modèle (`thinkingLevel: 'high'`) :
-// ce n'est donc PAS « la taille de la recette », c'est « réflexion + recettes ». C'est ce
-// partage qui rend la valeur si difficile à deviner, et qui l'a fait sous-estimer DEUX fois :
-//   · LOT 026 : 8 192 → 16 384, après que des étapes détaillées ont coupé la réponse ;
-//   · LOT 029 : 16 384 → ci-dessous, après que « l'envie du moment » a demandé CINQ VARIANTES
-//     D'UN MÊME PLAT (plus longues et plus proches les unes des autres que cinq plats
-//     différents, donc plus de réflexion ET plus de texte).
+// ce n'est donc PAS « la taille de la recette », c'est « réflexion + recettes ».
+//
+// ⚠️ HISTORIQUE RECTIFIÉ (finding F-05 de l'audit Codex du 2026-08-03). Cette note affirmait
+// que 16 384 avait causé la panne du LOT 029. C'EST FAUX, et le laisser écrit enverrait le
+// prochain mainteneur relever le plafond au prochain JSON illisible, au lieu de regarder la
+// réponse brute :
+//   · LOT 026 : 8 192 → 16 384. Vraie troncature, vrai correctif.
+//   · LOT 029 : 16 384 → ci-dessous. **Aucune panne de troncature n'a jamais été observée.**
+//     Les réponses mesurées dans le navigateur de Joel consommaient ~10 500 jetons sur 65 536
+//     et s'arrêtaient normalement (`finishReason: STOP`). La panne venait d'ailleurs : une
+//     consigne ambiguë faisait écrire au modèle des guillemets simples comme délimiteurs
+//     (cf. `REGLE_GUILLEMETS`, `src/services/gemini.js`).
+// Ce plafond est donc une PRÉVENTION confortable, pas la réparation d'un incident.
 //
 // Valeur retenue : le MAXIMUM que le modèle accepte en sortie (vérifié sur la documentation
-// Google le 2026-08-03 pour `gemini-3.7-flash`). Deux raisons de ne pas être timide :
-//   1. on paie les jetons RÉELLEMENT produits, jamais le plafond — un plafond haut ne coûte
-//      rien tant que les réponses restent courtes ;
-//   2. les deux sous-estimations précédentes ont chacune coûté une panne visible à Joel.
+// Google le 2026-08-03 pour `gemini-3.7-flash`). On paie les jetons RÉELLEMENT produits,
+// jamais le plafond : un plafond haut ne coûte rien tant que les réponses restent courtes.
 // ⚠️ À revérifier si le modèle de `AI_ROLES.REASONING` change : ce plafond est une propriété
 // DU MODÈLE, pas un choix libre. Trop haut, l'API rejette la requête.
 export const MAX_OUTPUT_TOKENS_IA = 65536;
