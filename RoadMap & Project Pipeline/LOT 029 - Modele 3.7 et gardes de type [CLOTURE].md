@@ -1,4 +1,4 @@
-# LOT 029 — Modèle 3.7 et gardes de type `[EN COURS]`
+# LOT 029 — Modèle 3.7 et gardes de type `[CLOTURE]` — publié en V5.17 le 2026-08-04
 
 **Ouvert le 2026-08-03** · Branche `feat/lot29-modele-37-et-gardes` (**chaînée sur
 `feat/lot28-envie-du-moment`**, qui porte encore 2 commits non publiés — même procédé qu'aux
@@ -250,10 +250,13 @@ plafond) et survivront au prochain relèvement. Le **verrou de non-retour** sous
 - [ ] Un `exclusions` non textuel ou démesuré est neutralisé comme `envie` et `exceptions`.
 - [ ] Le test « aucun nom de modèle en dur dans le HTML » **mord encore** après le changement
   (vérifié par mutation, pas par lecture).
-- [ ] Validation unifiée verte + preuve par retrait : une mutation rouge nommée par garde posée.
-- [ ] **Essai réel de Joel OBLIGATOIRE avant publication** (cf. §3.5 : aucun test ne peut
-  prouver que le nouveau modèle répond bien) — générer 5 idées, dont une avec une « envie du
-  moment », et confirmer que la qualité tient.
+- [x] Validation unifiée verte + preuve par retrait : **987/987 Vitest · 216/216 Pytest · types
+  OK · build OK**, et **17 mutations rouges nommées, 0 nulle** (8 pour le lot, 7 pour les
+  correctifs de l'audit, 2 pour ceux du contre-audit).
+- [x] **Essai réel de Joel — ✅ 2026-08-04, « j'ai testé, ça marche ».** C'était le verrou
+  décisif, et pas une formalité : §3.5 établit qu'AUCUN test ne peut prouver que le nouveau
+  modèle répond bien, et la campagne navigateur (0 échec sur 13) mesurait une amélioration,
+  pas une disparition. Seul l'usage réel pouvait clore les deux.
 
 ## 6. SUIVI
 
@@ -270,5 +273,5 @@ plafond) et survivront au prochain relèvement. Le **verrou de non-retour** sous
 | Essai réel du modèle 3.7 | ✅ 2026-08-03 — « j'ai testé, ça marche » (criticité §3.5 levée) |
 | Audit du diff final (tour 1) | ✅ 2026-08-03 — Codex 5.6 Sol : **NO-GO**, 1 finding CRITIQUE + 6 autres, **tous vérifiés sur pièce et corrigés** |
 | Contre-audit (tour 2, même fil) | ✅ 2026-08-04 — **GO AVEC RÉSERVES**, critique confirmé CLOS, 4 réserves mineures traitées (dont **un défaut que j'avais introduit en corrigeant**) |
-| Essai réel du chantier D | ⏳ **bloquant** — regénérer avec une envie du moment, le message ne doit plus tomber |
-| Publication | ⏳ |
+| Essai réel du chantier D | ✅ 2026-08-04 — **« j'ai testé, ça marche »**. LE verrou décisif du lot : aucun test ne pouvait prouver que la panne des « envies du moment » a disparu — la campagne navigateur mesurait 0 échec sur 13, l'usage réel confirme. |
+| Publication | ✅ **V5.17 le 2026-08-04** (feu vert de Joel : « tu peux publier »), avec les 2 commits restants du LOT 028 |

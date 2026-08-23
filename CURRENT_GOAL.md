@@ -7,7 +7,24 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : **LOT 029 — Modèle 3.7 et gardes de type** (ouvert le 2026-08-03)
+## Lot actif : AUCUN — la Version 5.17 est en ligne (2026-08-04)
+
+**LOT 029 publié en V5.17 le 2026-08-04** (feu vert de Joel : « tu peux publier »), après son
+essai réel concluant. Sont partis dans le même envoi les 2 derniers commits du LOT 028 (trace
+de son essai, règles d'autorisation, finding F-012).
+
+**Ce que la page en ligne gagne** : les recettes, la nutrition et l'import sont écrits par
+`gemini-3.7-flash` (même prix, gratuit sur l'offre utilisée) — et surtout **l'erreur « réponse
+incomplète ou illisible », qui tombait une génération sur quatre avec les « envies du moment »,
+a disparu**. Sa cause était notre propre consigne à l'IA.
+
+**Deux durcissements restent au registre technique** (F-013, F-014), écartés de ce lot sur avis
+de l'auditeur : ils n'ont aucun effet visible et un découpage à chaud dans une zone sensible
+aurait ajouté du risque.
+
+---
+
+## Récapitulatif du LOT 029 (ouvert le 2026-08-03, clos le 2026-08-04)
 
 Branche `feat/lot29-modele-37-et-gardes`, **chaînée sur `feat/lot28-envie-du-moment`** (qui
 porte encore 2 commits non publiés). Fiche :
@@ -25,8 +42,9 @@ gardes de type manquantes sur les réglages IA, findings F-011 et F-012 du regis
 | Preuve par retrait | ✅ 8/8 rouges (lot) + **7/7 rouges (correctifs d'audit)** |
 | Validation unifiée | ✅ 986 Vitest · 216 Pytest · types OK · build OK |
 | Audit Codex du diff final | ✅ 2026-08-03 — **NO-GO**, 1 finding CRITIQUE + 6 autres, **tous confirmés sur pièce et corrigés** |
-| Contre-audit après correction | ⏳ **prochaine étape** (reprise du même fil Codex) |
-| Essai réel de Joel | ⏳ bloquant avant publication |
+| Contre-audit après correction | ✅ 2026-08-04 — **GO**, critique confirmé clos, 4 réserves mineures traitées |
+| Essai réel de Joel | ✅ 2026-08-04 — **« j'ai testé, ça marche »** |
+| **Publication** | ⏳ **PRÊT — attend le feu vert explicite de Joel** |
 
 ⚠️ **Le premier diagnostic de la panne était FAUX** (troncature supposée, jamais observée). La
 vraie cause n'a été trouvée qu'en instrumentant le navigateur de Joel. La fiche §D en garde la

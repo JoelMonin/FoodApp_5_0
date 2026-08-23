@@ -1,6 +1,6 @@
 // SSOT du numéro de version. Pour changer la version partout :
 // modifier UNIQUEMENT cette ligne puis lancer `python scripts/sync_version.py`.
-export const APP_VERSION = '5.16.0';
+export const APP_VERSION = '5.17.0';
 
 // SSOT des modeles IA par role metier. Ne JAMAIS ecrire un nom de modele ailleurs.
 // REASONING : recettes, nutrition, transformation de texte (qualite avant tout).
