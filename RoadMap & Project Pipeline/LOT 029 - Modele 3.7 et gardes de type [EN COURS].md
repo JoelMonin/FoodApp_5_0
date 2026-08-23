@@ -2,9 +2,17 @@
 
 **Ouvert le 2026-08-03** · Branche `feat/lot29-modele-37-et-gardes` (**chaînée sur
 `feat/lot28-envie-du-moment`**, qui porte encore 2 commits non publiés — même procédé qu'aux
-LOTS 016/017/018 et 025/026/027) · Niveau d'audit : **Standard** (`src/services/gemini.js` et
-`src/state.js` sont des zones sensibles de `DOCTRINE_PRODUIT.md` §3, mais le lot n'ajoute
-aucune fonctionnalité : il change un nom de modèle et pose des gardes défensives).
+LOTS 016/017/018 et 025/026/027) · Niveau d'audit : **DUR**.
+
+⚠️ **Ouvert en « Standard », relevé à « Dur » par l'auditeur — deux fois, aux tours 1 et 2.**
+Mon argument d'ouverture était : « le lot n'ajoute aucune fonctionnalité, il change un nom de
+modèle et pose des gardes défensives ». Il était faux sur le fond — `src/services/gemini.js`
+est une zone sensible déclarée (`DOCTRINE_PRODUIT.md` §3), et le lot a fini par toucher le
+contrat de lecture d'une réponse externe non fiable, sur le chemin qui avait déjà produit une
+panne réelle. Les faits lui ont donné raison : c'est ici qu'est apparu le seul finding
+CRITIQUE de toute la campagne — **une régression que j'avais moi-même introduite en croyant
+durcir**. Leçon à retenir pour l'ouverture des prochains lots : le niveau se déduit de la
+ZONE touchée, pas du volume de code écrit.
 
 ---
 
@@ -257,9 +265,10 @@ plafond) et survivront au prochain relèvement. Le **verrou de non-retour** sous
 | Chantier B — F-011 | ✅ 2026-08-03 — `listeSure` (SSOT) sur les 3 champs tableau, aux DEUX étages (assainissement + lecture du prompt) |
 | Chantier C — F-012 | ✅ 2026-08-03 — `exclusions` rejoint `envie` et `exceptions` |
 | Chantier D — réponse coupée | ✅ 2026-08-03 — plafond en SSOT à 65 536, motif d'arrêt lu, deux messages distincts, sauvetage prioritaire |
-| Preuve par retrait | ✅ 2026-08-03 — **8 mutations / 8 rouges nommées, 0 nulle**, témoin vert |
-| Validation unifiée | ✅ 2026-08-03 — **972/972 Vitest · 216/216 Pytest · types OK · build OK** |
+| Preuve par retrait | ✅ 2026-08-03 — **8/8 rouges** (lot) + **7/7 rouges** (correctifs d'audit), 0 nulle |
+| Validation unifiée | ✅ 2026-08-04 — **987/987 Vitest · 216/216 Pytest · types OK · build OK** |
 | Essai réel du modèle 3.7 | ✅ 2026-08-03 — « j'ai testé, ça marche » (criticité §3.5 levée) |
-| Audit du diff final | ⏳ |
+| Audit du diff final (tour 1) | ✅ 2026-08-03 — Codex 5.6 Sol : **NO-GO**, 1 finding CRITIQUE + 6 autres, **tous vérifiés sur pièce et corrigés** |
+| Contre-audit (tour 2, même fil) | ✅ 2026-08-04 — **GO AVEC RÉSERVES**, critique confirmé CLOS, 4 réserves mineures traitées (dont **un défaut que j'avais introduit en corrigeant**) |
 | Essai réel du chantier D | ⏳ **bloquant** — regénérer avec une envie du moment, le message ne doit plus tomber |
 | Publication | ⏳ |

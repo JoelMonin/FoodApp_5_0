@@ -33,7 +33,6 @@ function reponse(texte) {
     };
 }
 
-const UNE_RECETTE = '[{"name":"Crêpes","ingredients":[{"n":"Farine","q":"250 g","e":"🌾","c":"Épicerie salée","s":"stock"}],"steps":["Mélanger."]}]';
 
 describe('LOT 029 — la consigne qui cassait le JSON', () => {
     beforeEach(() => {
@@ -85,16 +84,14 @@ describe('LOT 029 — la consigne qui cassait le JSON', () => {
     });
 
     describe('Ce que l\'app sait LIRE', () => {
-        it('une réponse enveloppée dans un bloc Markdown est lue entièrement', async () => {
-            // ~1 réponse sur 2 en usage réel. Avant ce lot, elles passaient par le sauvetage
-            // d'urgence ; désormais elles sont lues telles quelles, une fois les balises ôtées.
-            fetch.mockResolvedValue(reponse('```json\n' + UNE_RECETTE + '\n```'));
-
-            const recettes = await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
-
-            expect(recettes).toHaveLength(1);
-            expect(recettes[0].name).toBe('Crêpes');
-        });
+        // ⚠️ UN TEST A ÉTÉ SUPPRIMÉ ICI, et c'est volontaire (contre-audit Codex du
+        // 2026-08-03). Il vérifiait qu'une réponse enveloppée dans un bloc Markdown est bien
+        // lue — le cas le plus fréquent en usage réel, ~1 réponse sur 2. Mais il restait VERT
+        // en supprimant tout le correctif, car le sauvetage d'urgence sait aussi lire ce
+        // cas-là : il ne prouvait donc rien que le test ci-dessous ne prouve mieux.
+        // Un test rassurant qui ne mord pas est pire qu'un test absent : il fait croire à une
+        // protection. Le cas Markdown reste couvert — par le test discriminant, qui l'exerce
+        // sur une réponse que le sauvetage, lui, ABÎMERAIT.
 
         // ⚠️ FAUX VERROU CORRIGÉ (finding F-02 de l'audit Codex, justifié). Ce test vérifiait
         // d'abord que les champs `cuisine`/`time` survivaient — sauf que le sauvetage conserve

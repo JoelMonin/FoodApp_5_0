@@ -155,6 +155,39 @@ un finding — elle reste dans
 - ⚠️ **Pare-feu A/B** : modifie un comportement existant sur données abîmées — décision de
   Joel requise, comme pour F-011.
 
+### [F-013] Le CONTENU du tableau de recettes n'est pas validé, seulement sa forme
+
+- **Origine** : contre-audit Codex 5.6 Sol du LOT 029, 2026-08-04 (réserve séparée du F-01).
+- **Gravité** : basse — exige une réponse d'IA d'une forme que le prompt ne demande jamais, et
+  qui n'a **pas été observée** sur les 13 générations réelles mesurées.
+- **Où** : `src/services/gemini.js`, `normaliserRecettes` — `if (Array.isArray(valeur)) return
+  valeur;` accepte le tableau **tel quel**. Consommateur : `src/ui/aiPanel.js`
+  (`recipes.map(...)` puis lecture directe de `r.ingredients`).
+- **Le défaut** : le LOT 029 a fermé le contrat de la RACINE (plus aucune racine non-tableau
+  n'atteint l'écran). Le contrat des ÉLÉMENTS reste ouvert : `[null]` traverse, et le rendu
+  lève sur `r.ingredients`. Idem pour `[{"name":"X","ingredients":{}}]`.
+- **Piste** : filtrer les éléments non exploitables dans `normaliserRecettes`, avec un test
+  qui traverse `generateRecipes → renderAIResults` (le seul chemin qui prouve vraiment le
+  contrat de bout en bout).
+- ⚠️ **Préexistant au LOT 029** : la même faiblesse valait pour `JSON.parse(rawText)` avant ce
+  lot. Ce n'est donc pas une régression, et l'auditeur l'a explicitement séparé du finding
+  critique.
+
+### [F-014] `generateRecipes` dépasse le seuil de taille du projet
+
+- **Origine** : audit Codex du LOT 029, 2026-08-03, confirmé au contre-audit du 2026-08-04.
+- **Gravité** : nulle pour l'usage — seuil d'architecture, pas un défaut de comportement.
+- **Où** : `src/services/gemini.js`, `generateRecipes` — **~216 lignes** pour un seuil projet
+  de **150** (`CLAUDE.md` §4).
+- **Le défaut** : la fonction porte désormais quatre responsabilités qui se sont accumulées
+  lot après lot — construire le prompt, tenter deux lectures strictes, faire tourner le
+  sauvetage d'urgence, et choisir entre trois messages d'erreur. Chacune a été ajoutée pour
+  une bonne raison ; c'est leur somme qui pose problème.
+- **Piste** : extraire la lecture de la réponse (lectures strictes + sauvetage + messages) dans
+  un module dédié, à côté de `src/utils/aiJson.js` qui porte déjà la SSOT du découpage JSON.
+- ⚠️ **Écarté du LOT 029 sur avis de l'auditeur** : « un découpage tardif dans ce lot sensible
+  augmenterait le risque de régression ». À traiter comme chantier dédié, à froid.
+
 ---
 
 # Findings traités / écartés

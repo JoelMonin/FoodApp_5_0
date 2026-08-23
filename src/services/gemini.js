@@ -43,16 +43,24 @@ const REGLE_QUALITE_ETAPES = `Chaque étape est AUTOSUFFISANTE : indique les dur
    concret de réussite (couleur, texture, consistance). Une personne qui découvre la recette
    doit pouvoir la réussir parfaitement sans rien deviner.`;
 
-// Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
-// le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
-// SSOT du message « réponse coupée » (LOT 029, findings D et F-07). Deux chemins très
-// éloignés le lèvent — la coupure TOTALE, où il ne reste aucun texte, et la coupure PARTIELLE
-// que le sauvetage n'a pas su rattraper. Les deux décrivent la même panne : les écrire deux
-// fois, c'est se condamner à n'en corriger qu'un le jour où la formulation changera.
+// DEUX MESSAGES DE COUPURE, ET C'EST VOULU (LOT 029, contre-audit Codex — défaut que j'avais
+// INTRODUIT en corrigeant F-07).
+//
+// J'avais mis le message détaillé dans `callAI`, en oubliant que `callAI` ne sert pas qu'aux
+// recettes : la recherche d'emoji, la suggestion de catégorie et l'analyse nutritionnelle
+// passent par elle, et affichent son erreur telle quelle. Une recherche d'emoji coupée aurait
+// conseillé à Joel « essayez une envie du moment plus courte » — un conseil absurde, sur un
+// écran où aucune envie n'existe. Le lecteur générique dit donc ce qu'il SAIT ; seul l'appelant
+// qui connaît le contexte donne le geste à faire.
 const MESSAGE_REPONSE_COUPEE =
+  "La réponse de l'IA a été coupée : elle dépasse la longueur maximale autorisée.";
+
+const MESSAGE_RECETTES_COUPEES =
   "La réponse de l'IA a été coupée : la demande produit trop de texte. "
   + 'Essayez une envie du moment plus courte, ou moins de contraintes à la fois.';
 
+// Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
+// le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
 const RECIPE_SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -392,9 +400,10 @@ Format JSON uniquement:
   let reponseTronquee = false;
 
   const rawText = await callAI(prompt, apiKey, model, {
-    // Plafond : cf. `MAX_OUTPUT_TOKENS_IA` (SSOT `src/constants.js`), qui porte l'historique
-    // des DEUX sous-estimations successives — 8 192 au LOT 026, 16 384 au LOT 029 — et la
-    // raison de fond : ce plafond est PARTAGÉ avec les jetons de réflexion.
+    // Plafond : cf. `MAX_OUTPUT_TOKENS_IA` (SSOT `src/constants.js`), qui porte la raison de
+    // fond — il est PARTAGÉ avec les jetons de réflexion — et l'histoire exacte : UNE seule
+    // troncature réelle (LOT 026), le relèvement du LOT 029 étant une prévention et NON la
+    // réparation d'un incident.
     maxTokens: MAX_OUTPUT_TOKENS_IA,
     isJSON: false,
     thinkingLevel: 'high',
@@ -468,7 +477,7 @@ Format JSON uniquement:
     // « réessayez » dans TOUS les cas. Sur une troncature, ce conseil est faux : la coupure
     // vient de la longueur demandée, elle se reproduira à l'identique. Le bon geste est de
     // réduire la demande, pas de la relancer.
-    if (reponseTronquee) throw new Error(MESSAGE_REPONSE_COUPEE);
+    if (reponseTronquee) throw new Error(MESSAGE_RECETTES_COUPEES);
     throw new Error('Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent.');
   }
 }

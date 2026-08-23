@@ -270,11 +270,12 @@ describe('Gemini Service', () => {
     // PARTAGÉ avec les jetons de réflexion, était resté à 8192 pendant que l'exigence
     // d'étapes détaillées allongeait 5 recettes. Le plafond suit désormais l'exigence.
     // LOT 029 — CE TEST A ROUGI, ET C'ÉTAIT SON TRAVAIL : il figeait `16384` au chiffre près,
-    // et le chantier D a relevé le plafond après une SECONDE panne réelle de Joel (les
-    // « envies du moment » demandent 5 variantes d'un même plat, plus longues que 5 plats
-    // différents). Réécrit sur la SSOT, il vérifie ce qui compte vraiment — que le service
-    // n'invente pas son propre plafond — et survivra au prochain relèvement.
-    // Le verrou de NON-RETOUR sous 16384 vit dans `tests/reponse-tronquee.test.js`.
+    // et le chantier D a relevé le plafond. ⚠️ Ce relèvement est une PRÉVENTION : contrairement
+    // à celui du LOT 026, il ne répare aucune panne observée — la panne de Joel du 2026-08-03
+    // n'était pas une troncature (cf. `tests/json-reponse-ia.test.js`). Réécrit sur la SSOT,
+    // ce test vérifie ce qui compte — que le service n'invente pas son propre plafond — et
+    // survivra au prochain relèvement. La vérification qui MORD vraiment (aucun nombre écrit
+    // en dur dans le service) vit dans `tests/reponse-tronquee.test.js`.
     it('le plafond de sortie vient de la SSOT, jamais d\'un nombre écrit dans le service', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 

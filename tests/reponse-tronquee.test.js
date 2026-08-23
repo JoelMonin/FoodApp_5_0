@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { generateRecipes } from '../src/services/gemini.js';
+import { generateRecipes, callAI } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { MAX_OUTPUT_TOKENS_IA } from '../src/constants.js';
 
@@ -24,7 +24,7 @@ import { MAX_OUTPUT_TOKENS_IA } from '../src/constants.js';
 
 const CORPS = () => JSON.parse(fetch.mock.calls[0][1].body);
 
-/** Réponse Google coupée net au milieu de la PREMIÈRE recette — le cas de Joel. */
+/** Réponse Google coupée net au milieu de la PREMIÈRE recette : le sauvetage ne peut rien. */
 function reponseCoupee() {
     return {
         ok: true,
@@ -107,6 +107,23 @@ describe('LOT 029 — réponse de l\'IA coupée au plafond', () => {
             await expect(
                 generateRecipes('MOCK_KEY', [], { ...defaultAiConfig(), envie: 'chili', ppl: '2' }, [], [])
             ).rejects.toThrow(/coupée/i);
+        });
+
+        // Contre-audit Codex — DÉFAUT QUE J'AVAIS INTRODUIT en corrigeant F-07 : j'avais mis
+        // le conseil « essayez une envie du moment plus courte » dans `callAI`, le lecteur
+        // GÉNÉRIQUE. Or il sert aussi à la recherche d'emoji, à la suggestion de catégorie et
+        // à l'analyse nutritionnelle, qui affichent son erreur telle quelle : Joel se serait
+        // vu conseiller de raccourcir une envie sur un écran où il n'en existe aucune.
+        it('un appel NON lié aux recettes ne conseille pas de raccourcir une « envie »', async () => {
+            fetch.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] })
+            });
+
+            const echec = callAI('trouve un emoji', 'MOCK_KEY', 'modele-test').catch(e => e.message);
+
+            await expect(echec).resolves.toMatch(/coupée/i);
+            await expect(echec).resolves.not.toMatch(/envie du moment/i);
         });
 
         it('une réponse vide SANS coupure garde le message « réponse vide »', async () => {
