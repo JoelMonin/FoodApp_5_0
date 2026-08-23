@@ -1,6 +1,7 @@
 import { AI_ROLES, LOCAL_STORAGE_KEY, LOCAL_STORAGE_CHECKED_KEY } from './constants.js';
 import { CATEGORIE_PAR_DEFAUT, DEFAULT_DB } from './data.js';
 import { estUnObjetSimple } from './utils/validate.js';
+import { listeSure } from './utils/helpers.js';
 
 /**
  * Affectation des modèles IA par rôle métier — représentation canonique unique.
@@ -285,7 +286,27 @@ export function sanitizeGlobalState() {
     if (Array.isArray(legacy)) state.aiConfig.cuisines = legacy;
     delete state.aiConfig.cuisine;
   }
-  if (!Array.isArray(state.aiConfig.cuisines)) state.aiConfig.cuisines = [];
+  // LOT 029 (findings F-011 du registre technique) — LES TROIS CHAMPS TABLEAU D'`aiConfig`
+  // SONT DÉSORMAIS TRAITÉS PAREIL. Seul `cuisines` avait sa garde, posée au LOT 010 pour une
+  // raison de migration ; `diet` et `equip` n'en ont jamais eu, sans que rien ne le signale.
+  //
+  // Ce que ça évite, concrètement : une valeur abîmée (document cloud corrompu, sauvegarde
+  // bricolée à la main) traverse aujourd'hui tout le circuit sans être rejetée, et fait
+  // ÉCHOUER LA GÉNÉRATION D'IDÉES — Joel voit « Erreur IA » sans comprendre pourquoi, et
+  // aucune manipulation dans l'app ne le répare.
+  //
+  // ⚠️ `equip` est le cas le plus sournois des trois, et c'est pour lui que cette garde
+  // compte le plus. Son lecteur (`src/services/gemini.js`) commence par tester
+  // `cfgEquip.includes('Poêles')` — or UNE CHAÎNE POSSÈDE AUSSI `.includes`. Le test réussit
+  // donc au lieu d'échouer, la valeur corrompue est prise pour une liste valide, et le
+  // plantage survient une ligne plus loin, au `.map()`. Une garde apparente qui n'en est pas
+  // une : c'est exactement ce qu'une relecture rapide laisse passer.
+  //
+  // Liste EXPLICITE, pas de boucle générique : un champ tableau ajouté demain devra être
+  // inscrit ici consciemment, plutôt que d'être protégé par accident — ou de ne pas l'être.
+  state.aiConfig.cuisines = listeSure(state.aiConfig.cuisines);
+  state.aiConfig.diet = listeSure(state.aiConfig.diet);
+  state.aiConfig.equip = listeSure(state.aiConfig.equip);
 }
 
 /**

@@ -6,7 +6,7 @@ export const APP_VERSION = '5.16.0';
 // REASONING : recettes, nutrition, transformation de texte (qualite avant tout).
 // FAST : suggestion de categorie, recherche d'emoji (volume, latence, cout).
 export const AI_ROLES = {
-  REASONING: 'gemini-3.6-flash',
+  REASONING: 'gemini-3.7-flash',
   FAST: 'gemini-3.5-flash-lite'
 };
 
@@ -35,8 +35,36 @@ export const MAX_EXTRA_INGREDIENTS = 6;
 // l'IA, sous le libellé « demande expresse » — donc avec l'autorité la plus haute du prompt.
 // La borne applicative ci-dessous est le vrai garde-fou ; `maxlength` n'est que le confort de
 // saisie. Un test vérifie que les deux disent le même nombre.
+//
+// LOT 029 — `MAX_EXCLUSIONS_CHARS` complète la série (finding F-012). Les trois champs libres
+// envoyés à l'IA sont désormais traités À L'IDENTIQUE. Ils ne l'étaient pas : le LOT 028 avait
+// protégé `envie` et `exceptions` sans toucher `exclusions`, dont l'exposition lui était
+// antérieure — trois champs voisins, trois traitements différents, et personne pour s'en
+// souvenir six mois plus tard. C'est cette asymétrie que ce lot referme.
 export const MAX_ENVIE_CHARS = 100;
 export const MAX_EXCEPTIONS_CHARS = 80;
+export const MAX_EXCLUSIONS_CHARS = 80;
+
+// SSOT DU PLAFOND DE LONGUEUR DES RÉPONSES IA (LOT 029, chantier D — panne réelle remontée
+// par Joel le 2026-08-03 : « j'ai quand même ce message la plupart du temps avec les envies
+// du moment »).
+//
+// CE PLAFOND EST PARTAGÉ AVEC LES JETONS DE RÉFLEXION du modèle (`thinkingLevel: 'high'`) :
+// ce n'est donc PAS « la taille de la recette », c'est « réflexion + recettes ». C'est ce
+// partage qui rend la valeur si difficile à deviner, et qui l'a fait sous-estimer DEUX fois :
+//   · LOT 026 : 8 192 → 16 384, après que des étapes détaillées ont coupé la réponse ;
+//   · LOT 029 : 16 384 → ci-dessous, après que « l'envie du moment » a demandé CINQ VARIANTES
+//     D'UN MÊME PLAT (plus longues et plus proches les unes des autres que cinq plats
+//     différents, donc plus de réflexion ET plus de texte).
+//
+// Valeur retenue : le MAXIMUM que le modèle accepte en sortie (vérifié sur la documentation
+// Google le 2026-08-03 pour `gemini-3.7-flash`). Deux raisons de ne pas être timide :
+//   1. on paie les jetons RÉELLEMENT produits, jamais le plafond — un plafond haut ne coûte
+//      rien tant que les réponses restent courtes ;
+//   2. les deux sous-estimations précédentes ont chacune coûté une panne visible à Joel.
+// ⚠️ À revérifier si le modèle de `AI_ROLES.REASONING` change : ce plafond est une propriété
+// DU MODÈLE, pas un choix libre. Trop haut, l'API rejette la requête.
+export const MAX_OUTPUT_TOKENS_IA = 65536;
 
 // SSOT du PÉRIMÈTRE DU FICHIER DE SAUVEGARDE (LOT 015, chantier 10a).
 // L'export sérialisait `state` en ENTIER : partaient donc dans le fichier la vue courante,

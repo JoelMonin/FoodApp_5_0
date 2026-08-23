@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { callAI, generateRecipes, transformRecipeFromText } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { CATEGORIES } from '../src/data.js';
+import { MAX_OUTPUT_TOKENS_IA } from '../src/constants.js';
 
 describe('Gemini Service', () => {
   beforeEach(() => {
@@ -256,11 +257,17 @@ describe('Gemini Service', () => {
     // au milieu du JSON (« Unexpected token 'e', …"en poudre"… ») — le plafond de sortie,
     // PARTAGÉ avec les jetons de réflexion, était resté à 8192 pendant que l'exigence
     // d'étapes détaillées allongeait 5 recettes. Le plafond suit désormais l'exigence.
-    it('correctif — le plafond de sortie suit l\'allongement des étapes (16384)', async () => {
+    // LOT 029 — CE TEST A ROUGI, ET C'ÉTAIT SON TRAVAIL : il figeait `16384` au chiffre près,
+    // et le chantier D a relevé le plafond après une SECONDE panne réelle de Joel (les
+    // « envies du moment » demandent 5 variantes d'un même plat, plus longues que 5 plats
+    // différents). Réécrit sur la SSOT, il vérifie ce qui compte vraiment — que le service
+    // n'invente pas son propre plafond — et survivra au prochain relèvement.
+    // Le verrou de NON-RETOUR sous 16384 vit dans `tests/reponse-tronquee.test.js`.
+    it('le plafond de sortie vient de la SSOT, jamais d\'un nombre écrit dans le service', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(body.generationConfig.maxOutputTokens).toBe(16384);
+      expect(body.generationConfig.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_IA);
     });
 
     it('correctif — une réponse tronquée IRRÉCUPÉRABLE lève une erreur en FRANÇAIS, plus le ' +
@@ -643,11 +650,13 @@ describe('Gemini Service', () => {
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe('high');
     });
 
-    it('correctif LOT 026 — le plafond de sortie suit aussi l\'allongement des étapes (16384)', async () => {
+    // LOT 029 — même réécriture que pour la génération (cf. son jumeau plus haut) : la
+    // recette collée partage la MÊME SSOT de plafond, et doit continuer à la suivre.
+    it('le plafond de sortie vient de la SSOT ici aussi — les deux prompts la partagent', async () => {
       await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(body.generationConfig.maxOutputTokens).toBe(16384);
+      expect(body.generationConfig.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_IA);
     });
 
     // LOT 014 — cette fonction portait la BONNE méthode (essayer de lire la réponse telle

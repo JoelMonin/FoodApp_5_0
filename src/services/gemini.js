@@ -1,7 +1,7 @@
-import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE, MAX_EXCEPTIONS_CHARS } from '../constants.js';
+import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE, MAX_EXCEPTIONS_CHARS, MAX_EXCLUSIONS_CHARS, MAX_OUTPUT_TOKENS_IA } from '../constants.js';
 import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
-import { creativityLevel, envieActive, consigneLibre } from '../utils/helpers.js';
+import { creativityLevel, envieActive, consigneLibre, listeSure } from '../utils/helpers.js';
 
 /**
  * SSOT DES CONSIGNES COMMUNES AUX DEUX PROMPTS (LOT 026, chantier E).
@@ -72,6 +72,10 @@ const RECIPE_SAFETY_SETTINGS = [
  *   remplace l'ancien `thinkingBudget` numérique, incompatible avec Gemini 3.x). Facultatif :
  *   n'est envoyé que s'il est fourni.
  * @param {Array} [options.safetySettings] - Cf. RECIPE_SAFETY_SETTINGS.
+ * @param {Function} [options.onTruncated] - Appelée quand Google signale `finishReason:
+ *   'MAX_TOKENS'`, c'est-à-dire une réponse COUPÉE au plafond (LOT 029, chantier D). Permet à
+ *   l'appelant de distinguer « tronquée » d'« illisible » — deux pannes qui appellent des
+ *   messages opposés : réessayer ne sert à rien face à une troncature.
  * @param {Function} [options.onThinkingFallback] - Appelée UNIQUEMENT si la requête a dû être
  *   rejouée sans `thinkingLevel` après un rejet 400 de l'API, ET que ce second essai a
  *   réussi. Sert à avertir l'utilisateur (toast) que la génération s'est faite sans le
@@ -94,8 +98,11 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
       }
     };
 
-    // temperature/topK/topP : dépréciés et ignorés par Gemini 3.x (gemini-3.6-flash,
-    // gemini-3.5-flash-lite — les deux seuls modèles utilisés par ce projet), Google
+    // temperature/topK/topP : dépréciés et ignorés par TOUTE la génération Gemini 3.x — donc
+    // par les deux modèles de ce projet, quels qu'ils soient (SSOT `AI_ROLES`). LOT 029 : les
+    // noms étaient écrits ici en dur, et sont devenus faux le jour du passage à
+    // `gemini-3.7-flash`. Un commentaire qui nomme une valeur mouvante coûte plus cher qu'un
+    // commentaire absent, le jour où quelqu'un le croit. Google
     // recommande explicitement de ne plus les envoyer plutôt que d'imposer un défaut
     // inerte (trouvé lors de l'audit du sous-lot 11A, LOT 011). Envoyés SEULEMENT si le
     // caller les fournit explicitement, pour ne pas changer le comportement des appels
@@ -150,6 +157,15 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
       throw err;
     }
   }
+
+  // LOT 029, chantier D — LIRE LE MOTIF D'ARRÊT. Google dit explicitement pourquoi il s'est
+  // trouvé : `MAX_TOKENS` = la réponse a été COUPÉE au plafond, elle n'est pas illisible.
+  // L'app ne regardait jamais ce champ : toute réponse tronquée était donc traitée comme du
+  // charabia, et Joel se voyait conseiller « réessayez » alors qu'un nouvel essai identique
+  // reproduisait la même coupure — la cause étant structurelle, pas aléatoire. Panne réelle
+  // remontée par Joel le 2026-08-03 : « j'ai quand même ce message la plupart du temps avec
+  // les envies du moment ».
+  if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS') options.onTruncated?.();
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Réponse vide de l'IA");
@@ -206,10 +222,17 @@ export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredien
   const stockList = stockItems.map(i => i.name).join(', ');
   const pinnedIngredients = allIngredients.filter(i => i.pinned);
 
-  const dietStr = (aiConfig.diet || []).join(', ');
-  const hasCuisineFilter = (aiConfig.cuisines || []).length > 0;
-  const cuisineStr = hasCuisineFilter ? (aiConfig.cuisines || []).join(', ') : 'Libre';
-  let cfgEquip = (aiConfig.equip || []);
+  // LOT 029 (finding F-012) — `exclusions` rejoint `envie` et `exceptions` : garde de type et
+  // borne dure, par la MÊME fonction. Le `maxlength="80"` de la page ne protège que le
+  // clavier ; cette valeur arrive aussi par le cloud et par une sauvegarde restaurée, qui ne
+  // connaissent aucune borne. Le repli « rien » est conservé tel quel — c'est le mot que le
+  // modèle lit depuis l'origine, il n'a aucune raison de changer.
+  const exclusionsStr = consigneLibre(aiConfig.exclusions, MAX_EXCLUSIONS_CHARS);
+
+  const dietStr = listeSure(aiConfig.diet).join(', ');
+  const hasCuisineFilter = listeSure(aiConfig.cuisines).length > 0;
+  const cuisineStr = hasCuisineFilter ? listeSure(aiConfig.cuisines).join(', ') : 'Libre';
+  let cfgEquip = listeSure(aiConfig.equip);
   if (cfgEquip.includes('Poêles')) cfgEquip = cfgEquip.map(e => e === 'Poêles' ? 'Poêles & Casseroles (plaques de cuisson)' : e);
   const equipStr = cfgEquip.length > 0 ? cfgEquip.join(', ') : 'Tous équipements';
   const timeStr = aiConfig.time === 'libre' ? 'Sans limite' : aiConfig.time + ' minutes max';
@@ -282,7 +305,7 @@ ${enviePrompt}
 ${imposedPrompt}
 4. NOMBRE DE PERSONNES : Exactement ${aiConfig.ppl} personnes. Aligne les quantités en conséquence.
 5. MATÉRIEL PRIORITAIRE : ${equipStr}.
-6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${aiConfig.exclusions || 'rien'}.${exceptionsPrompt}
+6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${exclusionsStr || 'rien'}.${exceptionsPrompt}
    ⚠️ RÈGLE D'OR : Si un ingrédient est "IMPOSÉ" (ex: Riz), il A PRIORITÉ et annule toute contrainte de régime qui l'interdirait (ex: Sans Céréales).
 7. TEMPS & DIFFICULTÉ : Max ${timeStr}, niveau ${diffStr}.
 8. CRÉATIVITÉ : ${creativityInstruction(creativity)}${antiRepetePrompt}
@@ -303,17 +326,23 @@ Format JSON uniquement:
 
   const model = aiConfig.models?.recipeGeneration || AI_ROLES.REASONING;
 
+  // LOT 029, chantier D — la réponse a-t-elle été COUPÉE au plafond ? Google le dit
+  // (`finishReason: 'MAX_TOKENS'`), l'app ne le lisait pas. Ce drapeau ne sert QU'À choisir
+  // le bon message d'échec : une réponse tronquée et une réponse illisible se réparent de
+  // deux façons opposées, et conseiller « réessayez » sur une troncature envoie Joel
+  // reproduire la même panne.
+  let reponseTronquee = false;
+
   const rawText = await callAI(prompt, apiKey, model, {
-    // 8192 → 16384 (LOT 026, correctif post-essai réel de Joel) : le chantier D allonge
-    // nettement les étapes de CINQ recettes, et ce plafond est PARTAGÉ avec les jetons de
-    // réflexion (`thinkingLevel: 'high'`). Resté à 8192, il coupait la réponse en plein
-    // vol — panne constatée en vrai, JSON tronqué au milieu d'un « en poudre », sauvetage
-    // impuissant car la coupe tombait dans la PREMIÈRE recette. Le plafond suit l'exigence.
-    maxTokens: 16384,
+    // Plafond : cf. `MAX_OUTPUT_TOKENS_IA` (SSOT `src/constants.js`), qui porte l'historique
+    // des DEUX sous-estimations successives — 8 192 au LOT 026, 16 384 au LOT 029 — et la
+    // raison de fond : ce plafond est PARTAGÉ avec les jetons de réflexion.
+    maxTokens: MAX_OUTPUT_TOKENS_IA,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,
-    onThinkingFallback: options.onThinkingFallback
+    onThinkingFallback: options.onThinkingFallback,
+    onTruncated: () => { reponseTronquee = true; }
   });
 
   try {
@@ -354,6 +383,17 @@ Format JSON uniquement:
     // message technique anglais du parseur (« Unexpected token 'e', …"en poudre"… is not
     // valid JSON ») — illisible pour Joel, et disparu avant d'être compris. L'erreur dit
     // désormais en français ce qui s'est passé et quoi faire.
+    //
+    // LOT 029, chantier D — DEUX PANNES, DEUX MESSAGES. Le message unique conseillait
+    // « réessayez » dans TOUS les cas. Sur une troncature, ce conseil est faux : la coupure
+    // vient de la longueur demandée, elle se reproduira à l'identique. Le bon geste est de
+    // réduire la demande, pas de la relancer.
+    if (reponseTronquee) {
+      throw new Error(
+        "La réponse de l'IA a été coupée : la demande produit trop de texte. "
+        + 'Essayez une envie du moment plus courte, ou moins de contraintes à la fois.'
+      );
+    }
     throw new Error('Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent.');
   }
 }
@@ -409,7 +449,7 @@ Instructions :
     // 8192 → 16384 (LOT 026) : même raison que `generateRecipes` — le chantier D allonge
     // les étapes et le plafond est partagé avec la réflexion. Une seule recette ici, mais
     // la coupe en plein vol produirait le même échec, en pire : rien à sauver.
-    maxTokens: 16384,
+    maxTokens: MAX_OUTPUT_TOKENS_IA,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,

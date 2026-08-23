@@ -32,8 +32,16 @@ describe('LOT 010 / §6 — menu de modèles supprimé, info en lecture seule', 
     });
 
     it('aucun nom de modèle n\'est écrit en dur dans le HTML (SSOT)', () => {
-        expect(INDEX_HTML).not.toContain('gemini-3.6-flash');
-        expect(INDEX_HTML).not.toContain('gemini-3.5-flash');
+        // LOT 029 — CE TEST CITAIT LES NOMS EN DUR (`'gemini-3.6-flash'`). Au changement de
+        // modèle il serait resté VERT en ne vérifiant plus rien : le nom recherché n'existant
+        // plus nulle part, l'assertion devenait vraie par accident. Un test vivant, rassurant
+        // et inutile — le pire des trois états.
+        //
+        // Écrit sur la SSOT, il suit désormais tout changement de modèle et continue de
+        // mordre. Prouvé par mutation : coller `AI_ROLES.REASONING` dans `index.html` le
+        // fait rougir.
+        expect(INDEX_HTML).not.toContain(AI_ROLES.REASONING);
+        expect(INDEX_HTML).not.toContain(AI_ROLES.FAST);
     });
 
     it('le conteneur d\'information en lecture seule existe', () => {
