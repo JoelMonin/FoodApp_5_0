@@ -1,7 +1,7 @@
-import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE, MAX_EXCEPTIONS_CHARS } from '../constants.js';
+import { AI_ROLES, MESSAGE_CLE_API_MANQUANTE, MAX_EXCEPTIONS_CHARS, MAX_EXCLUSIONS_CHARS, MAX_OUTPUT_TOKENS_IA } from '../constants.js';
 import { CATEGORIES } from '../data.js';
 import { decouperJsonIA, extraireJsonIA } from '../utils/aiJson.js';
-import { creativityLevel, envieActive, consigneLibre } from '../utils/helpers.js';
+import { creativityLevel, envieActive, consigneLibre, listeSure } from '../utils/helpers.js';
 
 /**
  * SSOT DES CONSIGNES COMMUNES AUX DEUX PROMPTS (LOT 026, chantier E).
@@ -20,8 +20,11 @@ import { creativityLevel, envieActive, consigneLibre } from '../utils/helpers.js
 // Guillemets + apostrophes (P2, LOT 025) : protège la lecture du JSON SANS interdire
 // l'apostrophe française — l'IA comprenait « guillemets simples interdits » comme
 // « apostrophe interdite » et rendait « l eau », « d une cocotte ».
-const REGLE_GUILLEMETS = `Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).
-   Aucun guillemet double (") dans les valeurs de texte.
+const REGLE_GUILLEMETS = `STRUCTURE JSON : les délimiteurs de chaîne sont OBLIGATOIREMENT des
+   guillemets doubles ("). N'utilise JAMAIS le guillemet simple (') pour ouvrir ou fermer une
+   valeur : {"name": 'Crêpes'} est INVALIDE, {"name": "Crêpes"} est correct.
+   CONTENU DES TEXTES (titre, description, étapes) : n'y place aucun guillemet double —
+   reformule ou utilise une apostrophe.
    ATTENTION — l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,
    « d'une cocotte », « jaune d'oeuf ». JAMAIS « l eau », « d une cocotte », « jaune d oeuf ».`;
 
@@ -39,6 +42,22 @@ const REGLE_QUALITE_ETAPES = `Chaque étape est AUTOSUFFISANTE : indique les dur
    chaque fois qu'ils s'appliquent, le moment où chaque ingrédient entre en jeu, et un repère
    concret de réussite (couleur, texture, consistance). Une personne qui découvre la recette
    doit pouvoir la réussir parfaitement sans rien deviner.`;
+
+// DEUX MESSAGES DE COUPURE, ET C'EST VOULU (LOT 029, contre-audit Codex — défaut que j'avais
+// INTRODUIT en corrigeant F-07).
+//
+// J'avais mis le message détaillé dans `callAI`, en oubliant que `callAI` ne sert pas qu'aux
+// recettes : la recherche d'emoji, la suggestion de catégorie et l'analyse nutritionnelle
+// passent par elle, et affichent son erreur telle quelle. Une recherche d'emoji coupée aurait
+// conseillé à Joel « essayez une envie du moment plus courte » — un conseil absurde, sur un
+// écran où aucune envie n'existe. Le lecteur générique dit donc ce qu'il SAIT ; seul l'appelant
+// qui connaît le contexte donne le geste à faire.
+const MESSAGE_REPONSE_COUPEE =
+  "La réponse de l'IA a été coupée : elle dépasse la longueur maximale autorisée.";
+
+const MESSAGE_RECETTES_COUPEES =
+  "La réponse de l'IA a été coupée : la demande produit trop de texte. "
+  + 'Essayez une envie du moment plus courte, ou moins de contraintes à la fois.';
 
 // Restaurées à l'identique de l'oracle (foodapp-v5-Joel.html l.5219-5224) : sans elles,
 // le filtre de sécurité par défaut de Google bloque une part réelle des recettes générées.
@@ -72,6 +91,10 @@ const RECIPE_SAFETY_SETTINGS = [
  *   remplace l'ancien `thinkingBudget` numérique, incompatible avec Gemini 3.x). Facultatif :
  *   n'est envoyé que s'il est fourni.
  * @param {Array} [options.safetySettings] - Cf. RECIPE_SAFETY_SETTINGS.
+ * @param {Function} [options.onTruncated] - Appelée quand Google signale `finishReason:
+ *   'MAX_TOKENS'`, c'est-à-dire une réponse COUPÉE au plafond (LOT 029, chantier D). Permet à
+ *   l'appelant de distinguer « tronquée » d'« illisible » — deux pannes qui appellent des
+ *   messages opposés : réessayer ne sert à rien face à une troncature.
  * @param {Function} [options.onThinkingFallback] - Appelée UNIQUEMENT si la requête a dû être
  *   rejouée sans `thinkingLevel` après un rejet 400 de l'API, ET que ce second essai a
  *   réussi. Sert à avertir l'utilisateur (toast) que la génération s'est faite sans le
@@ -94,8 +117,11 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
       }
     };
 
-    // temperature/topK/topP : dépréciés et ignorés par Gemini 3.x (gemini-3.6-flash,
-    // gemini-3.5-flash-lite — les deux seuls modèles utilisés par ce projet), Google
+    // temperature/topK/topP : dépréciés et ignorés par TOUTE la génération Gemini 3.x — donc
+    // par les deux modèles de ce projet, quels qu'ils soient (SSOT `AI_ROLES`). LOT 029 : les
+    // noms étaient écrits ici en dur, et sont devenus faux le jour du passage à
+    // `gemini-3.7-flash`. Un commentaire qui nomme une valeur mouvante coûte plus cher qu'un
+    // commentaire absent, le jour où quelqu'un le croit. Google
     // recommande explicitement de ne plus les envoyer plutôt que d'imposer un défaut
     // inerte (trouvé lors de l'audit du sous-lot 11A, LOT 011). Envoyés SEULEMENT si le
     // caller les fournit explicitement, pour ne pas changer le comportement des appels
@@ -151,7 +177,37 @@ export async function callAI(prompt, apiKey, model = AI_ROLES.REASONING, options
     }
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  // LOT 029, chantier D — LIRE LE MOTIF D'ARRÊT. Google dit explicitement pourquoi il s'est
+  // trouvé : `MAX_TOKENS` = la réponse a été COUPÉE au plafond, elle n'est pas illisible.
+  // L'app ne regardait jamais ce champ : toute réponse tronquée était donc traitée comme du
+  // charabia, et Joel se voyait conseiller « réessayez » alors qu'un nouvel essai identique
+  // reproduisait la même coupure — la cause étant structurelle, pas aléatoire. Panne réelle
+  // remontée par Joel le 2026-08-03 : « j'ai quand même ce message la plupart du temps avec
+  // les envies du moment ».
+  if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS') options.onTruncated?.();
+
+
+  // LOT 029, chantier D bis — LIRE **TOUTES** LES PARTIES DE LA RÉPONSE, pas seulement la
+  // première. Le code ne lisait que `parts[0]`, ce qui suppose que Google répond toujours en
+  // UN seul morceau. Ce n'est pas garanti : une réponse longue peut arriver découpée, et les
+  // modèles à réflexion peuvent intercaler une partie « pensée ». Si le JSON commence
+  // ailleurs qu'au premier morceau, tout ce qui suit est perdu et la réponse paraît
+  // ILLISIBLE — le message exact que Joel voit, sans qu'aucune troncature soit en cause.
+  // Les parties marquées `thought` sont écartées : ce sont les notes de réflexion du modèle,
+  // jamais la réponse demandée.
+  const parties = data.candidates?.[0]?.content?.parts || [];
+  const text = parties
+    .filter(p => typeof p?.text === 'string' && !p.thought)
+    .map(p => p.text)
+    .join('');
+  // LOT 029 (finding F-07 de l'audit Codex) — UNE COUPURE TOTALE RESTE UNE COUPURE. Quand le
+  // plafond est atteint pendant la réflexion, il ne reste AUCUNE partie visible : le drapeau
+  // de troncature était bien levé, mais `generateRecipes` n'avait jamais l'occasion de s'en
+  // servir, car cette ligne levait « Réponse vide » d'abord. Joel lisait donc le message le
+  // moins utile des deux, dans le cas le plus caractéristique de la panne.
+  if (!text && data.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    throw new Error(MESSAGE_REPONSE_COUPEE);
+  }
   if (!text) throw new Error("Réponse vide de l'IA");
 
   if (isJSON && !options.schema) {
@@ -187,6 +243,32 @@ function creativityInstruction(creativity) {
 }
 
 /**
+ * CONTRAT DE SORTIE de `generateRecipes` : un TABLEAU de recettes, toujours (LOT 029, finding
+ * F-01 de l'audit Codex).
+ *
+ * L'écran des résultats fait `recipes.map(...)` sans se poser de question — et il a raison,
+ * c'est le contrat annoncé. Mais une réponse d'IA n'est pas une donnée de confiance : le
+ * modèle rend parfois UNE recette seule au lieu du tableau demandé. Ce JSON-là est
+ * parfaitement valide ; il est simplement à la mauvaise forme.
+ *
+ * On la remet dans le contrat plutôt que de la perdre — c'est exactement ce que le sauvetage
+ * d'urgence faisait, sans que personne l'ait écrit noir sur blanc. Toute autre racine
+ * (nombre, chaîne, objet sans nom) rend `null` : le sauvetage prendra la main.
+ *
+ * @param {unknown} valeur - Ce que `JSON.parse` a rendu.
+ * @returns {any[] | null} Un tableau exploitable, ou `null` si la racine ne l'est pas.
+ */
+function normaliserRecettes(valeur) {
+  if (Array.isArray(valeur)) return valeur;
+  // `name` sert de signature minimale d'une recette. Le passage par un objet indexable est
+  // ce que le vérificateur de types exige pour lire une propriété sur une valeur inconnue —
+  // et il a raison de le demander : rien ne garantit la forme d'une réponse d'IA.
+  const candidat = /** @type {Record<string, unknown>} */ (valeur);
+  if (candidat && typeof candidat === 'object' && candidat.name) return [candidat];
+  return null;
+}
+
+/**
  * Génère 5 suggestions de recettes basées sur le stock et la config.
  *
  * Prompt restauré à partir de l'oracle (`foodapp-v5-Joel.html` l.5186-5233), mais fusionné
@@ -206,10 +288,17 @@ export async function generateRecipes(apiKey, stockItems, aiConfig, allIngredien
   const stockList = stockItems.map(i => i.name).join(', ');
   const pinnedIngredients = allIngredients.filter(i => i.pinned);
 
-  const dietStr = (aiConfig.diet || []).join(', ');
-  const hasCuisineFilter = (aiConfig.cuisines || []).length > 0;
-  const cuisineStr = hasCuisineFilter ? (aiConfig.cuisines || []).join(', ') : 'Libre';
-  let cfgEquip = (aiConfig.equip || []);
+  // LOT 029 (finding F-012) — `exclusions` rejoint `envie` et `exceptions` : garde de type et
+  // borne dure, par la MÊME fonction. Le `maxlength="80"` de la page ne protège que le
+  // clavier ; cette valeur arrive aussi par le cloud et par une sauvegarde restaurée, qui ne
+  // connaissent aucune borne. Le repli « rien » est conservé tel quel — c'est le mot que le
+  // modèle lit depuis l'origine, il n'a aucune raison de changer.
+  const exclusionsStr = consigneLibre(aiConfig.exclusions, MAX_EXCLUSIONS_CHARS);
+
+  const dietStr = listeSure(aiConfig.diet).join(', ');
+  const hasCuisineFilter = listeSure(aiConfig.cuisines).length > 0;
+  const cuisineStr = hasCuisineFilter ? listeSure(aiConfig.cuisines).join(', ') : 'Libre';
+  let cfgEquip = listeSure(aiConfig.equip);
   if (cfgEquip.includes('Poêles')) cfgEquip = cfgEquip.map(e => e === 'Poêles' ? 'Poêles & Casseroles (plaques de cuisson)' : e);
   const equipStr = cfgEquip.length > 0 ? cfgEquip.join(', ') : 'Tous équipements';
   const timeStr = aiConfig.time === 'libre' ? 'Sans limite' : aiConfig.time + ' minutes max';
@@ -282,7 +371,7 @@ ${enviePrompt}
 ${imposedPrompt}
 4. NOMBRE DE PERSONNES : Exactement ${aiConfig.ppl} personnes. Aligne les quantités en conséquence.
 5. MATÉRIEL PRIORITAIRE : ${equipStr}.
-6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${aiConfig.exclusions || 'rien'}.${exceptionsPrompt}
+6. RÉGIMES & EXCLUSIONS : ${dietStr || 'Aucun régime'}. Exclure formellement : ${exclusionsStr || 'rien'}.${exceptionsPrompt}
    ⚠️ RÈGLE D'OR : Si un ingrédient est "IMPOSÉ" (ex: Riz), il A PRIORITÉ et annule toute contrainte de régime qui l'interdirait (ex: Sans Céréales).
 7. TEMPS & DIFFICULTÉ : Max ${timeStr}, niveau ${diffStr}.
 8. CRÉATIVITÉ : ${creativityInstruction(creativity)}${antiRepetePrompt}
@@ -303,24 +392,53 @@ Format JSON uniquement:
 
   const model = aiConfig.models?.recipeGeneration || AI_ROLES.REASONING;
 
+  // LOT 029, chantier D — la réponse a-t-elle été COUPÉE au plafond ? Google le dit
+  // (`finishReason: 'MAX_TOKENS'`), l'app ne le lisait pas. Ce drapeau ne sert QU'À choisir
+  // le bon message d'échec : une réponse tronquée et une réponse illisible se réparent de
+  // deux façons opposées, et conseiller « réessayez » sur une troncature envoie Joel
+  // reproduire la même panne.
+  let reponseTronquee = false;
+
   const rawText = await callAI(prompt, apiKey, model, {
-    // 8192 → 16384 (LOT 026, correctif post-essai réel de Joel) : le chantier D allonge
-    // nettement les étapes de CINQ recettes, et ce plafond est PARTAGÉ avec les jetons de
-    // réflexion (`thinkingLevel: 'high'`). Resté à 8192, il coupait la réponse en plein
-    // vol — panne constatée en vrai, JSON tronqué au milieu d'un « en poudre », sauvetage
-    // impuissant car la coupe tombait dans la PREMIÈRE recette. Le plafond suit l'exigence.
-    maxTokens: 16384,
+    // Plafond : cf. `MAX_OUTPUT_TOKENS_IA` (SSOT `src/constants.js`), qui porte la raison de
+    // fond — il est PARTAGÉ avec les jetons de réflexion — et l'histoire exacte : UNE seule
+    // troncature réelle (LOT 026), le relèvement du LOT 029 étant une prévention et NON la
+    // réparation d'un incident.
+    maxTokens: MAX_OUTPUT_TOKENS_IA,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,
-    onThinkingFallback: options.onThinkingFallback
+    onThinkingFallback: options.onThinkingFallback,
+    onTruncated: () => { reponseTronquee = true; }
   });
 
-  try {
-    return JSON.parse(rawText.trim());
-  } catch (e) {
+  // LOT 029 — DEUX LECTURES STRICTES AVANT LE SAUVETAGE, chacune passée au CONTRAT DE SORTIE.
+  //
+  // (1) la réponse telle quelle ; (2) la même, débarrassée de ses balises Markdown — mesuré
+  // dans le navigateur de Joel le 2026-08-03 : le modèle enveloppe sa réponse dans un bloc
+  // ```json environ UNE FOIS SUR DEUX. Ces réponses sont valides, seules les balises gênent,
+  // et elles partaient pourtant au sauvetage d'urgence — un chemin qui ne récolte que les
+  // objets ayant un nom ET des ingrédients, et jette le reste EN SILENCE.
+  //
+  // ⚠️ LE PASSAGE PAR `normaliserRecettes` EST LA PARTIE QUI COMPTE (finding F-01 de l'audit
+  // Codex du 2026-08-03, CRITIQUE et justifié). Ma première version rendait directement le
+  // résultat de `JSON.parse` : une réponse au JSON parfaitement valide mais dont la racine
+  // n'est PAS un tableau (le modèle rend parfois UNE recette seule) traversait alors tout,
+  // et l'écran plantait plus loin sur `recipes.map is not a function`. Le sauvetage, lui,
+  // normalisait toujours en tableau — j'avais donc introduit une régression en croyant
+  // durcir. Le défaut existait DÉJÀ sur la première lecture, hors balises : les deux sont
+  // fermées ici, pas seulement celle que j'ai ouverte.
+  const cleanStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+  for (const candidat of [rawText.trim(), cleanStr]) {
+    let valeur;
+    try { valeur = JSON.parse(candidat); } catch { continue; }
+    const recettes = normaliserRecettes(valeur);
+    if (recettes) return recettes;
+  }
+
+  {
     // Sauvetage manuel si le JSON est malformé ou tronqué
-    let cleanStr = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     let results = [];
     let depth = 0;
     let inStr = false;
@@ -354,6 +472,12 @@ Format JSON uniquement:
     // message technique anglais du parseur (« Unexpected token 'e', …"en poudre"… is not
     // valid JSON ») — illisible pour Joel, et disparu avant d'être compris. L'erreur dit
     // désormais en français ce qui s'est passé et quoi faire.
+    //
+    // LOT 029, chantier D — DEUX PANNES, DEUX MESSAGES. Le message unique conseillait
+    // « réessayez » dans TOUS les cas. Sur une troncature, ce conseil est faux : la coupure
+    // vient de la longueur demandée, elle se reproduira à l'identique. Le bon geste est de
+    // réduire la demande, pas de la relancer.
+    if (reponseTronquee) throw new Error(MESSAGE_RECETTES_COUPEES);
     throw new Error('Réponse incomplète ou illisible. Réessayez — une seconde tentative suffit souvent.');
   }
 }
@@ -409,7 +533,7 @@ Instructions :
     // 8192 → 16384 (LOT 026) : même raison que `generateRecipes` — le chantier D allonge
     // les étapes et le plafond est partagé avec la réflexion. Une seule recette ici, mais
     // la coupe en plein vol produirait le même échec, en pire : rien à sauver.
-    maxTokens: 16384,
+    maxTokens: MAX_OUTPUT_TOKENS_IA,
     isJSON: false,
     thinkingLevel: 'high',
     safetySettings: RECIPE_SAFETY_SETTINGS,

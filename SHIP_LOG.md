@@ -1,14 +1,55 @@
 # SHIP LOG - FoodApp
 
 ## État du Projet
-- **Version actuelle** : 5.16.0
-- **Dernière mise à jour** : 02/08/2026
-- **Statut** : Version 5.16 publiée (LOT 028) — un champ libre « Envie du moment » ouvre les
-  réglages IA : écrire « chili con carne » et les 5 propositions seront des chili con carne.
-  Le rappel sous le bouton Générer montre la consigne active. Le champ « Exceptions
-  autorisées », décoratif depuis l'origine du projet, parle enfin à l'IA.
+- **Version actuelle** : 5.17.0
+- **Dernière mise à jour** : 04/08/2026
+- **Statut** : Version 5.17 publiée (LOT 029) — les recettes sont écrites par un modèle plus
+  récent (`gemini-3.7-flash`), et surtout **l'erreur « réponse incomplète ou illisible » qui
+  tombait une génération sur quatre avec les « envies du moment » a disparu**. Sa cause :
+  notre propre consigne à l'IA, ambiguë sur les guillemets.
 
 ## Historique des modifications
+- [x] [VERSION 5.17 - OnLine] 04/08/2026 : Publication du lot 029
+    - **LOT 029 — Modèle 3.7 et gardes de type**. Trois demandes réunies (le modèle signalé par
+      Joel, plus les findings F-011 et F-012 du registre), et un quatrième chantier ajouté en
+      cours de route après une panne réelle
+    - **LA PANNE, ET MON DIAGNOSTIC FAUX.** Joel : « j'ai quand même ce message la plupart du
+      temps avec les envies du moment ». J'ai conclu à une réponse coupée par manque de place —
+      raisonnement cohérent, appuyé sur un précédent réel du LOT 026, **et faux**, posé SANS
+      avoir jamais vu une réponse en échec. Sur sa proposition (« t'as qu'à le faire tourner
+      toi-même dans mon Chrome ») la panne a enfin été reproduite : réponse **complète**
+      (`finishReason: STOP`, ~10 500 jetons sur 65 536), mais le modèle y écrivait
+      `"name": 'Crêpes...'` — **des guillemets simples comme délimiteurs**, JSON invalide.
+      **Parce que notre propre consigne le lui demandait** : « Utilise UNIQUEMENT des guillemets
+      simples dans les textes » (LOT 025). Phrase visant le CONTENU, comprise par moments comme
+      visant les DÉLIMITEURS — d'où 1 échec sur 4, et l'impossibilité de trouver par le
+      raisonnement. La consigne écrite pour protéger le JSON en était devenue la première cause
+      de casse. Mesure avant/après dans son navigateur : **1 échec sur 4 → 0 sur 13**
+    - **Second défaut trouvé dans la foulée** : ~1 réponse sur 2 arrive enveloppée dans un bloc
+      Markdown. Valides, elles partaient pourtant au sauvetage d'urgence — un chemin qui ne
+      récolte que les objets ayant un nom ET des ingrédients, et **jette le reste en silence**
+    - **AUDIT CODEX : NO-GO au premier tour.** 1 finding **CRITIQUE** + 6 autres, **tous
+      vérifiés sur pièce, aucun faux positif**. Le critique était **une régression que j'avais
+      moi-même introduite en croyant durcir** : en faisant lire la réponse entière, je rendais
+      la racine du JSON sans vérifier que c'était bien une liste — l'écran plantait sur une
+      recette rendue seule. **Trois de mes tests ne prouvaient rien** (verts même en supprimant
+      tout le correctif). Contre-audit après correction : **GO**, critique confirmé clos — mais
+      il a encore trouvé **un défaut que j'avais introduit en corrigeant le précédent** (message
+      « raccourcissez votre envie » placé dans le lecteur générique, servi aussi aux emojis)
+    - **Un test supprimé volontairement** : il couvrait le cas le plus fréquent mais restait
+      vert sans le correctif. Un test rassurant qui ne mord pas est pire qu'un test absent
+    - **Histoire rectifiée partout** (code, tests, cartographie) : le relèvement du plafond de
+      ce lot est une PRÉVENTION, il n'a réparé aucune panne observée. Le laisser écrit
+      enverrait le prochain mainteneur relever le plafond au lieu de lire la réponse brute
+    - **Niveau d'audit relevé de Standard à Dur par l'auditeur, deux fois** — il avait raison :
+      le niveau se déduit de la ZONE touchée, pas du volume de code écrit
+    - Gardes de type : les 3 champs liste des réglages IA traités à l'identique (dont `equip`,
+      où la vérification existante réussissait sur une donnée invalide) ; `exclusions` rejoint
+      les 2 autres champs libres. 2 durcissements renvoyés à un chantier dédié (F-013, F-014)
+    - Essai réel de Joel : **« j'ai testé, ça marche »** — le verrou décisif, aucun test ne
+      pouvant prouver ni la qualité du nouveau modèle ni la disparition de la panne
+    - Métriques : types OK + **987/987 Vitest** + **216/216 Pytest**, build OK ·
+      **17 mutations rouges nommées, 0 nulle** (8 lot + 7 audit + 2 contre-audit)
 - [x] [VERSION 5.16 - OnLine] 02/08/2026 : Publication du lot 028
     - **LOT 028 — Envie du moment** : demande de Joel le jour même de la V5.15 — « pouvoir
       imposer un type de plat ou une contrainte particulière à la génération, via un champ
@@ -37,8 +78,9 @@
       leur ai donné une exposition sans leur donner la garde de type que le champ NEUF
       portait déjà (une donnée corrompue plantait la génération). Trace versionnée dans
       `audits/bridge/lot28-envie-du-moment/`
-    - Publié **sans essai préalable de Joel** (feu vert direct « publie »), comme aux
-      LOTS 019 et 027 — tracé fiche §7
+    - Feu vert de publication donné sans attendre l'essai (« publie »), mais **Joel avait en
+      fait essayé et confirme : « ça marche »**. La fonctionnalité est donc validée à l'usage,
+      et non seulement par les tests — contrairement aux LOTS 019 et 027
     - Métriques : types OK + **952/952 Vitest** + **216/216 Pytest** (16 verrous + 200 du
       pont d'audit), build OK · **13 mutations rouges nommées, 0 nulle**
 - [x] [VERSION 5.15 - OnLine] 02/08/2026 : Publication des lots 025 à 027

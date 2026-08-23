@@ -247,6 +247,31 @@ export function creativityLevel(creativity) {
  * @param {number} maxCaracteres - Borne dure, depuis `src/constants.js`.
  * @returns {string} La consigne exploitable, ou '' s'il n'y en a pas.
  */
+/**
+ * SSOT DE LA FORME « LISTE DE CHOIX » D'`aiConfig` (LOT 029, finding F-011).
+ *
+ * Les trois champs à puces (`diet`, `cuisines`, `equip`) sont des tableaux. Une valeur abîmée
+ * (document cloud corrompu, sauvegarde bricolée) peut en faire une chaîne ou un objet, et
+ * fait alors ÉCHOUER LA GÉNÉRATION D'IDÉES.
+ *
+ * ⚠️ POURQUOI `Array.isArray` ET RIEN D'AUTRE. Le réflexe est de tester une méthode
+ * (`valeur.includes`, `valeur.join`) — c'est précisément le piège de `equip` : le lecteur du
+ * prompt appelle `.includes('Poêles')`, et **une chaîne possède aussi `.includes`**. La
+ * vérification réussit sur une donnée invalide, puis le plantage tombe une ligne plus loin.
+ * Seul le TYPE tranche, jamais la présence d'une méthode.
+ *
+ * Appliquée aux DEUX étages, volontairement : à l'entrée des données
+ * (`sanitizeGlobalState`, qui répare durablement) et à la lecture (`src/services/gemini.js`,
+ * qui ne suppose rien de son appelant). Un seul étage ne suffit pas — le premier peut être
+ * contourné par un chemin futur, le second ne répare rien.
+ *
+ * @param {unknown} valeur
+ * @returns {any[]} La liste telle quelle, ou une liste vide.
+ */
+export function listeSure(valeur) {
+  return Array.isArray(valeur) ? valeur : [];
+}
+
 export function consigneLibre(valeur, maxCaracteres) {
   if (typeof valeur !== 'string') return '';
   return valeur.trim().slice(0, maxCaracteres);

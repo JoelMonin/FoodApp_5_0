@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { callAI, generateRecipes, transformRecipeFromText } from '../src/services/gemini.js';
 import { defaultAiConfig } from '../src/state.js';
 import { CATEGORIES } from '../src/data.js';
+import { MAX_OUTPUT_TOKENS_IA } from '../src/constants.js';
 
 describe('Gemini Service', () => {
   beforeEach(() => {
@@ -177,10 +178,22 @@ describe('Gemini Service', () => {
       expect(fetch.mock.calls[0][1].body).toContain("RÈGLE D'OR");
     });
 
-    it('restaure la consigne des guillemets simples (anti-JSON cassé)', async () => {
+    // LOT 029 — CETTE CONSIGNE A ÉTÉ RETOURNÉE, APRÈS AVOIR CAUSÉ LA PANNE QU'ELLE DEVAIT
+    // ÉVITER. Elle disait « Utilise UNIQUEMENT des guillemets simples dans les textes » : la
+    // phrase voulait dire « pas de guillemet double DANS LE CONTENU », mais le modèle la
+    // comprenait par moments comme « délimite tes chaînes avec des guillemets simples » — et
+    // rendait alors {"name": 'Crêpes'}, du JSON INVALIDE. Observé sur pièce dans le navigateur
+    // de Joel le 2026-08-03 : 1 génération sur 4, réponse pourtant COMPLÈTE (motif STOP).
+    // D'où le caractère intermittent, et l'échec de mon premier diagnostic (troncature).
+    // Le message doit désormais exiger explicitement le guillemet DOUBLE comme délimiteur.
+    it('exige le guillemet DOUBLE comme délimiteur de chaîne (anti-JSON cassé)', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 
-      expect(fetch.mock.calls[0][1].body).toContain('guillemets simples');
+      const corps = fetch.mock.calls[0][1].body;
+      expect(corps).toContain('guillemets doubles');
+      // La contre-épreuve : l'ancienne formulation, celle qui produisait le défaut, ne doit
+      // plus jamais réapparaître dans le message.
+      expect(corps).not.toContain('UNIQUEMENT des guillemets simples');
     });
 
     // LOT 025, correctif P2 — DÉFAUT VU SUR PIÈCE par Joel le 2026-08-02, capture à l'appui :
@@ -256,11 +269,18 @@ describe('Gemini Service', () => {
     // au milieu du JSON (« Unexpected token 'e', …"en poudre"… ») — le plafond de sortie,
     // PARTAGÉ avec les jetons de réflexion, était resté à 8192 pendant que l'exigence
     // d'étapes détaillées allongeait 5 recettes. Le plafond suit désormais l'exigence.
-    it('correctif — le plafond de sortie suit l\'allongement des étapes (16384)', async () => {
+    // LOT 029 — CE TEST A ROUGI, ET C'ÉTAIT SON TRAVAIL : il figeait `16384` au chiffre près,
+    // et le chantier D a relevé le plafond. ⚠️ Ce relèvement est une PRÉVENTION : contrairement
+    // à celui du LOT 026, il ne répare aucune panne observée — la panne de Joel du 2026-08-03
+    // n'était pas une troncature (cf. `tests/json-reponse-ia.test.js`). Réécrit sur la SSOT,
+    // ce test vérifie ce qui compte — que le service n'invente pas son propre plafond — et
+    // survivra au prochain relèvement. La vérification qui MORD vraiment (aucun nombre écrit
+    // en dur dans le service) vit dans `tests/reponse-tronquee.test.js`.
+    it('le plafond de sortie vient de la SSOT, jamais d\'un nombre écrit dans le service', async () => {
       await generateRecipes('MOCK_KEY', [], defaultAiConfig(), [], []);
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(body.generationConfig.maxOutputTokens).toBe(16384);
+      expect(body.generationConfig.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_IA);
     });
 
     it('correctif — une réponse tronquée IRRÉCUPÉRABLE lève une erreur en FRANÇAIS, plus le ' +
@@ -528,7 +548,10 @@ describe('Gemini Service', () => {
     it('la règle des guillemets/apostrophes est IDENTIQUE dans les deux messages', async () => {
       const [gen, transfo] = await lesDeuxCorps();
 
-      const canon = "Utilise UNIQUEMENT des guillemets simples (') dans les textes (titre, description, étapes).";
+      // LOT 029 — phrase canonique mise à jour avec la consigne retournée (cf. le test
+      // « exige le guillemet DOUBLE » plus haut). Ce test-ci ne juge pas la formulation : il
+      // vérifie que les DEUX messages portent EXACTEMENT la même, ce qui reste son seul rôle.
+      const canon = 'les délimiteurs de chaîne sont OBLIGATOIREMENT des';
       const canonP2 = "l'apostrophe À L'INTÉRIEUR DES MOTS reste OBLIGATOIRE : écris « l'eau »,";
       for (const corps of [gen, transfo]) {
         expect(corps).toContain(canon);
@@ -643,11 +666,13 @@ describe('Gemini Service', () => {
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe('high');
     });
 
-    it('correctif LOT 026 — le plafond de sortie suit aussi l\'allongement des étapes (16384)', async () => {
+    // LOT 029 — même réécriture que pour la génération (cf. son jumeau plus haut) : la
+    // recette collée partage la MÊME SSOT de plafond, et doit continuer à la suivre.
+    it('le plafond de sortie vient de la SSOT ici aussi — les deux prompts la partagent', async () => {
       await transformRecipeFromText('', 'du texte', [], 'MOCK_KEY');
 
       const body = JSON.parse(fetch.mock.calls[0][1].body);
-      expect(body.generationConfig.maxOutputTokens).toBe(16384);
+      expect(body.generationConfig.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_IA);
     });
 
     // LOT 014 — cette fonction portait la BONNE méthode (essayer de lire la réponse telle

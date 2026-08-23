@@ -7,10 +7,56 @@ Le balayage systématique du 2026-07-29 a prouvé que la migration monolithe →
 comportement de l'app d'origine fait référence), puis de **refondre le code en SSOT propre et
 maintenable**. Détail et ordre : `RoadMap & Project Pipeline/ROADMAP.md`.
 
-## Lot actif : AUCUN — la Version 5.16 est en ligne (2026-08-02)
+## Lot actif : AUCUN — la Version 5.17 est en ligne (2026-08-04)
 
-**LOT 028 publié en V5.16 le 2026-08-02** (feu vert direct de Joel : « publie », sans essai
-préalable — même procédé qu'aux LOTS 019 et 027, tracé dans la fiche §7).
+**LOT 029 publié en V5.17 le 2026-08-04** (feu vert de Joel : « tu peux publier »), après son
+essai réel concluant. Sont partis dans le même envoi les 2 derniers commits du LOT 028 (trace
+de son essai, règles d'autorisation, finding F-012).
+
+**Ce que la page en ligne gagne** : les recettes, la nutrition et l'import sont écrits par
+`gemini-3.7-flash` (même prix, gratuit sur l'offre utilisée) — et surtout **l'erreur « réponse
+incomplète ou illisible », qui tombait une génération sur quatre avec les « envies du moment »,
+a disparu**. Sa cause était notre propre consigne à l'IA.
+
+**Deux durcissements restent au registre technique** (F-013, F-014), écartés de ce lot sur avis
+de l'auditeur : ils n'ont aucun effet visible et un découpage à chaud dans une zone sensible
+aurait ajouté du risque.
+
+---
+
+## Récapitulatif du LOT 029 (ouvert le 2026-08-03, clos le 2026-08-04)
+
+Branche `feat/lot29-modele-37-et-gardes`, **chaînée sur `feat/lot28-envie-du-moment`** (qui
+porte encore 2 commits non publiés). Fiche :
+`RoadMap & Project Pipeline/LOT 029 - Modele 3.7 et gardes de type [EN COURS].md`.
+
+**Cinq chantiers** : (A) le modèle de raisonnement passe à `gemini-3.7-flash` · (B et C) les
+gardes de type manquantes sur les réglages IA, findings F-011 et F-012 du registre technique ·
+(D) plafond de sortie et lecture du motif d'arrêt · **(E) la vraie cause de la panne de Joel**
+— une consigne ambiguë faisait écrire au modèle des guillemets simples comme délimiteurs,
+1 génération sur 4 illisible.
+
+| Étape | État |
+|---|---|
+| Implémentation + tests | ✅ 2026-08-03 |
+| Preuve par retrait | ✅ 8/8 rouges (lot) + **7/7 rouges (correctifs d'audit)** |
+| Validation unifiée | ✅ 986 Vitest · 216 Pytest · types OK · build OK |
+| Audit Codex du diff final | ✅ 2026-08-03 — **NO-GO**, 1 finding CRITIQUE + 6 autres, **tous confirmés sur pièce et corrigés** |
+| Contre-audit après correction | ✅ 2026-08-04 — **GO**, critique confirmé clos, 4 réserves mineures traitées |
+| Essai réel de Joel | ✅ 2026-08-04 — **« j'ai testé, ça marche »** |
+| **Publication** | ⏳ **PRÊT — attend le feu vert explicite de Joel** |
+
+⚠️ **Le premier diagnostic de la panne était FAUX** (troncature supposée, jamais observée). La
+vraie cause n'a été trouvée qu'en instrumentant le navigateur de Joel. La fiche §D en garde la
+trace complète — c'est la leçon la plus chère du lot.
+
+---
+
+## Version 5.16 en ligne (2026-08-02)
+
+**LOT 028 publié en V5.16 le 2026-08-02** (feu vert de Joel : « publie »), **puis confirmé par
+son essai réel : « ça marche »**. La fonctionnalité est validée à l'usage, pas seulement par
+les tests.
 Fiche : `RoadMap & Project Pipeline/LOT 028 - Envie du moment [CLOTURE].md`.
 Niveau d'audit **relevé de Standard à Dur par Codex lui-même** (zone sensible
 `src/services/gemini.js` + valeurs traversant des frontières externes persistées).
@@ -40,8 +86,8 @@ tenait compte. Branché dans ce lot (décision 3).
 | Preuve par retrait | ✅ 2026-08-02 — **13 mutations / 13 rouges nommées, 0 nulle** |
 | Validation unifiée | ✅ 2026-08-02 — **types OK · 952/952 Vitest · 216/216 Pytest · build OK** |
 | Vérification visuelle | ✅ 2026-08-02 (app lancée en local) |
-| Essai réel de Joel | ⏳ **seul point restant** |
-| Publication | ⏳ |
+| Essai réel de Joel | ✅ 2026-08-02 — **essayé et concluant** |
+| Publication | ✅ **V5.16 le 2026-08-02** |
 
 **PREMIER AUDIT LANCÉ PAR CLAUDE LUI-MÊME** (2026-08-02) : le pont `scripts/audit_bridge.py`,
 arrivé du projet jumeau le jour même, supprime le copier-coller manuel de Joel dans la boucle

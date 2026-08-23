@@ -1,12 +1,12 @@
 // SSOT du numéro de version. Pour changer la version partout :
 // modifier UNIQUEMENT cette ligne puis lancer `python scripts/sync_version.py`.
-export const APP_VERSION = '5.16.0';
+export const APP_VERSION = '5.17.0';
 
 // SSOT des modeles IA par role metier. Ne JAMAIS ecrire un nom de modele ailleurs.
 // REASONING : recettes, nutrition, transformation de texte (qualite avant tout).
 // FAST : suggestion de categorie, recherche d'emoji (volume, latence, cout).
 export const AI_ROLES = {
-  REASONING: 'gemini-3.6-flash',
+  REASONING: 'gemini-3.7-flash',
   FAST: 'gemini-3.5-flash-lite'
 };
 
@@ -35,8 +35,41 @@ export const MAX_EXTRA_INGREDIENTS = 6;
 // l'IA, sous le libellé « demande expresse » — donc avec l'autorité la plus haute du prompt.
 // La borne applicative ci-dessous est le vrai garde-fou ; `maxlength` n'est que le confort de
 // saisie. Un test vérifie que les deux disent le même nombre.
+//
+// LOT 029 — `MAX_EXCLUSIONS_CHARS` complète la série (finding F-012). Les trois champs libres
+// envoyés à l'IA sont désormais traités À L'IDENTIQUE. Ils ne l'étaient pas : le LOT 028 avait
+// protégé `envie` et `exceptions` sans toucher `exclusions`, dont l'exposition lui était
+// antérieure — trois champs voisins, trois traitements différents, et personne pour s'en
+// souvenir six mois plus tard. C'est cette asymétrie que ce lot referme.
 export const MAX_ENVIE_CHARS = 100;
 export const MAX_EXCEPTIONS_CHARS = 80;
+export const MAX_EXCLUSIONS_CHARS = 80;
+
+// SSOT DU PLAFOND DE LONGUEUR DES RÉPONSES IA (LOT 029, chantier D — panne réelle remontée
+// par Joel le 2026-08-03 : « j'ai quand même ce message la plupart du temps avec les envies
+// du moment »).
+//
+// CE PLAFOND EST PARTAGÉ AVEC LES JETONS DE RÉFLEXION du modèle (`thinkingLevel: 'high'`) :
+// ce n'est donc PAS « la taille de la recette », c'est « réflexion + recettes ».
+//
+// ⚠️ HISTORIQUE RECTIFIÉ (finding F-05 de l'audit Codex du 2026-08-03). Cette note affirmait
+// que 16 384 avait causé la panne du LOT 029. C'EST FAUX, et le laisser écrit enverrait le
+// prochain mainteneur relever le plafond au prochain JSON illisible, au lieu de regarder la
+// réponse brute :
+//   · LOT 026 : 8 192 → 16 384. Vraie troncature, vrai correctif.
+//   · LOT 029 : 16 384 → ci-dessous. **Aucune panne de troncature n'a jamais été observée.**
+//     Les réponses mesurées dans le navigateur de Joel consommaient ~10 500 jetons sur 65 536
+//     et s'arrêtaient normalement (`finishReason: STOP`). La panne venait d'ailleurs : une
+//     consigne ambiguë faisait écrire au modèle des guillemets simples comme délimiteurs
+//     (cf. `REGLE_GUILLEMETS`, `src/services/gemini.js`).
+// Ce plafond est donc une PRÉVENTION confortable, pas la réparation d'un incident.
+//
+// Valeur retenue : le MAXIMUM que le modèle accepte en sortie (vérifié sur la documentation
+// Google le 2026-08-03 pour `gemini-3.7-flash`). On paie les jetons RÉELLEMENT produits,
+// jamais le plafond : un plafond haut ne coûte rien tant que les réponses restent courtes.
+// ⚠️ À revérifier si le modèle de `AI_ROLES.REASONING` change : ce plafond est une propriété
+// DU MODÈLE, pas un choix libre. Trop haut, l'API rejette la requête.
+export const MAX_OUTPUT_TOKENS_IA = 65536;
 
 // SSOT du PÉRIMÈTRE DU FICHIER DE SAUVEGARDE (LOT 015, chantier 10a).
 // L'export sérialisait `state` en ENTIER : partaient donc dans le fichier la vue courante,
