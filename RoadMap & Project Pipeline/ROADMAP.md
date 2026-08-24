@@ -109,7 +109,7 @@ domicile par finding, relu à chaque démarrage de session.
 
 | Sujet | Priorité | État au 2026-08-02 |
 |---|---|---|
-| [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | 🟠 **OUVERT — le seul vrai chantier restant.** Les 6 findings re-mesurés et tous confirmés : 47 `<div>` cliquables, 0 attribut d'accessibilité, 0 règle « réduire les animations », cibles tactiles à 32 et 22 px pour un standard de 44. Effort 1-2 j |
+| [Accessibilité et animations](Backlog/BACKLOG%20-%20Accessibilite%20et%20animations.md) | Basse | ⚫ **FERMÉ — décision de Joel du 2026-08-04, non ouvert.** La mesure « cibles tactiles » qui semblait toucher Joel au quotidien s'est révélée fausse (la zone cliquable de la liste de courses est toute la ligne, pas le petit carré) ; le reste ne concerne que lecteurs d'écran / préférences d'animation, sans bénéfice pour un usage personnel |
 | [Durcissements import et panier](Backlog/BACKLOG%20-%20Durcissements%20import%20et%20panier.md) | — | ➡️ **MIGRÉE** vers `audits/BACKLOG_TECHNIQUE.md` (findings **F-001 à F-010**) : ce n'étaient pas des chantiers mais des findings d'audit, et leur place est au registre technique. Fiche conservée pour la trace de l'origine |
 | [Régressions de la migration](Backlog/BACKLOG%20-%20Regressions%20de%20la%20migration.md) | — | ✅ **FERMÉE** — zéro case non cochée. Conservée pour son **§5 « faux morts »**, garde-fou permanent : à relire avant de déclarer un comportement « perdu à la migration » |
 | [Second rangement de `app.js`](Backlog/BACKLOG%20-%20Second%20rangement%20de%20app.js.md) | — | ✅ **FERMÉE** — absorbée par les LOTS 017 et 018 (publiés en 5.11). Cible « sous 700 lignes » dépassée : `js/app.js` est à **568** |
