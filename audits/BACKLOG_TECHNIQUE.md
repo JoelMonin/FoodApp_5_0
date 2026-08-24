@@ -55,21 +55,33 @@ un finding — elle reste dans
   durcissement **dépasse l'oracle** — c'est un changement de comportement à faire valider,
   pas un portage.
 
-### [F-002] Restauration hors ligne puis reconnexion : jamais testée (moteur de synchro)
+### [F-002] Restauration hors ligne puis reconnexion : jamais PROUVÉE par un test (moteur de synchro)
 
 - **Origine** : audit Gemini du LOT 015, 2026-07-30 — antérieur à ce lot, non aggravé par lui.
-- **Gravité** : **la plus élevée du registre** — perte de données silencieuse si le scénario
-  se réalise.
+- **Gravité RÉVISÉE À BASSE le 2026-08-04**, après relecture demandée par Joel — cf. §DÉCISION
+  ci-dessous. Elle était annoncée « la plus élevée du registre » ; c'était une erreur de
+  méthode : la gravité d'une CONSÉQUENCE (perte silencieuse) avait été prise pour l'urgence
+  d'un correctif, sans peser la PROBABILITÉ. Le scénario exige trois conditions à la fois —
+  restaurer un fichier JSON (rare), sans réseau (rare), ET un échec du garde-fou déjà en place
+  (non démontré) — du même ordre que jouer trois fois à pile ou face contre le hasard.
 - **Où** : moteur de synchro, `src/services/sync.js` (reprise sur échec du LOT 007).
-- **Le défaut** : restaurer une sauvegarde sans réseau planifie un envoi qui échoue. Rien ne
-  garantit qu'à la reconnexion c'est bien l'état **restauré** qui part, et non l'ancien
-  contenu du cloud qui revient l'écraser. La reprise sur échec existe, **ce scénario précis
-  n'est couvert par aucun test**.
-- **Ce que Joel verrait** : un message de restauration réussie, puis ses données d'avant qui
-  reviennent toutes seules quelques instants plus tard. Sans aucun avertissement.
-- **Piste** : test d'intégration — restauration avec `fetch` en échec, puis reconnexion, et
-  vérifier le contenu réellement envoyé. Le LOT 015 a déjà fermé un trou voisin (la barrière
-  de quiescence) : sa mécanique de test sert de modèle.
+- **RELU SUR PIÈCE le 2026-08-04** — le garde-fou EXISTE et son intention est explicite dans
+  le code : au retour du réseau (`sync.js:428`), un pull ne s'exécute qu'APRÈS avoir renvoyé
+  toute modification en attente (`sync.js:185-195` — « jamais de pull destructif par-dessus
+  des modifs non envoyées »), et le drapeau « envoi en attente » est écrit sur disque
+  (`sync.js:90`), donc il survit à un redémarrage du navigateur. **Ce qui manque n'est pas la
+  protection, c'est la preuve qu'elle tient sur CET enchaînement précis** (restauration →
+  échec d'envoi → coupure → reconnexion) — aucun test ne joue cette séquence complète.
+- **Ce que Joel verrait SI le garde-fou échouait** : un message de restauration réussie, puis
+  ses données d'avant qui reviennent toutes seules quelques instants plus tard. Sans aucun
+  avertissement. (Scénario non observé, non reproduit — hypothèse de pire cas.)
+- **Piste, si jamais repris un jour** : test d'intégration — restauration avec `fetch` en
+  échec, puis reconnexion, et vérifier le contenu réellement envoyé. Le LOT 015 a déjà fermé
+  un trou voisin (la barrière de quiescence) : sa mécanique de test sert de modèle.
+- **⚠️ DÉCISION DE JOEL (2026-08-04) : CHANTIER NON OUVERT, volontairement.** « on ne touche
+  plus à l'appli […] je m'en fous ». Confirmé après relecture du vrai risque (rare × rare ×
+  non démontré) — pas une gravité mal évaluée qu'on aurait dû corriger. **Ne pas re-proposer**
+  sauf si une nouvelle information change la donne (ex. un vrai incident constaté).
 
 ### [F-003] Deux boutons inatteignables dans le pied de page du détail de recette
 

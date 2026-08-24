@@ -3,7 +3,28 @@
 > **Priorité :** Basse (long terme)
 > **Effort estimé :** 1-2 jours
 > **Source :** ULTRA_AUDIT_REPORT.md (2026-05-01) §"Vérifications Visuelles Recommandées"
-> **Statut :** OUVERT — **seul vrai chantier restant au backlog** (2026-08-02)
+> **Statut :** **FERMÉ — décision de Joel du 2026-08-04, volontairement non ouvert**
+
+## ⚠️ DÉCISION DE JOEL (2026-08-04) : CHANTIER NON OUVERT
+
+« on ne touche plus à l'appli […] je m'en fous ». Prise après relecture du vrai impact
+utilisateur (ci-dessous) — pas une urgence ignorée : le seul point qui touchait vraiment
+l'usage quotidien de Joel s'est révélé être une **mesure fausse** (cf. correction du
+2026-08-04 juste en dessous). **Ne pas re-proposer** sauf nouvelle information.
+
+## ⚑ CORRECTION DU 2026-08-04 — LA MESURE « CIBLES TACTILES » ÉTAIT TROMPEUSE
+
+Cette fiche affirmait : « le point qui touche Joel tous les jours » à propos des cases à
+cocher de la liste de courses (22×22 px, sous le standard 44 px). **Vérifié sur le code
+(`src/ui/shopping.js:19-22`) : c'est FAUX.** 22 px est la taille du CARRÉ DESSINÉ, mais la
+zone cliquable est `onclick` sur **toute la ligne de l'article** (`.shop-item`), pas sur le
+petit carré seul. Un doigt touchant n'importe où sur « 🥕 Carottes » coche l'article — aucun
+problème de précision tactile là où l'usage réel de Joel se passe (faire ses courses).
+
+Restent réels, mais mineurs : les boutons d'en-tête de modale (imprimer, plein écran, fermer)
+à 32×32 px — cliqués rarement, à l'arrêt, sans conséquence en cas de clic raté. Le reste du
+chantier (ARIA, `<div>` cliquables, `prefers-reduced-motion`) sert les lecteurs d'écran et les
+utilisateurs sensibles au mouvement — bénéfice nul pour Joel sur une app à usage personnel.
 
 ## ⚑ RE-VÉRIFIÉ LE 2026-08-02 — les 6 findings sont tous encore vivants
 
